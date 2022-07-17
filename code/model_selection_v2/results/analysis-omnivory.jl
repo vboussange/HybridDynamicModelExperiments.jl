@@ -7,7 +7,7 @@ using FileIO, JLD2
 using Statistics, LinearAlgebra, Distributions
 using PyPlot, Printf
 using DataFrames
-using EcologyInformedML
+using MiniBatchInference
 using Glob
 plotting = false
 

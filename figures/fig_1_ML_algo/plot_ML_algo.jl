@@ -6,7 +6,7 @@ using FileIO, JLD2
 using Statistics, LinearAlgebra, Distributions
 using PyPlot, PyCall, Printf
 using DataFrames
-using EcologyInformedML
+using MiniBatchInference
 using Glob
 using UnPack
 include("../format.jl")

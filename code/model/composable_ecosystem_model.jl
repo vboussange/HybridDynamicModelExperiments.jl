@@ -6,7 +6,7 @@ for higher trophic levels
 =#
 using DiffEqFlux, Flux
 using OrdinaryDiffEq
-using EcologyInformedML
+using MiniBatchInference
 
 """
     EcosystemModel(f1, f2, p1, p2, ds)

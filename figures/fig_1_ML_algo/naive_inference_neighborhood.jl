@@ -14,7 +14,7 @@ using Distributions
 using LinearAlgebra
 using LaTeXStrings
 using UnPack, ProgressMeter
-using EcologyInformedML
+using MiniBatchInference
 using Revise
 include("../../parameter_inference/3-species-model/model/composable_ecosystem_model.jl")
 

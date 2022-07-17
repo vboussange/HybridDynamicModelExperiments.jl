@@ -32,12 +32,11 @@ using Distributions
 using LinearAlgebra
 using LaTeXStrings
 using UnPack, ProgressMeter
-using EcologyInformedML
+using MiniBatchInference
 using Revise
 import Random; Random.seed!(10)
 
 include("../model/composable_ecosystem_model.jl")
-include("../inference_exploration/parse_utils.jl") # should be moved to ecosystem model at some point
 if length(ARGS) > 0
     @unpack noise, datasize, step = parse_commandline()
 else

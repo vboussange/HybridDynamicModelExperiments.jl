@@ -20,7 +20,7 @@ using Distributions
 using LinearAlgebra
 using LaTeXStrings
 using UnPack, ProgressMeter
-using EcologyInformedML
+using MiniBatchInference
 using Revise
 using Random; Random.seed!(101)
 
@@ -136,7 +136,7 @@ function simu(pars)
     u0s_init = reshape(u0s_init,:)
     data_set_w_noise = data_set_w_noise[2:3,:] #only predator and consumers are considered  
     
-    stats = @timed EcologyInformedML._minibatch_MLE(ranges = ranges,
+    stats = @timed MiniBatchInference._minibatch_MLE(ranges = ranges,
                                 optimizers = optimizers,
                                 p_init = p_init,
                                 data_set = data_set_w_noise, 

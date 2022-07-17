@@ -26,7 +26,7 @@ using Distributions
 using LinearAlgebra
 using LaTeXStrings
 using UnPack, ProgressMeter
-using EcologyInformedML
+using MiniBatchInference
 using Revise
 using Random; Random.seed!(1012)
 

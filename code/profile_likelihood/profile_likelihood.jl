@@ -13,7 +13,7 @@ using Distributions
 using LinearAlgebra
 using LaTeXStrings
 using UnPack, ProgressMeter
-using EcologyInformedML
+using MiniBatchInference
 using Revise
 using PyPlot
 
@@ -113,7 +113,7 @@ for (i,datasize) in enumerate([50,100,200,400])
     θ = [data_set[:,1]; em_true.p]
 
     # EIML loss
-    ranges = EcologyInformedML._get_ranges(group_size, datasize)
+    ranges = MiniBatchInference._get_ranges(group_size, datasize)
     u0s_init_EIML = reshape(data_set[:,first.(ranges),:],:)
     θ_EIML = [u0s_init_EIML;em_true.p]
 

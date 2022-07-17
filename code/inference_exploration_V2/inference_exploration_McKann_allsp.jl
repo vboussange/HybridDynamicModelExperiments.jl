@@ -30,7 +30,7 @@ using Distributions
 using LinearAlgebra
 using LaTeXStrings
 using UnPack, ProgressMeter
-using EcologyInformedML
+using MiniBatchInference
 using Revise
 import Random; Random.seed!(3)
 include("../model/composable_ecosystem_model.jl")

@@ -4,7 +4,7 @@ Plotting two time series to illustrate the functioning of algorithm
 Problem : difficult to put nice curly braces to emphasize on the chunks
 =#
 cd(@__DIR__)
-using PyCall, PyPlot, EcologyInformedML, LaTeXStrings
+using PyCall, PyPlot, MiniBatchInference, LaTeXStrings
 py"""
 import os
 os.environ["PATH"]='/usr/local/opt/ruby/bin:/usr/local/lib/ruby/gems/3.0.0/bin:/Users/victorboussange/.gem/ruby/2.6.0/bin:/usr/local/anaconda3/bin:/usr/local/anaconda3/condabin:/Applications/Visual Studio Code.app/Contents/Resources/app/bin:/usr/local/anaconda3/bin:/Applications/Julia-1.0.app/Contents/Resources/julia/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/X11/bin'
@@ -19,7 +19,7 @@ rcParams["text.latex.preamble"] =
 
 
 using JLD2, UnPack
-using EcologyInformedML:fontdict,lss
+using MiniBatchInference:fontdict,lss
 @load "ode_datas_wnoise.jld2"
 @unpack losses, θs, ranges, p_labs = res
 

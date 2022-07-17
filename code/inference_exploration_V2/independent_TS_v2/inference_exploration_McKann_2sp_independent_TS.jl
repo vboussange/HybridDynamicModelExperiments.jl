@@ -12,7 +12,7 @@ The goal is
 
 * Problem
 For now, the initialisation of the u0s at each chunk is performed based on the data, which is cheating.
-Major modifications would be required to EcologyInformedML.jl.
+Major modifications would be required to MiniBatchInference.jl.
 
 An other important problem is also that the continuity term cannot yet be used.
 * Results
@@ -30,7 +30,7 @@ using Distributions
 using LinearAlgebra
 using LaTeXStrings
 using UnPack, ProgressMeter
-using EcologyInformedML
+using MiniBatchInference
 using Revise
 using Random; Random.seed!(42)
 

@@ -20,12 +20,11 @@ using Distributions
 using LinearAlgebra
 using LaTeXStrings
 using UnPack, ProgressMeter
-using EcologyInformedML
+using MiniBatchInference
 using Revise
 import Random; Random.seed!(52)
 
 include("../model/composable_ecosystem_model.jl")
-include("../inference_exploration/parse_utils.jl") # should be moved to ecosystem model at some point
 
 function loss_1sp(data, pred, ic_term)
     l =  mean((data[:,:] - pred[2:3,:]).^2)
@@ -50,7 +49,7 @@ u0_true = [0.8,0.8,2.]
 verbose = true
 info_per_its = 200
 plotting = false
-loop = true
+loop = false
 nruns = 3
 
 alg = Tsit5()
@@ -119,7 +118,7 @@ function simu(pars)
     u0s_init = reshape(u0s_init,:)
     data_set_w_noise = data_set_w_noise[2:3,:] #only predator and consumers are considered    
 
-    stats = @timed EcologyInformedML._minibatch_MLE(ranges = ranges,
+    stats = @timed MiniBatchInference._minibatch_MLE(ranges = ranges,
                                 optimizers = optimizers,
                                 p_init = p_init,
                                 data_set = data_set_w_noise, 

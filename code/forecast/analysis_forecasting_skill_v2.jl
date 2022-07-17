@@ -9,7 +9,7 @@ McKann model, where investigated parameter is x_p
 using FileIO, JLD2
 using Statistics, LinearAlgebra, Distributions
 using PyPlot, Printf
-using EcologyInformedML
+using MiniBatchInference
 using DataFrames
 using Glob, Dates
 include("$(@__DIR__)/extrapolate_data.jl")
@@ -65,7 +65,7 @@ if false
     dfg_datasize = groupby(df_forecasting_skill, ["datasize"], sort = true)
 
     color_palette = ["tab:blue", "tab:orange", "tab:red"]
-    lss = EcologyInformedML.lss
+    lss = MiniBatchInference.lss
 
 
     fig, axs = subplots(1,2, sharey=true)

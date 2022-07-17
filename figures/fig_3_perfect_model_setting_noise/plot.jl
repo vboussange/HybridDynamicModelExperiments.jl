@@ -9,7 +9,7 @@ cd(@__DIR__)
 using FileIO, JLD2
 using Statistics, LinearAlgebra, Distributions
 using PyPlot, Printf
-using EcologyInformedML
+using MiniBatchInference
 using DataFrames
 using Glob
 color_palette = ["tab:blue", "tab:orange", "tab:red"]

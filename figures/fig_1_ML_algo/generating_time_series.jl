@@ -12,7 +12,7 @@ using Distributions
 using LinearAlgebra
 using LaTeXStrings
 using UnPack, ProgressMeter
-using EcologyInformedML
+using MiniBatchInference
 using Revise
 include("../../parameter_inference/3-species-model/model/composable_ecosystem_model.jl")
 
@@ -82,6 +82,6 @@ for u0_true in u0s_true
     push!(ode_datas_wnoise, data_set_w_noise)
 end
 
-ranges = EcologyInformedML._get_ranges(group_size, datasize)
+ranges = MiniBatchInference._get_ranges(group_size, datasize)
 
 @save "ode_datas_wnoise.jld2" ode_datas_wnoise tsteps ranges

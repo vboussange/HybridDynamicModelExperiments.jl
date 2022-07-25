@@ -13,7 +13,7 @@ using Distributions
 using LinearAlgebra
 using LaTeXStrings
 using UnPack, ProgressMeter
-using MiniBatchInference
+using EcologyInformedML
 using Revise
 using PyPlot
 using Random; Random.seed!(2)
@@ -92,7 +92,7 @@ for i in 1:length(axs)
 end
 axs[1].legend()
 for ax in axs
-    ax.set_xlabel("Time");
+    ax.set_xlabel("Time, t");
     # ax.set_yscale("symlog")
 end
 
@@ -114,11 +114,12 @@ end
 fig.legend(ncol=2,
             handles=[
                     Line2D([0], [0], color="grey", label=L"x(t)"),
-                    Line2D([0], [0], color="grey", linestyle="--", label=L"x_{\delta x_0}(t)"),
+                    Line2D([0], [0], color="grey", linestyle="--", label=L"x_{\delta p}(t)"),
             ],
             loc="upper center",
             bbox_to_anchor = (0.5,1.1), 
             fontsize=10)
+axs[3].set_xlabel("Time, t")
 fig.tight_layout()
 display(fig)
 fig.savefig("perturbed_p.png", dpi = 300, bbox_inches="tight")
@@ -173,6 +174,7 @@ fig.legend(ncol=2,
             bbox_to_anchor = (0.5,1.1),
             fontsize=10)
 fig.tight_layout()
+axs[3].set_xlabel("Time, t")
 display(fig)
 fig.savefig("perturbed_ICs.png", dpi = 300, bbox_inches="tight")
 
@@ -182,7 +184,7 @@ Plotting sensitivities for perturbed and unperturbed problem.
 =#
 color_palette = ["tab:red", "tab:blue", "tab:green"]
 ylabels = [L"\frac{\partial R(t)}{\partial x_p}", L"\frac{\partial C(t)}{\partial x_p}", L"\frac{\partial P(t)}{\partial x_p}"]
-fig, axs = plt.subplots(3,1, figsize = (5,2,5))
+fig, axs = plt.subplots(3,1, figsize = (5.2,5))
 
 for i in 1:length(axs)
     axs[i].plot(tsteps .- 500., (dp[2][i,:]), label = "p", color = color_palette[i])
@@ -191,7 +193,7 @@ for i in 1:length(axs)
 end
 axs[1].legend()
 for ax in axs
-    ax.set_xlabel("Time");
+    ax.set_xlabel("Time, t");
     # ax.set_yscale("symlog")
 end
 

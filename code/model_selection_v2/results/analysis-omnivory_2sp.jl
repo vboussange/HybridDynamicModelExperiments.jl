@@ -12,7 +12,7 @@ using Glob
 plotting = false
 
 function get_results_AIC_omnivory_2sp(df_results)
-    [df_results[!,stats] = fill(NaN,size(df_results,1)) for stats in ["loglikelihood", "AIC_likelihood", "AIC_RSS", "AICc_likelihood", "ΔAIC_likelihood", "ΔAICc_likelihood", "ΔRSS",]]
+    [df_results[!,stats] = fill(NaN,size(df_results,1)) for stats in ["loglikelihood", "AIC_likelihood", "AIC_RSS", "AICc_likelihood", "ΔAIC_likelihood", "ΔAICc_likelihood", "ΔRSS","W"]]
     println(count(df_results.training_success), " / ", size(df_results,1), " simulations were successful.\n Others deleted.")
     df_results = df_results[df_results.training_success .|> Bool,:] # deleting unsuccessfull columns
     for r in eachrow(df_results)
@@ -25,7 +25,7 @@ function get_results_AIC_omnivory_2sp(df_results)
         loglikelihood = sum(logpdf(MvNormal(data_set[2:3,i], Σ), data_set_simu[2:3,i]) for i in 1:size(data_set_simu,2) ) 
         AIC_likelihood = - 2 * loglikelihood + 2 * k # https://en.wikipedia.org/wiki/Akaike_information_criterion
         AICc_likelihood = AICc(AIC_likelihood, k, m)
-        r[["loglikelihood", "AIC_likelihood", "AICc_likelihood"]] .= (loglikelihood, AIC_likelihood, AICc_likelihood) ./ length(r.res.ranges)
+        r[["loglikelihood", "AIC_likelihood", "AICc_likelihood"]] .= (loglikelihood, AIC_likelihood, AICc_likelihood)
     end
 
     dfg = groupby(df_results, ["noise"])
@@ -60,7 +60,11 @@ function get_results_AIC_omnivory_2sp(df_results)
             end
         end
 
-        sort!(df_standard_model,"ω")
+        sort!(df_standard_model,"ω"); sort!(df_omnivory_model,"ω")
+        @assert all(df_standard_model.ω .== df_omnivory_model.ω)
+        df_standard_model.W .= exp.( .- df_standard_model.ΔAIC_likelihood / 2 ) ./ (exp.( .- df_standard_model.ΔAIC_likelihood / 2 ) .+ exp.(.- df_omnivory_model.ΔAIC_likelihood / 2))
+        df_omnivory_model.W .= exp.( .- df_omnivory_model.ΔAIC_likelihood / 2 ) ./ (exp.( .- df_standard_model.ΔAIC_likelihood / 2 ) .+ exp.(.- df_omnivory_model.ΔAIC_likelihood / 2))
+
         println("We found $(count(df_standard_model.ΔAIC_likelihood .> 2.)) / $(size(df_standard_model,1)) points with ΔAIC_likelihood > 2")
         println("We found $(count(df_standard_model.ΔRSS .> 0.)) / $(size(df_standard_model,1)) points with positive ΔRSS")
         println(df[:,["scenario","ω","AIC_likelihood", "ΔAIC_likelihood", "RSS", "ΔRSS"]])

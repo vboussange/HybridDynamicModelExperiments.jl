@@ -1,8 +1,6 @@
 #=
-v2 : Plot AIC without ecosystem diagram
-v2.2: using data from model_slection_v2
+Plotting Aikaike weights
 
-/!\ data must be first preprocessed by script "omnivory hypothesis"
 =#
 
 cd(@__DIR__)
@@ -15,10 +13,9 @@ using Glob
 using UnPack
 include("../format.jl")
 include("../../code/model_selection_v2/results/analysis-omnivory.jl") # crunching the AIC 
-include("../../code/model_selection_v2/results/analysis-omnivory_1sp.jl") # crunching the AIC 
 include("../../code/model_selection_v2/results/analysis-omnivory_2sp.jl") # crunching the AIC 
 
-scenario = "2sp"
+scenario = "allsp"
 date = "2022-07-14"
 
 if scenario == "2sp"
@@ -32,7 +29,7 @@ end
 @load "../../code/model_selection_v2/results/$(date)/$(scenario_name).jld2" df_results
 df_standard_model_array, df_omnivory_model_array = get_results(df_results)
 
-fig, axs = plt.subplots(2, 3, sharey="row", figsize = (5.2,5))
+fig, axs = plt.subplots(1, 3, sharey="row", figsize = (5.2,2.5))
 fig.set_facecolor("None")
 [ax.set_facecolor("None") for ax in axs]
 
@@ -47,53 +44,40 @@ idx_noise = 1:1:3 # noise level to be plotted
 ωspan = [-0.025, 0.525]
 ylim = 3000
 s_marker = 10
-for ax in axs
-    ax.set_xlim(ωspan) # ω span
-    ax.fill_between(ωspan, 0, 2, facecolor = "tab:grey", alpha = 0.1)
-    ax.fill_between(ωspan, 4, 8, facecolor = "tab:grey", alpha = 0.3)
-    ax.fill_between(ωspan, 8, ylim, facecolor = "tab:grey", alpha = 0.8)
-end
-
-axs[2].annotate("no support",[0.175, 1.])
-axs[2].annotate("weak support",[0.1, 6.])
-axs[1].annotate("strong support",[0.01, ylim*0.6])
-gcf()
 
 # Plotting
 colors = ["tab:blue", "tab:orange"]
-hyp_lab = ["Omnivory hypothesis, \n"*L"\Delta" *"AIC"*L"_{\mathcal{M}_1}", "No omnivory hypothesis, \n"*L"\Delta" *"AIC"*L"_{\mathcal{M}_2}", ]
+hyp_lab = ["No omnivory hypothesis, \n"*L"{\mathcal{M}_1}", "Omnivory hypothesis, \n"*L"{\mathcal{M}_2}", ]
 handles = []
 for (m,df_model_array) in enumerate([df_standard_model_array,df_omnivory_model_array])
     for (i,_df) in enumerate(df_model_array[idx_noise])
-        axs[1,i].set_title(L"r = %$(_df.noise[1])")
+        axs[i].set_title(L"r = %$(_df.noise[1])")
         if i == 1
-            hdl = axs[1,i].scatter(_df.ω, _df[:,:ΔAICc_likelihood], c  = colors[m], label = hyp_lab[m], s = s_marker )
+            hdl = axs[i].scatter(_df.ω, _df[:,:W], c  = colors[m], label = hyp_lab[m], s = s_marker )
             push!(handles, hdl)
         else
-            axs[1,i].scatter(_df.ω, _df[:,:ΔAICc_likelihood], c  = colors[m], s = s_marker )
+            axs[i].scatter(_df.ω, _df[:,:W], c  = colors[m], s = s_marker )
         end
-        axs[1,i].set_yscale("log")
-        axs[1,i].set_xticks([])
+        axs[i].set_xticks([0., 0.2, 0.4])
+        axs[i].set_yticks([0.:0.2:1.0;])
 
-        axs[2,i].scatter(_df.ω, _df[:,:ΔAICc_likelihood], c  = colors[m], s = s_marker)
-        axs[2,i].set_xticks([0., 0.2, 0.4])
     end
 end
-axs[2,2].set_xlabel("Strength of omnivory ("*L"\omega"*")")
+axs[2].set_xlabel("Strength of omnivory, "*L"\omega")
 
 # fig.tight_layout()
 gcf()
 
 # subfigs[2].supylabel(L"\Delta"*"AIC",fontsize=15)
-fig.text(0.02, 0.5, L"\Delta"*"AIC", va="center", rotation="vertical", fontsize= 10)
+fig.text(0.02, 0.5, "Model probability, "*L"w_{\mathcal{M}_i}", va="center", rotation="vertical", fontsize= 10)
 display(fig)
 
-axs[2].set_ylim(-0.5,8)
-axs[1].set_ylim(8,ylim)
+axs[2].set_ylim(-0.2,1.2)
+# axs[1].set_ylim(10,ylim)
 
 
 _let = ["A","B","C","D"]
-for (i,ax) in enumerate([axs[1,1],axs[1,2], axs[1,3]])
+for (i,ax) in enumerate(axs)
     _x = -0.1
     ax.text(_x, 1.05, _let[i],
         fontsize=12,
@@ -106,7 +90,7 @@ for (i,ax) in enumerate([axs[1,1],axs[1,2], axs[1,3]])
 end
 
 fig.subplots_adjust(hspace=0.1, wspace = 0.1)
-fig.legend(ncol=2, loc="upper center", bbox_to_anchor=(0.5, 1.05), fontsize = 10)
+fig.legend(ncol=2, loc="upper center", bbox_to_anchor=(0.5, 1.2), fontsize = 10)
 
 display(fig)
 
@@ -117,13 +101,13 @@ Printing numerical values
 =#
 using Latexify
 for df in df_standard_model_array[idx_noise]
-    tab_stats = latexify(df[:,[:ω,:RSS,:ΔAIC_likelihood]],env=:tabular,fmt="%.7f",latex=false) #|> String
+    tab_stats = latexify(df[:,[:ω,:RSS,:ΔAIC_likelihood,:W]],env=:tabular,fmt="%.7f",latex=false) #|> String
     io = open("standard_model_AIC_r=$(df.noise[1])_$scenario.tex", "w")
     write(io,tab_stats);
     close(io)
 end
 for df in df_omnivory_model_array[idx_noise]
-    tab_stats = latexify(df[:,[:ω,:RSS,:ΔAIC_likelihood]],env=:tabular,fmt="%.7f",latex=false) #|> String
+    tab_stats = latexify(df[:,[:ω,:RSS,:ΔAIC_likelihood,:W]],env=:tabular,fmt="%.7f",latex=false) #|> String
     io = open("omnivory_model_AIC_r=$(df.noise[1])_$scenario.tex", "w")
     write(io,tab_stats);
     close(io)

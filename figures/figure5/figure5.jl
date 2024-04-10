@@ -31,7 +31,7 @@ include("../../src/3sp_NN_model.jl")
 include("../../src/utils.jl")
 
 # ## Preprocessing
-result_path = "../../scripts/model_selection_water_dep_r_model/distributed/results/2023-11-30/3sp_NN_param_small_sim.jld2"
+result_path = "../../scripts/inference_3sp_NN_model/results/2023-11-30/inference_3sp_NN_model.jld2"
 
 @load joinpath(result_path) results data_arr p_trues
 

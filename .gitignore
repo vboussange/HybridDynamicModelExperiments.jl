@@ -10,6 +10,8 @@ test/test.jl
 benchmarks/*
 *.zip
 *.txt
+ParametricModels.jl/*
+PiecewiseInference.jl/*
 # code/for_frank/*
 
 # gitingore from https://github.com/github/gitignore/blob/main/TeX.gitignore

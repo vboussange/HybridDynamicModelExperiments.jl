@@ -105,8 +105,9 @@ function initialize_params_and_constraints(model::HybridEcosystemModel)
 end
 
 function create_simulation_parameters(data_arr, p_trues)
-    group_sizes = [9]
-    noises = 0.1:0.1:0.3
+    group_sizes = [11]
+    # noises = 0.1:0.1:0.3
+    noises = [0.1]
     nruns = 10
     adtypes = [Optimization.AutoZygote()]
 

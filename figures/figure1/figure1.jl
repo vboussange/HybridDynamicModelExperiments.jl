@@ -15,10 +15,10 @@ using LaTeXStrings
 include("../format.jl")
 # LATEX needed
 
-@py begin
-    import os
-    os.environ["PATH"]="/opt/homebrew/Caskroom/mambaforge/base/bin:/opt/homebrew/Caskroom/mambaforge/base/condabin:/Users/victorboussange/.juliaup/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
-end
+# @py begin
+#     import os
+#     os.environ["PATH"]= # path to repo of binary with latex
+# end
 rcParams["text.usetex"] = true
 rcParams["text.latex.preamble"] = 
                                 "\\usepackage{amsmath}

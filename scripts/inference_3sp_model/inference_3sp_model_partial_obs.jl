@@ -1,8 +1,8 @@
 # Refactored code for running multiple inference simulations
 cd(@__DIR__)
 using JLD2, DataFrames, Random, Dates, ProgressMeter, Distributed, ComponentArrays
-include("../../../src/utils.jl")
-include("../../../src/run_simulations.jl")
+include("../../src/utils.jl")
+include("../../src/run_simulations.jl")
 
 const SimulFile = "simul_partial_observations.jl"
 const Epochs = [5000]

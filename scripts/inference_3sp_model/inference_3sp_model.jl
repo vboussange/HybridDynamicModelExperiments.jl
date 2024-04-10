@@ -46,7 +46,6 @@ function generate_df_results()
             med_par_err = Float64[], 
             loss = Float64[], 
             time = Float64[], 
-            mem = Float64[],
             res = Any[], 
             adtype = Any[])
 end

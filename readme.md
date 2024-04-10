@@ -10,7 +10,7 @@ This repository contains the code used for the paper
 
 ## Installation
 All scripts are written in the Julia programming language. We recommend installing Julia with [`juliaup`](https://github.com/JuliaLang/juliaup).
-The scripts can be executed out of the box by activating the environment stored in the `Project.toml`, `CondaPkg.toml` and `Manifest.toml` files in the root folder, but before doing so you are required to add a registry that tracks `PiecewiseInference.jl` and a dependency called `ParametricModels.jl`. To do so, open Julia and type the following
+The scripts can be executed by activating the environment stored in the `Project.toml`, `CondaPkg.toml` and `Manifest.toml` files in the root folder. However, this environment depends on `PiecewiseInference.jl` and a dependency called `ParametricModels.jl`, which are not yet registered in the official Julia repository. To circumvent this issue, you simply need to add a custom registry tracking those unregistered packages to your Julia installation:
 
 ```julia
 julia> using Pkg

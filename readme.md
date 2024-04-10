@@ -1,12 +1,24 @@
 This repository contains the code used for the paper 
 
-> *Mini-batching ecological data to improve ecosystem models with Machine Learning*, Boussange, V., Vilimelis-Aceituno, P., Pellissier, L., (2022)
+> *Partitioning time series to improve process-based models with machine learning*
 
-- `code/` contains all scripts related to the simulation runs
+## Content
+
+- `ParametricModels.jl/` contains a library wrapper around `OrdinaryDiffEq.jl`, providing the `AbstractModel` type required by `PiecewiseInference.jl`
+- `PiecewiseInference.jl/` contains the eponym Julia package implementing inverse modelling framework. All functions are self documented, and will be compiled into a documentation website upon publication. In a Julia session, type
+```julia
+julia> using PiecewiseInference
+julia> ?inference
+```
+to get a MWE on how to use `PiecewiseInference.jl`
+- `src/` contains utility functions and types specific to the experiments presented in the manuscript, such as e.g. models and the loss function
+- `scripts/` contains all scripts related to the actual simulation runs
 - `figure/` contains all scripts to generate the manuscript figures and crunch the raw simulation results.
 
-All scripts are written in the Julia programming language. A short description of the purpose of each script is placed in each script preamble.
-The scripts can be executed out of the box by activating the environment stored in the `Project.toml` and `Manifest.toml` files in the root folder.
+
+## Installation
+All scripts are written in the Julia programming language. We recommend installing Julia with [`juliaup`](https://github.com/JuliaLang/juliaup).
+The scripts can be executed out of the box by activating the environment stored in the `Project.toml`, `CondaPkg.toml` and `Manifest.toml` files in the root folder.
 
 To activate the environment in an interactive session, type in the Julia REPL
 
@@ -14,7 +26,15 @@ To activate the environment in an interactive session, type in the Julia REPL
 julia>] activate .
 julia>] instantiate
 ```
-To simply run a script, type in the terminal
+
+
+## Getting started
+To run a script, type in the terminal
 ```
-> julia --project=. name_of_the_script.jl
+julia --project=. name_of_the_script.jl
+```
+
+Start with
+```
+julia --project=. scripts/illustrate_converence/illustrate_convergence.jl
 ```

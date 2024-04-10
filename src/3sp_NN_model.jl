@@ -56,27 +56,27 @@ function HybridEcosystemModel(mp)
     HybridEcosystemModel(mp, I, J, st)
 end
 
-Base.@kwdef struct WaterDepEM{MP,II,JJ} <: Abstract3SPModel
+Base.@kwdef struct SimpleEcosystemModel3SPStar{MP,II,JJ} <: Abstract3SPModel
     mp::MP
     I::II
     J::JJ
 end
 
-function WaterDepEM(mp)
+function SimpleEcosystemModel3SPStar(mp)
     foodweb = DiGraph(3)
     add_edge!(foodweb, 2 => 1) # C to R
     add_edge!(foodweb, 3 => 2) # P to C
 
     I, J, _ = findnz(adjacency_matrix(foodweb))
 
-    WaterDepEM(mp, I, J)
+    SimpleEcosystemModel3SPStar(mp, I, J)
 end
 
 water_availability(t::T) where T = sin.(convert(T, Period) * t)
 
 growth_rate_resource(p, water) = p.r[1] * exp(-0.5*(water)^2 / p.s[1]^2)
 
-intinsic_growth_rate(::WaterDepEM, p, t) = [growth_rate_resource(p, water_availability(t)); p.r[2:end]]
+intinsic_growth_rate(::SimpleEcosystemModel3SPStar, p, t) = [growth_rate_resource(p, water_availability(t)); p.r[2:end]]
 
 # we need to redefine the simulate fn for `HybridEcosystemModel`, because nested component Arrays are incompatible with merge, so we bypass this utility
 import ParametricModels.simulate

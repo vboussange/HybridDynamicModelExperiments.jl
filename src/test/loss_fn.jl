@@ -46,5 +46,3 @@ end
                                 scale_prior_param)
     @test l isa Number
 end
-
-# TODO: implement other loss fn

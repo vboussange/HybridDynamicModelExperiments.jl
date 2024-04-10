@@ -2,22 +2,6 @@ using PythonCall, PythonPlot
 nx = pyimport("networkx")
 np = pyimport("numpy")
 
-
-function plot_foodweb(foodweb, pos, labs)
-    g_nx = nx.DiGraph(np.array(adjacency_matrix(foodweb)))
-
-    # shifting indices
-    labs = Dict(keys(labs) .- 1 .=> values(labs))
-
-    fig, ax = subplots(1)
-    nx.draw(g_nx, pos, ax=ax, node_color=species_colors, node_size=1000, labels=labs)
-    ax.set_facecolor("none")
-    fig.set_facecolor("none")
-    display(fig)
-    return fig, ax
-end
-
-
 # plotting
 using PythonPlot;
 function plot_time_series(data, model)
@@ -35,55 +19,6 @@ function plot_time_series(data, model)
     fig.set_facecolor("None")
     ax.set_facecolor("None")
     fig.legend()
-    display(fig)
-    return fig, ax
-end
-
-function plot_result_inf(res, data, model)
-    fig, ax = subplots()
-    tsteps = res.infprob.m.mp.kwargs[:saveat]
-    metadata = get_metadata(model)
-    N = size(data, 1)
-    for j in 1:length(res.ranges) # looping through all segments
-        for i in 1:N # looping through all species
-            ax.plot(tsteps[res.ranges[j]], res.pred[j][i, :], color=metadata.species_colors[i])
-        end
-    end
-
-    for i in 1:N
-        ax.plot(tsteps, data[i, :], label=metadata.node_labels[i], color=metadata.species_colors[i], linestyle="--")
-    end
-    # ax.set_yscale("log")
-    ax.set_ylabel("Species abundance")
-    ax.set_xlabel("Time (days)")
-    fig.set_facecolor("None")
-    ax.set_facecolor("None")
-    fig.legend()
-    display(fig)
-    return fig, ax
-end
-
-function plot_NN(res, p_true)
-    water_avail = reshape(sort!(water_availability.(tsteps)), 1, :)
-    model = res.infprob.m
-    st = model.st
-
-    p_nn_trained = res.p_trained.p_nn
-    gr = neural_net(water_avail, p_nn_trained, st)[1]
-
-    fig, ax = subplots(1)
-    ax.plot(water_avail[:],
-        gr[:],
-        label="Neural network",
-        linestyle="--")
-
-    gr_true = growth_rate_resource.(Ref(p_true), water_avail)
-    ax.plot(water_avail[:], gr_true[:], label="Ground truth")
-    ax.set_ylim(0, 2)
-    ax.set_xlim(-2, 2)
-    ax.legend()
-    xlabel("Water availability (normalized)")
-    ylabel("Resource basal growth rate")
     display(fig)
     return fig, ax
 end

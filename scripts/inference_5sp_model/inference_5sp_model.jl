@@ -1,4 +1,14 @@
-# Refactored code for running multiple inference simulations
+#=
+Running inference simulations with `SimpleEcosystemModel5SP`, for different meta parameter values.
+
+Inference simulations are ran in a distributed fashion; the first argument to
+the script corresponds to the number of processes used.
+
+```
+julia scripts/inference_3sp/inference_3sp.jl 10
+```
+will run the script over 10 processes.
+=#
 cd(@__DIR__)
 using JLD2, DataFrames, Random, Dates, ProgressMeter, Distributed, ComponentArrays
 using Logging

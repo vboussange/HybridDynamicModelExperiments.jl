@@ -1,9 +1,10 @@
-# Simulations for illustrating convergence with different learning strategy in figure 1.
-#
-# Three learning strategies:
-# 1. No segmentation
-# 2. No segmentation with initial parameter values close to true parameter values
-# 3. Segmentation
+#= 
+Inference simulations wuth `SimpleEcosystemModel3SP` for illustrating convergence with different learning strategy in figure 1.
+Three learning strategies:
+1. No segmentation
+2. No segmentation with initial parameter values close to true parameter values
+3. Segmentation
+=#
 
 cd(@__DIR__)
 

@@ -1,5 +1,5 @@
 #=
-Call back function for MiniBatchInference
+Call back function for PiecewiseInference
 =#
 using PythonCall
 plt = pyimport("matplotlib.pyplot")

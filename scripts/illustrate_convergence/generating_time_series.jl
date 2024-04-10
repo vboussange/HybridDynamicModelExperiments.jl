@@ -1,6 +1,5 @@
 #=
-Plotting profile likelihood 
-for McKann model
+Generates a time series from simulating `SimpleEcosystemModel3SP`, further used to create figure 1.
 =#
 
 cd(@__DIR__)

@@ -1,5 +1,5 @@
 #=
-NN experiment figure, based on refactored code (revision 1.2)
+generating figure 4 of manuscript
 =#
 
 cd(@__DIR__)

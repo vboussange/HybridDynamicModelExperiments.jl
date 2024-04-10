@@ -1,9 +1,8 @@
 #=
-Generating figure 1. 
+Generating figure 3 of main manuscript. 
 
-Version following refactored scripts (revision 1.2). To get full figure, you
-need to compile `fig_3_tex/figure_3.tex`, which overlays graphical illustration
-of foodwebs on top of the figure produced by this script.
+To get full figure, you need to compile `fig_3_tex/figure_3.tex`, which overlays
+graphical illustration of foodwebs on top of the figure produced by this script.
 =#
 cd(@__DIR__)
 using Graphs

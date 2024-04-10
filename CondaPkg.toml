@@ -1,0 +1,6 @@
+[deps]
+pandas = ""
+matplotlib = ""
+networkx = ""
+seaborn = ""
+numpy = ""

@@ -1,9 +1,12 @@
 #=
 Settings for pyplot
 =#
+using PythonCall
+matplotlib = pyimport("matplotlib")
+plt = pyimport("matplotlib.pyplot")
+Line2D = matplotlib.lines.Line2D #used for legend
 
-rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
-
+rcParams = plt."rcParams"
 
 rcParams["font.size"] = 9
 rcParams["axes.titlesize"] = 10

@@ -1,5 +1,16 @@
+stdout/*
 *.code-workspace
+Manifest.toml
+*.pdf
 *.jld2
+.vscode
+test/test.jl
+*.png
+.CondaPkg
+benchmarks/*
+*.zip
+*.txt
+# code/for_frank/*
 
 # gitingore from https://github.com/github/gitignore/blob/main/TeX.gitignore
 

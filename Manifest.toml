@@ -1598,9 +1598,9 @@ version = "0.12.3"
 
 [[deps.ParametricModels]]
 deps = ["ComponentArrays", "DocStringExtensions", "LinearAlgebra", "OrdinaryDiffEq", "Requires", "SciMLBase", "Statistics", "UnPack"]
-path = "ParametricModels.jl"
+git-tree-sha1 = "1da0b5712399dbbfcc5549f50f18a651d71735bb"
 uuid = "ea05b012-1b06-4aec-a786-2a545e229cd0"
-version = "0.3.5"
+version = "0.3.4"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
@@ -1622,9 +1622,9 @@ version = "1.3.0"
 
 [[deps.PiecewiseInference]]
 deps = ["Bijectors", "ChainRulesCore", "ComponentArrays", "Distributions", "DocStringExtensions", "Flux", "ForwardDiff", "IterTools", "LaTeXStrings", "LinearAlgebra", "Optimisers", "Optimization", "OptimizationOptimJL", "OptimizationOptimisers", "OrdinaryDiffEq", "ParametricModels", "Reexport", "Requires", "Revise", "SciMLBase", "Statistics", "UnPack"]
-path = "PiecewiseInference.jl"
+git-tree-sha1 = "b84ea74daf79bd55a06f5e6ef8789e6df436ceb2"
 uuid = "27a201f4-b6a1-4745-b96e-0c27845dca54"
-version = "0.9.8"
+version = "0.9.7"
 
 [[deps.Pipe]]
 git-tree-sha1 = "6842804e7867b115ca9de748a0cf6b364523c16d"

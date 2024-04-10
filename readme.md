@@ -1,16 +1,8 @@
 This repository contains the code used for the paper 
 
-> *Partitioning time series to improve process-based models with machine learning*
+> *Partitioning time series to improve process-based models with machine learning*, Boussange, V., Vilimelis-Aceituno, P., Schäfer, F., Pellissier, L., (2024)
 
 ## Content
-
-- `ParametricModels.jl/` contains a library wrapper around `OrdinaryDiffEq.jl`, providing the `AbstractModel` type required by `PiecewiseInference.jl`
-- `PiecewiseInference.jl/` contains the eponym Julia package implementing inverse modelling framework. All functions are self documented, and will be compiled into a documentation website upon publication. In a Julia session, type
-```julia
-julia> using PiecewiseInference
-julia> ?inference
-```
-to get a MWE on how to use `PiecewiseInference.jl`
 - `src/` contains utility functions and types specific to the experiments presented in the manuscript, such as e.g. models and the loss function
 - `scripts/` contains all scripts related to the actual simulation runs
 - `figure/` contains all scripts to generate the manuscript figures and crunch the raw simulation results.
@@ -18,8 +10,13 @@ to get a MWE on how to use `PiecewiseInference.jl`
 
 ## Installation
 All scripts are written in the Julia programming language. We recommend installing Julia with [`juliaup`](https://github.com/JuliaLang/juliaup).
-The scripts can be executed out of the box by activating the environment stored in the `Project.toml`, `CondaPkg.toml` and `Manifest.toml` files in the root folder.
+The scripts can be executed out of the box by activating the environment stored in the `Project.toml`, `CondaPkg.toml` and `Manifest.toml` files in the root folder, but before doing so you are required to add a registry that tracks `PiecewiseInference.jl` and a dependency called `ParametricModels.jl`. To do so, open Julia and type the following
 
+```julia
+julia> using Pkg
+julia>] registry add https://github.com/vboussange/VBoussangeRegistry.git
+```
+The custom registry is now registered on your machine, and you can activate the environment of the repo.
 To activate the environment in an interactive session, type in the Julia REPL
 
 ```julia

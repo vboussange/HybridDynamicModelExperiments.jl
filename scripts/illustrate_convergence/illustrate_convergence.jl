@@ -1,5 +1,5 @@
 #= 
-Inference simulations wuth `SimpleEcosystemModel3SP` for illustrating convergence with different learning strategy in figure 1.
+Inference simulations wuth `Model3SP` for illustrating convergence with different learning strategy in figure 1.
 Three learning strategies:
 1. No segmentation
 2. No segmentation with initial parameter values close to true parameter values
@@ -76,7 +76,7 @@ p_true = ComponentArray(
 
 # Initialize model and generate data
 mp = ModelParams(;tspan, u0=u0_true, saveat=tsteps, model_params...)
-model = SimpleEcosystemModel3SP(mp)
+model = Model3SP(mp)
 data = simulate(model, u0=u0_true, p=p_true) |> Array
 data_w_noise = data .* exp.(noise * randn(size(data)))
 

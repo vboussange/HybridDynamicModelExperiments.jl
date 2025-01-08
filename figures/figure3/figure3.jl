@@ -126,7 +126,7 @@ for (i,df_results) in enumerate(df_result_arr)
 
 end
 
-Ms = [SimpleEcosystemModel3SP, SimpleEcosystemModel5SP, SimpleEcosystemModel7SP]
+Ms = [Model3SP, Model5SP, Model7SP]
 model_names = [L"\mathcal{M}_3", L"\mathcal{M}_5", L"\mathcal{M}_7"]
 @assert all([df.res[1].infprob.m isa M for (df,M) in zip(df_result_arr, Ms)])
 

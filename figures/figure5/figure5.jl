@@ -45,13 +45,13 @@ for df in groupby(results, :s)
     data = data_arr[idx_s]
     for r in eachrow(df)
         mp = remake(r.res.infprob.m.mp; p = p_trues[idx_s])
-        water_dep_em = SimpleEcosystemModel3SPStar(mp)
+        water_dep_em = Model3SPStar(mp)
         r.val = validate(r.res, data, water_dep_em)
     end
 end
 
 mydict = Dict("HybridGrowthRateModel" => L"\mathcal{M}_3^{\text{NN}}", 
-            "SimpleEcosystemModel3SP" => L"\mathcal{M}_3")
+            "Model3SP" => L"\mathcal{M}_3")
 
 results[:,"scenario"] = replace(results[:,"model"], mydict...)
 

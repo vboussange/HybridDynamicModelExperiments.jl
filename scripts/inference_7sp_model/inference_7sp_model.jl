@@ -1,5 +1,5 @@
 #=
-Running inference simulations with `SimpleEcosystemModel7SP`, for different meta parameter values.
+Running inference simulations with `Model7SP`, for different meta parameter values.
 
 Inference simulations are ran in a distributed fashion; the first argument to
 the script corresponds to the number of processes used.
@@ -27,7 +27,7 @@ const TrueParameters = ComponentArray(ω = Float32[0.2],
 const TrueInitialState = Float32[0.77, 0.060, 0.945, 0.467, 0.18, 0.14, 0.18]
 const TimeSteps = range(500f0, step=4, length=100)
 const TimeSpan = (0f0, TimeSteps[end])
-const MyModel = SimpleEcosystemModel7SP
+const MyModel = Model7SP
 
 Random.seed!(5)
 

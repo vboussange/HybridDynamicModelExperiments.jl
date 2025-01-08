@@ -37,7 +37,7 @@ function tap_results(result_name)
     # simulations, where A and K are unidentifiable. As such, for correct
     # parameter error estimation, we compute the ratio, which is identifiable.
     # For further complications, parameter K is named K₁₁ for
-    # SimpleEcosystemModel3SP and K for other models 
+    # Model3SP and K for other models 
 
     if occursin("3sp", result_name)
         Kname = "K₁₁"
@@ -51,8 +51,8 @@ function tap_results(result_name)
 
     # Calculating forecasting error
 
-    # FIXME: Simulations were run with SimpleEcosystemModel3SP defined with A
-    # and K parameters, but current SimpleEcosystemModel3SP has been modified
+    # FIXME: Simulations were run with Model3SP defined with A
+    # and K parameters, but current Model3SP has been modified
     # according to manuscript with only A parameter, so we need to assign values A/K to parameter A
     # for making correct forecasts. In the future, all models should be defined
     # according to manuscript

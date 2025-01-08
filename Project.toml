@@ -6,7 +6,6 @@ CondaPkg = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 GR = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
@@ -33,5 +32,5 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
-[sources]
-PiecewiseInference = {path = "../../PiecewiseInference.jl"}
+[sources.PiecewiseInference]
+path = "../../PiecewiseInference.jl"

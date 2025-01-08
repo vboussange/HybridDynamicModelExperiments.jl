@@ -1,5 +1,5 @@
 #=
-Running inference simulations with SimpleEcosystemModel3SP, for different meta parameter values.
+Running inference simulations with Model3SP, for different meta parameter values.
 
 Inference simulations are ran in a distributed fashion; the first argument to
 the script corresponds to the number of processes used.
@@ -26,7 +26,7 @@ const TrueParameters = ComponentArray(H = Float32[1.24, 2.5],
 const TrueInitialState = Float32[0.77, 0.060, 0.945]
 const TimeSteps = range(500f0, step=4, length=100)
 const TimeSpan = (0f0, TimeSteps[end])
-const MyModel = SimpleEcosystemModel3SP
+const MyModel = Model3SP
 
 Random.seed!(5)
 

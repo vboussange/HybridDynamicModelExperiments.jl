@@ -27,7 +27,7 @@ p_Omniv3SP = ComponentArray(H = Float32[1.24, 6.25,2.5],
                         A = Float32[1.0],
                         ω = Float32[0.])
 
-model3SP = SimpleEcosystemModel3SP(ModelParams(;p = p_3SP,
+model3SP = Model3SP(ModelParams(;p = p_3SP,
                                                 tspan,
                                                 u0 = u0_true,
                                                 alg,

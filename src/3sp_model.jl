@@ -2,55 +2,53 @@ using SparseArrays
 using ComponentArrays
 using UnPack
 using PiecewiseInference
-import PiecewiseInference: AbstractODEModel
+using PiecewiseInference: AbstractODEModel
+import Graphs: DiGraph, add_edge!, adjacency_matrix
 
-abstract type Abstract3SPModel <: AbstractODEModel end
+abstract type AbstractEcosystemModel <: AbstractODEModel end
+abstract type AbstractModel3SP <: AbstractEcosystemModel end
 
-function (model::Abstract3SPModel)(du, u, p, t)
-    @unpack A = p
-    r = intinsic_growth_rate(model, p, t)
+function (model::AbstractEcosystemModel)(du, u, p, t)
     ũ = max.(u, zero(eltype(u)))
-
-    F = feeding(model, ũ, p)
-    Aarr = competition(model, A, ũ[1])
-
-    feed_pred_gains = (F .- F') * ũ
-    du .= ũ .* (r .- Aarr .+ feed_pred_gains)
-
+    du .= ũ .* (intinsic_growth_rate(model, p, t) .- competition(model, ũ, p) .+ feed_pred_gains(model, ũ, p))
     return nothing
 end
 
-intinsic_growth_rate(::Abstract3SPModel, p, t) = p.r
+intinsic_growth_rate(::AbstractEcosystemModel, p, t) = p.r
 
-function competition(::Abstract3SPModel, A, u1)
-    T = eltype(u1)
-    return [A[1] * u1; zeros(T, 2)]
+function competition(::AbstractModel3SP, u, p)
+    @unpack A = p
+    T = eltype(u)
+    return [A[1] * u[1]; zeros(T, 2)]
 end
 
-function feeding(m::Abstract3SPModel, u, p)
-    @unpack I, J = m
-    # bottleneck 
-    Warr, Harr, qarr = create_sparse_matrices(m, I, J, p)
+function feeding(m::AbstractModel3SP, u, p)
+    Warr, Harr, qarr = create_sparse_matrices(m, p)
     return qarr .* Warr ./ (one(eltype(u)) .+ qarr .* Harr .* (Warr * u))
 end
 
+function feed_pred_gains(model::AbstractModel3SP, u, p)
+    F = feeding(model, u, p)
+    return  (F .- F') * u
+end
 
-struct SimpleEcosystemModel3SP{MP,II,JJ} <: Abstract3SPModel
+struct Model3SP{MP,II,JJ} <: AbstractModel3SP
     mp::MP
     I::II
     J::JJ
 end
 
-function SimpleEcosystemModel3SP(mp)
+function Model3SP(mp)
     foodweb = DiGraph(3)
     add_edge!(foodweb, 2 => 1)  # Consumer to Resource
     add_edge!(foodweb, 3 => 2)  # Predator to Consumer
 
     I, J, _ = findnz(adjacency_matrix(foodweb))
-    SimpleEcosystemModel3SP(mp, I, J)
+    Model3SP(mp, I, J)
 end
 
-function create_sparse_matrices(::Abstract3SPModel, I, J, p)
+function create_sparse_matrices(m::AbstractModel3SP, p)
+    @unpack I, J = m
     @unpack H, q = p
     OT = eltype(H)
     Warr = sparse(I, J, ones(OT, 2), 3, 3)
@@ -59,7 +57,7 @@ function create_sparse_matrices(::Abstract3SPModel, I, J, p)
     return Warr, Harr, qarr
 end
 
-struct SimpleEcosystemModelOmniv3SP{MP,II,JJ} <: Abstract3SPModel
+struct SimpleEcosystemModelOmniv3SP{MP,II,JJ} <: AbstractModel3SP
     mp::MP
     I::II
     J::JJ
@@ -85,7 +83,7 @@ function create_sparse_matrices(::SimpleEcosystemModelOmniv3SP, I, J, p)
 end
 
 
-function get_metadata(::Abstract3SPModel)
+function get_metadata(::AbstractModel3SP)
     species_colors = ["tab:red", "tab:green", "tab:blue"]
     pos = Dict(0 => [0, 0], 1 => [0.2, 1], 2 => [0, 2])
     node_labels = ["Resource", "Consumer", "Prey"]

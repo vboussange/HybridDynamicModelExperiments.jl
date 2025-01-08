@@ -1,5 +1,5 @@
 #=
-Generates a time series from simulating `SimpleEcosystemModel3SP`, further used to create figure 1.
+Generates a time series from simulating `Model3SP`, further used to create figure 1.
 =#
 
 cd(@__DIR__)
@@ -53,7 +53,7 @@ mp = ModelParams(;tspan,
                 saveat=tsteps,
                 model_params...)
 
-model = SimpleEcosystemModel3SP(mp)
+model = Model3SP(mp)
 
 data = simulate(model, u0=u0_true, p=p_true) |> Array
 data_set_w_noise = data .* exp.(noise * randn(size(data)))

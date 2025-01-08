@@ -5,13 +5,13 @@ Ecological functions to define the 7 species model
 using SparseArrays
 using ComponentArrays
 
-struct SimpleEcosystemModel5SP{MP,II,JJ} <: AbstractODEModel
+struct Model5SP{MP,II,JJ} <: AbstractODEModel
     mp::MP
     I::II
     J::JJ
 end
 
-function SimpleEcosystemModel5SP(mp)
+function Model5SP(mp)
     ## FOODWEB
     foodweb = DiGraph(5)
     add_edge!(foodweb, 2 => 1) # C1 to R1
@@ -21,10 +21,10 @@ function SimpleEcosystemModel5SP(mp)
 
     I, J, _ = findnz(adjacency_matrix(foodweb))
 
-    SimpleEcosystemModel5SP(mp, I, J)
+    Model5SP(mp, I, J)
 end
 
-function (model::SimpleEcosystemModel5SP)(du, u, p, t)
+function (model::Model5SP)(du, u, p, t)
     @unpack r = p
     T = eltype(u)
     ũ = max.(u, zero(T))
@@ -36,14 +36,14 @@ function (model::SimpleEcosystemModel5SP)(du, u, p, t)
     du .= ũ .*(r .- Aarr .+ feed_pred_gains)
 end
 
-function competition(::SimpleEcosystemModel5SP, u, p, t)
+function competition(::Model5SP, u, p, t)
     @unpack A = p
     T = eltype(A)
     Au = vcat(A[1] * u[1], zeros(T,2), A[2] * u[4], zero(T))
     return Au
 end
 
-function feeding(model::SimpleEcosystemModel5SP, u, p, t)
+function feeding(model::Model5SP, u, p, t)
     @unpack I, J = model
     @unpack ω, H, q = p
 
@@ -60,7 +60,7 @@ function feeding(model::SimpleEcosystemModel5SP, u, p, t)
     return qarr .* Warr ./ (one(eltype(u)) .+ qarr .* Harr .* (Warr * u))
 end
 
-function get_metadata(::SimpleEcosystemModel3SP)
+function get_metadata(::Model3SP)
     species_colors = ["tab:red", "tab:green", "tab:blue", "tab:orange", "tab:purple"]
     node_labels = ["R1", 
                     "C1", 

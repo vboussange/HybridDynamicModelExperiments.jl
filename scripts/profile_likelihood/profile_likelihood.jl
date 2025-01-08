@@ -1,5 +1,5 @@
 #=
-Calculating profile likelihood for figure 1, based on `SimpleEcosystemModel3SP`
+Calculating profile likelihood for figure 1, based on `Model3SP`
 =#
 
 cd(@__DIR__)
@@ -52,7 +52,7 @@ mp = ModelParams(;tspan,
                 saveat=tsteps,
                 model_params...)
 
-model = SimpleEcosystemModel3SP(mp)
+model = Model3SP(mp)
 
 data = simulate(model, u0=u0_true, p=p_true) |> Array
 data_set_w_noise = data .* exp.(noise * randn(size(data)))

@@ -2,7 +2,8 @@ using DataFrames, ProgressMeter, Distributed, ComponentArrays
 include("3sp_model.jl")
 include("5sp_model.jl")
 include("7sp_model.jl")
-include("3sp_NN_model.jl")
+include("hybrid_growth_rate_model.jl")
+include("hybrid_functional_response_model.jl")
 include("loss_fn.jl")
 
 function pack_simulation_parameters(;kwargs...)

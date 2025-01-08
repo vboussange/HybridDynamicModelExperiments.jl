@@ -5,7 +5,6 @@ Generates a time series from simulating `SimpleEcosystemModel3SP`, further used 
 cd(@__DIR__)
 using Graphs
 using EcoEvoModelZoo
-using ParametricModels
 using LinearAlgebra
 using UnPack
 using OrdinaryDiffEq
@@ -20,9 +19,11 @@ include("../../src/loss_fn.jl")
 include("../../src/plotting.jl")
 
 using SciMLSensitivity
-using PiecewiseInference
 using OptimizationFlux, OptimizationOptimJL
 using JLD2
+
+using PiecewiseInference
+import PiecewiseInference: AbstractODEModel
 
 noise = 2f-1
 data_params = (datasize = 20,

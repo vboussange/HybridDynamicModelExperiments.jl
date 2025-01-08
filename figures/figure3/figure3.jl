@@ -6,7 +6,6 @@ graphical illustration of foodwebs on top of the figure produced by this script.
 =#
 cd(@__DIR__)
 using Graphs
-using ParametricModels
 using LinearAlgebra
 using UnPack
 using OrdinaryDiffEq
@@ -20,6 +19,8 @@ using Distributions
 using Bijectors
 using DataFrames
 using Dates
+using PiecewiseInference
+import PiecewiseInference: AbstractODEModel
 
 include("../format.jl")
 include("../../src/loss_fn.jl")
@@ -38,7 +39,7 @@ color_palette = ["tab:blue", "tab:red", "tab:green"]
 # redefining validate so that we do not get inf values
 # if forecasted data is negative, we set it to an arbitrarily low value
 import PiecewiseInference.validate
-function validate(infres::InferenceResult, ode_data, true_model::AbstractModel; length_horizon = nothing)
+function validate(infres::InferenceResult, ode_data, true_model::AbstractODEModel; length_horizon = nothing)
         loss_likelihood = infres.infprob.loss_likelihood
         tsteps = true_model.mp.kwargs[:saveat]
         mystep = tsteps[2]-tsteps[1]

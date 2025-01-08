@@ -13,8 +13,8 @@ function save_results(pathfile; results, kwargs...)
 end
 
 using PiecewiseInference
-using ParametricModels
-function validate(infres::InferenceResult, ode_data, true_model::AbstractModel; length_horizon = nothing)
+import PiecewiseInference: AbstractODEModel
+function validate(infres::InferenceResult, ode_data, true_model::AbstractODEModel; length_horizon = nothing)
     loss_likelihood = infres.infprob.loss_likelihood
     tsteps = true_model.mp.kwargs[:saveat]
     mystep = tsteps[2]-tsteps[1]
@@ -32,7 +32,7 @@ function validate(infres::InferenceResult, ode_data, true_model::AbstractModel; 
 end
 
 using ForwardDiff
-function params_sensibility(ode_data, true_model::AbstractModel, loss_likelihood)
+function params_sensibility(ode_data, true_model::AbstractODEModel, loss_likelihood)
     lossfn(p) =  loss_likelihood(simulate(true_model; p), ode_data, nothing)
     diag(ForwardDiff.hessian(lossfn, true_model.mp.p))
 end

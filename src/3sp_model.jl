@@ -1,9 +1,10 @@
 using SparseArrays
 using ComponentArrays
-using ParametricModels
 using UnPack
+using PiecewiseInference
+import PiecewiseInference: AbstractODEModel
 
-abstract type Abstract3SPModel <: AbstractModel end
+abstract type Abstract3SPModel <: AbstractODEModel end
 
 function (model::Abstract3SPModel)(du, u, p, t)
     @unpack A = p
@@ -15,6 +16,8 @@ function (model::Abstract3SPModel)(du, u, p, t)
 
     feed_pred_gains = (F .- F') * ũ
     du .= ũ .* (r .- Aarr .+ feed_pred_gains)
+
+    return nothing
 end
 
 intinsic_growth_rate(::Abstract3SPModel, p, t) = p.r

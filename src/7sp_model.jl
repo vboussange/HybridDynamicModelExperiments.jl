@@ -5,7 +5,7 @@ Ecological functions to define the 7 species model
 using SparseArrays
 using ComponentArrays
 
-struct SimpleEcosystemModel7SP{MP,II,JJ} <: AbstractModel
+struct SimpleEcosystemModel7SP{MP,II,JJ} <: AbstractODEModel
     mp::MP
     I::II
     J::JJ
@@ -33,17 +33,9 @@ function (model::SimpleEcosystemModel7SP)(du, u, p, t)
 
     F = feeding(model, ũ, p, t)
     Aarr = competition(model, ũ, p, t)
-    Karr = carrying_capacity(model, p, t)
 
     feed_pred_gains = (F .- F') * ũ
-    du .= ũ .*(r .- Aarr ./ Karr .+ feed_pred_gains)
-end
-
-function carrying_capacity(::SimpleEcosystemModel7SP, p, t)
-    @unpack K = p
-    T = eltype(K)
-    Karr = vcat(K[1], ones(T,2), K[2], ones(T,3))
-    return Karr
+    du .= ũ .*(r .- Aarr .+ feed_pred_gains)
 end
 
 function competition(::SimpleEcosystemModel7SP, u, p, t)

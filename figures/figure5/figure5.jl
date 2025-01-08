@@ -8,7 +8,6 @@ matplotlib = pyimport("matplotlib")
 plt = pyimport("matplotlib.pyplot")
 Line2D = matplotlib.lines.Line2D #used for legend
 using Graphs
-using ParametricModels
 using LinearAlgebra
 using UnPack
 using OrdinaryDiffEq
@@ -27,7 +26,7 @@ using LaTeXStrings
 include("../format.jl")
 include("../../src/loss_fn.jl")
 include("../../src/3sp_model.jl")
-include("../../src/3sp_NN_model.jl")
+include("../../src/hybrid_growth_rate_model.jl")
 include("../../src/utils.jl")
 
 # ## Preprocessing
@@ -51,7 +50,7 @@ for df in groupby(results, :s)
     end
 end
 
-mydict = Dict("HybridEcosystemModel" => L"\mathcal{M}_3^{\text{NN}}", 
+mydict = Dict("HybridGrowthRateModel" => L"\mathcal{M}_3^{\text{NN}}", 
             "SimpleEcosystemModel3SP" => L"\mathcal{M}_3")
 
 results[:,"scenario"] = replace(results[:,"model"], mydict...)

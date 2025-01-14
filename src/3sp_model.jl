@@ -6,7 +6,17 @@ using PiecewiseInference: AbstractODEModel
 import Graphs: DiGraph, add_edge!, adjacency_matrix
 
 abstract type AbstractEcosystemModel <: AbstractODEModel end
+
 abstract type AbstractModel3SP <: AbstractEcosystemModel end
+
+function (::Type{T})(mp) where T <: AbstractModel3SP 
+    foodweb = DiGraph(3)
+    add_edge!(foodweb, 2 => 1)  # Consumer to Resource
+    add_edge!(foodweb, 3 => 2)  # Predator to Consumer
+
+    I, J, _ = findnz(adjacency_matrix(foodweb))
+    T(mp, I, J)
+end
 
 function (model::AbstractEcosystemModel)(du, u, p, t)
     ũ = max.(u, zero(eltype(u)))
@@ -36,15 +46,6 @@ struct Model3SP{MP,II,JJ} <: AbstractModel3SP
     mp::MP
     I::II
     J::JJ
-end
-
-function Model3SP(mp)
-    foodweb = DiGraph(3)
-    add_edge!(foodweb, 2 => 1)  # Consumer to Resource
-    add_edge!(foodweb, 3 => 2)  # Predator to Consumer
-
-    I, J, _ = findnz(adjacency_matrix(foodweb))
-    Model3SP(mp, I, J)
 end
 
 function create_sparse_matrices(m::AbstractModel3SP, p)

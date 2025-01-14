@@ -4,14 +4,15 @@ using UnPack
 using PiecewiseInference
 import PiecewiseInference: AbstractODEModel
 using Lux
+import Lux: zeros32
 using Random
 
-struct HybridFuncRespModel{MP,ST, II, JJ} <: AbstractModel3SP
+struct HybridFuncRespModel{MP, II, ST} <: AbstractModel3SP
     mp::MP # model parameters
+    I::II # foodweb row index
+    J::II # foodweb col index
     neural_net::Lux.Chain # neural net
     st::ST # neural net state
-    I::II
-    J::JJ
 end
 
 rbf(x) = exp.(-(x.^2)) # custom activation function

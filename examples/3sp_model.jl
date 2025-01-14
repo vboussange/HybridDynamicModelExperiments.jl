@@ -16,7 +16,7 @@ include("../src/loss_fn.jl")
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
-function init(model::Model3SP, perturb=0.5)
+function init(model::Model3SP, perturb=1.)
     p_true = model.mp.p
     T = eltype(p_true)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1f0-perturb/2f0) * k, (1f0+perturb/2f0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
@@ -58,17 +58,17 @@ model = Model3SP(ModelParams(;p= p_true,
 
 # Data generation
 data = simulate(model) |> Array # 19.720 ms
-fig = Plots.scatter(tsteps, data')
+ax = Plots.scatter(tsteps, data', title = "Data")
 
 # Defining inference problem
 # Model initialized with perturbed parameters
 loss_likelihood = LossLikelihood()
-p_init, p_bij, u0_bij = initialize_constraints(model)
+p_init, p_bij, u0_bij = init(model)
 infprob = InferenceProblem(model, p_init; 
                             loss_u0_prior = loss_likelihood, 
                             loss_likelihood = loss_likelihood, 
                             p_bij, u0_bij)
-
+ax2 = Plots.plot(simulate(model, p=p_init), title="Initial guess")
 # Inference
 res_inf = inference(infprob;
                     data, 
@@ -83,4 +83,5 @@ res_inf = inference(infprob;
 
 # Simulation with inferred parameters
 sim_res_inf = simulate(model, p = res_inf.p_trained, u0=data[:, 1], tspan=(tsteps[1], tsteps[end]))
-Plots.plot!(fig, sim_res_inf)
+ax3 = Plots.plot(sim_res_inf, title="Predictions after training")
+Plots.plot(ax, ax2, ax3)

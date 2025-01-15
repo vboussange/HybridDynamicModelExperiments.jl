@@ -41,7 +41,7 @@ function HybridGrowthRateModel(mp, HlSize=5, seed=0)
     neural_net = Lux.Chain(Lux.Dense(1, HlSize, rbf), 
                             Lux.Dense(HlSize, HlSize, rbf), 
                             Lux.Dense(HlSize, HlSize, rbf), 
-                            Lux.Dense(HlSize, 1, relu))
+                            Lux.Dense(HlSize, 1))
 
     p_nn, st = Lux.setup(rng, neural_net)
     p = ComponentArray(mp.p; p_nn)
@@ -51,7 +51,7 @@ end
 
 function intinsic_growth_rate(m::HybridGrowthRateModel, p, t)
     st = m.st
-    p_nn = m.mp.p.p_nn
+    p_nn = p.p_nn
     growth_rate_resource_nn = m.neural_net([water_availability(t)], p_nn, st)[1]
     return [growth_rate_resource_nn; p.r]
 end

@@ -1,13 +1,13 @@
 #=
-Short exampling showcasing the fit of a model with 
-a neural network to account for functional response.
+Second example showcasing the fit of a hybrid model,
+where the neural net is overparameterizing the model.
 =#
 cd(@__DIR__)
 import OrdinaryDiffEq: Tsit5
 using Plots
 using Distributions
 using Bijectors
-using Optimization, OptimizationOptimisers, OptimizationOptimJL
+using Optimization, OptimizationOptimisers
 using SciMLSensitivity
 include("../src/3sp_model.jl")
 include("../src/hybrid_functional_response_model.jl")
@@ -18,7 +18,7 @@ include("../src/loss_fn.jl")
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
-function init(model::HybridFuncRespModel, perturb=0.5)
+function init(model::HybridFuncRespModel2, perturb=0.5)
     p_true = model.mp.p
     T = eltype(p_true)
     distrib_param_arr = Pair{Symbol, Any}[]
@@ -41,15 +41,14 @@ end
 
 # Model metaparameters
 alg = Tsit5()
-abstol = 1e-4
-reltol = 1e-4
+abstol = 1e-6
+reltol = 1e-6
 tspan = (0., 800)
 tsteps = 550.:4.:800.
 u0_true = Float32[0.5,0.8,0.5]
-p_hybrid = ComponentArray(r = Float32[0.5, -0.2, -0.1],
-                            A = Float32[0.7])
+p_hybrid = ComponentArray(r = Float32[1.0, -0.4, -0.08])
 
-hybrid_model = HybridFuncRespModel(ModelParams(;p=p_hybrid,
+hybrid_model = HybridFuncRespModel2(ModelParams(;p=p_hybrid,
                                         tspan,
                                         u0 = u0_true,
                                         alg,
@@ -61,9 +60,10 @@ hybrid_model = HybridFuncRespModel(ModelParams(;p=p_hybrid,
                                         ))
 sim = simulate(hybrid_model, 
                 tspan=(tsteps[1], tsteps[end]), 
-                u0=u0_true)
+                u0=data[:, 1])
 ax2 = Plots.plot(sim, title = "Initial prediction")
 # feed_pred_gains(hybrid_model, u0_true, hybrid_model.mp.p)
+Plots.plot(hcat([loss(hybrid_model, c, hybrid_model.mp.p) for c in eachcol(data)]...)', title="Feed pred gains")
 
 p_full = ComponentArray(H = Float32[1.24, 2.5],
                         q = Float32[4.98, 0.8],
@@ -85,7 +85,7 @@ data = simulate(model) |> Array # 19.720 ms
 ax = Plots.scatter(tsteps, data', title = "Data")
 Warr, Harr, qarr = create_sparse_matrices(model, model.mp.p)
 feeding(model, data[:, 1], model.mp.p)
-feed_pred_gains(model, data[:, 1], model.mp.p)
+Plots.plot(hcat([feed_pred_gains(model, c, model.mp.p) for c in eachcol(data)]...)', title="Feed pred gains")
 
 loss_likelihood = LossLikelihood()
 p_bij, u0_bij = init(hybrid_model)
@@ -106,8 +106,6 @@ res_inf = inference(infprob;
                     verbose_loss = true,
                     info_per_its = 10,
                     multi_threading = false)
-# Simulation with inferred parameters
-# feed_pred_gains(hybrid_model, data[:, 1], res_inf.p_trained)
 
 sim_res_inf = simulate(hybrid_model, p = res_inf.p_trained, u0=data[:, 1], tspan=(tsteps[1], tsteps[end]))
 ax3 = Plots.plot(sim_res_inf, title="Predictions after training")

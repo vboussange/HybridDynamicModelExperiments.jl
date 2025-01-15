@@ -6,14 +6,14 @@ import OrdinaryDiffEq: Tsit5
 using Plots
 using Distributions
 using Bijectors
-using Optimization, OptimizationOptimisers
+using Optimization, OptimizationOptimisers, OptimizationOptimJL
 using SciMLSensitivity
 include("../src/3sp_model.jl")
 include("../src/hybrid_growth_rate_model.jl")
 include("../src/loss_fn.jl")
 
 """
-    init(model::Model3SP, perturb=0.5)
+    init(model::HybridGrowthRateModel, perturb=0.5)
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
@@ -100,9 +100,9 @@ res_inf = inference(infprob;
                     data, 
                     group_size = 7, 
                     adtype=Optimization.AutoZygote(), 
-                    epochs=[200], 
+                    epochs=[200, 50], 
                     tsteps = tsteps,
-                    optimizers = [OptimizationOptimisers.Adam(5e-2)],
+                    optimizers = [OptimizationOptimisers.Adam(5e-2), OptimizationOptimJL.LBFGS()],
                     verbose_loss = true,
                     info_per_its = 10,
                     multi_threading = false)

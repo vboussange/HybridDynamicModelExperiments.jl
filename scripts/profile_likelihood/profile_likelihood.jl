@@ -4,7 +4,6 @@ Calculating profile likelihood for figure 1, based on `Model3SP`
 
 cd(@__DIR__)
 using Graphs
-using EcoEvoModelZoo
 using ParametricModels
 using LinearAlgebra
 using UnPack

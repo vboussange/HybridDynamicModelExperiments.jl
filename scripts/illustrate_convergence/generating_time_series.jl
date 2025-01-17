@@ -4,7 +4,6 @@ Generates a time series from simulating `Model3SP`, further used to create figur
 
 cd(@__DIR__)
 using Graphs
-using EcoEvoModelZoo
 using LinearAlgebra
 using UnPack
 using OrdinaryDiffEq

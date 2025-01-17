@@ -9,7 +9,7 @@ function save_results(pathfile; results, kwargs...)
     open(joinpath(dir, namefile)*".txt", "w") do file
         println(file, results[:,col_to_text])
     end
-    println("saved in $dir")
+    println("saved in $(joinpath(dir, namefile))")
 end
 
 using PiecewiseInference

@@ -16,6 +16,7 @@ using PiecewiseInference
 using SciMLSensitivity
 using Distributions
 using Bijectors
+cd(@__DIR__)
 
 Random.seed!(5)
 
@@ -163,6 +164,4 @@ for config in configs
     push!(results_df, row_tuple)
 end
 
-save_results("simple_inference_3sp.jld2"; results=results_df)
-println("Inference completed. Results saved.")
-
+save_results(@__FILE__; results=results_df)

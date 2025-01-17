@@ -6,13 +6,14 @@ import PiecewiseInference: AbstractODEModel
 using Lux
 import Lux: zeros32
 using Random
+using NNlib
 
 # overloading required to use Bijectors.Inverse as an activation function
 import NNlib.fast_act
 fast_act(f::Bijectors.Inverse, ::AbstractArray = 1:0) = f
 
 """
-    HybridFuncRespModel2
+    HybridFuncRespModel(mp, HlSize=5, seed=0)
 
 This model is a generalization of the HybridFuncRespModel model, which does not assume a specific foodweb structure.
 """

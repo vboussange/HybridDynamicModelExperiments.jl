@@ -131,7 +131,7 @@ PERTURB = 0.5
 U0_TRUE = [0.77, 0.060, 0.945]
 
 epochs = [5000]
-tspan = (0.0, last(tsteps))
+tspan = (0.0, last(TSTEPS))
 
 inference_params = (;optimizers = [OptimizationOptimisers.Adam(2e-2)],
                     verbose_loss = true,
@@ -142,7 +142,7 @@ inference_params = (;optimizers = [OptimizationOptimisers.Adam(2e-2)],
 true_model = Model3SP(ModelParams(;u0 = U0_TRUE,
                                 p = P_TRUE, 
                                 tspan = tspan,
-                                saveat = tsteps,
+                                saveat = TSTEPS,
                                 SOLVER_PARAMS...))
 
 synthetic_data = simulate(true_model, p = P_TRUE) |> Array
@@ -164,4 +164,4 @@ for config in configs
     push!(results_df, row_tuple)
 end
 
-save_results(@__FILE__; results=results_df)
+save_results(@__FILE__; results=results_df, synthetic_data, p_true = P_TRUE)

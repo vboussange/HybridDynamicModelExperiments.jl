@@ -19,7 +19,7 @@ include("../../src/loss_fn.jl")
 include("../../src/plotting.jl")
 
 using SciMLSensitivity
-using OptimizationFlux, OptimizationOptimJL
+using OptimizationOptimisers, OptimizationOptimJL
 using JLD2
 
 using PiecewiseInference

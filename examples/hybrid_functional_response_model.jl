@@ -53,6 +53,7 @@ hybrid_model = HybridFuncRespModel(ModelParams(;p=p_hybrid,
                                         tspan,
                                         u0 = u0_true,
                                         alg,
+                                        sensealg= BacksolveAdjoint(autojacvec=ReverseDiffVJP(true)),
                                         reltol,
                                         abstol,
                                         saveat = tsteps,
@@ -63,7 +64,7 @@ sim = simulate(hybrid_model,
                 tspan=(tsteps[1], tsteps[end]), 
                 u0=u0_true)
 ax2 = Plots.plot(sim, title = "Initial prediction")
-# feed_pred_gains(hybrid_model, u0_true, hybrid_model.mp.p)
+feeding(hybrid_model, u0_true, hybrid_model.mp.p)
 
 p_full = ComponentArray(H = Float32[1.24, 2.5],
                         q = Float32[4.98, 0.8],
@@ -83,9 +84,7 @@ model = Model3SP(ModelParams(;p=p_full,
 
 data = simulate(model) |> Array # 19.720 ms
 ax = Plots.scatter(tsteps, data', title = "Data")
-Warr, Harr, qarr = create_sparse_matrices(model, model.mp.p)
 feeding(model, data[:, 1], model.mp.p)
-feed_pred_gains(model, data[:, 1], model.mp.p)
 
 loss_likelihood = LossLikelihood()
 p_bij, u0_bij = init(hybrid_model)
@@ -96,19 +95,36 @@ infprob = InferenceProblem(hybrid_model, p_init;
                             p_bij, u0_bij)
 
 # Inference
-res_inf = inference(infprob;
-                    data, 
-                    group_size = 7, 
-                    adtype=Optimization.AutoZygote(), 
-                    epochs=[200, 50], 
-                    tsteps = tsteps,
-                    optimizers = [OptimizationOptimisers.Adam(1e-2), OptimizationOptimJL.LBFGS()],
-                    verbose_loss = true,
-                    info_per_its = 10,
-                    multi_threading = false)
+@time res_inf = inference(infprob;
+                            data, 
+                            group_size = 5, 
+                            adtype=Optimization.AutoZygote(), 
+                            epochs=[500, 50], 
+                            tsteps = tsteps,
+                            optimizers = [OptimizationOptimisers.Adam(2e-2), OptimizationOptimJL.LBFGS()],
+                            verbose_loss = true,
+                            info_per_its = 10,
+                            multi_threading = false)
 # Simulation with inferred parameters
 # feed_pred_gains(hybrid_model, data[:, 1], res_inf.p_trained)
 
 sim_res_inf = simulate(hybrid_model, p = res_inf.p_trained, u0=data[:, 1], tspan=(tsteps[1], tsteps[end]))
 ax3 = Plots.plot(sim_res_inf, title="Predictions after training")
 Plots.plot(ax, ax2, ax3)
+
+
+true_feeding_rates = hcat([feeding(model, c,p_full).nzval for c in eachcol(data)]...)
+inferred_feeding_rates = hcat([feeding(hybrid_model, c, res_inf.p_trained).nzval for c in eachcol(data)]...)
+
+ax4 = Plots.scatter(data[1:2,:]', true_feeding_rates', title="True feeding rates", ylim=(0., 5.))
+ax5 = Plots.scatter(data[1:2,:]', inferred_feeding_rates', title="Inferred feeding rates", ylim=(0., 5.))
+Plots.plot(ax4, ax5)
+
+println("True r: ", p_full.r)
+println("Inferred r: ", res_inf.p_trained.r)
+println("True A: ", p_full.A)
+println("Inferred A: ", res_inf.p_trained.A)
+
+ax4 = Plots.plot(hcat([feed_pred_gains(hybrid_model, c, res_inf.p_trained) for c in eachcol(data)]...)', title="Inferred feed pred gains", ylims=(-1., 1))
+ax5 = Plots.plot(hcat([feed_pred_gains(model, c, p_full) for c in eachcol(data)]...)', title="True feed pred gains", ylims=(-1., 1))
+Plots.plot(ax4, ax5)

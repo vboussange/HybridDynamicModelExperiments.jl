@@ -10,7 +10,8 @@ using OrdinaryDiffEq, Statistics, SparseArrays, ComponentArrays
 using PythonPlot, SciMLSensitivity, PiecewiseInference
 using OptimizationOptimisers, OptimizationOptimJL, Dates, Bijectors, PythonCall, Random
 using DataFrames
-Random.seed!(2)
+using LineSearches
+Random.seed!(3)
 plt = pyimport("matplotlib.pyplot")
 
 include("../../src/3sp_model.jl")
@@ -18,7 +19,7 @@ include("../../src/loss_fn.jl")
 include("../../src/utils.jl")
 include("../../src/plotting.jl")
 
-function initialize_inference_problem(model, p_true, loss_likelihood, perturb=1f0)
+function initialize_inference_problem(model, p_true, loss_likelihood, perturb=1.0f0)
     u0_bij = bijector(Uniform(1e-3, 5.0))
 
     # Parameter constraints
@@ -68,7 +69,7 @@ model = Model3SP(mp)
 data = simulate(model, u0=u0_true, p=p_true) |> Array
 data_w_noise = data .* exp.(noise * randn(size(data)))
 
-plotting && display(plot_time_series(data_w_noise, model))
+false && display(plot_time_series(data_w_noise, model))
 
 inference_params = (
     adtype=Optimization.AutoForwardDiff(),
@@ -93,13 +94,13 @@ results_df = DataFrame(
     perr = Float64[]
 )
 
-for (opt, nameopt) in zip([OptimizationOptimJL.LBFGS(), OptimizationOptimisers.Adam(1e-2), OptimizationOptimisers.AdaGrad(1e-2)], ["LBFGS", "Adam", "AdaGrad"])
+for (opt, nameopt) in zip([OptimizationOptimJL.LBFGS(linesearch = LineSearches.BackTracking()), OptimizationOptimisers.Adam(1e-2), OptimizationOptimisers.AdaGrad(1e-2)], ["LBFGS", "Adam", "AdaGrad"])
     for group_size in [11, size(data_w_noise, 2)]
         ps = []
         callback = (p, u0s, l) -> push!(ps, p)
         stats = @timed inference(infprob; group_size, cb=callback, optimizers = [opt], inference_params...)
         res = stats.value
-        perr_all = [median(abs.((p_true .- p) ./ p_true)) for p in ps]
+        perr_all = [maximum(abs.((p_true .- p) ./ p_true)) for p in ps]
         push!(results_df, (group_size, stats.time, res, nameopt, ps, perr_all, perr_all[end]))
     end
 end
@@ -113,12 +114,18 @@ if true
     for (i, gsize) in enumerate(group_sizes)
         subset = filter(row -> row.group_size == gsize, eachrow(results_df))
         for row in subset
-            axs[i-1].plot(1:length(row.perr_all), row.perr_all, label= i == 1 ? row.optim_name : nothing)
+            ps = row.ps
+            fill_count = inference_params.epochs[1] - length(ps) + 1
+            if fill_count > 0
+                append!(ps, fill(ps[end], fill_count))
+            end
+            perr_all = [median(abs.((p_true .- p) ./ p_true)) for p in ps]
+            axs[i-1].plot(1:inference_params.epochs[1]+1, perr_all, label= i == 1 ? row.optim_name : nothing)
         end
         axs[i-1].set_title("Param Error vs Iteration (group_size = $gsize)")
         axs[i-1].set_xlabel("Iteration")
         axs[i-1].set_ylabel("Absolute Relative Error")
-        axs[i-1].legend(loc="upper right")
+        i == 1 && axs[i-1].legend(loc="upper right")
     end
     display(fig)
 end

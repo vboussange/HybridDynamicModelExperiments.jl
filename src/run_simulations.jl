@@ -14,7 +14,7 @@ function pack_simulation_parameters(;kwargs...)
     return sim_params
 end
 
-function run_simulations(pars_arr, epochs, data; kwargs...)
+function run_simulations(pars_arr, data, epochs; kwargs...)
     inference_params = generate_inference_params()
     pmap_res = @showprogress pmap(1:length(pars_arr)) do i
         try

@@ -25,6 +25,33 @@ include("../../src/3sp_model.jl")
 include("../../src/hybrid_functional_response_model.jl")
 include("../../src/loss_fn.jl")
 
+SYNTHETIC_DATA_PARAMS = (;p_true = ComponentArray(
+                                                H = [1.24, 2.5],
+                                                q = [4.98, 0.8],
+                                                r = [1.0, -0.4, -0.08],
+                                                A = [1.0]),
+                        tsteps =  range(500.0, step=4, length=100),
+                        solver_params = (;alg = Tsit5(),
+                                        abstol = 1e-4,
+                                        reltol = 1e-4,
+                                        sensealg= BacksolveAdjoint(autojacvec=ReverseDiffVJP(true)),
+                                        maxiters= 50_000,
+                                        verbose = false),
+                        perturb = 0.5,
+                        u0_true = [0.77, 0.060, 0.945],)
+
+SIMULATION_CONFIG = (;group_sizes = [5],
+                    noises      = [0.1],
+                    nruns       = 10,)
+
+INFERENCE_PARAMS = (;optimizers = [OptimizationOptimisers.Adam(1e-2)],
+                    verbose_loss = true,
+                    info_per_its = 10,
+                    multi_threading = false,
+                    epochs = [5000],
+                    loss_likelihood =  LossLikelihood(),
+                    )
+
 """
     init()
 Initialize non-neural network parameters for inference and bijectors.
@@ -33,7 +60,7 @@ function init()
     T = eltype(SYNTHETIC_DATA_PARAMS.p_true)
     distrib_param_arr = Pair{Symbol, Any}[]
 
-    for dp in keys(SYNTHETIC_DATA_PARAMS.p_true)
+    for dp in [:r, :A]
         dp == :p_nn && continue
         pair = dp => Product([Uniform(sort(T[(1f0-SYNTHETIC_DATA_PARAMS.perturb/2f0) * k, (1f0+SYNTHETIC_DATA_PARAMS.perturb/2f0) * k])...) for k in SYNTHETIC_DATA_PARAMS.p_true[dp]])
         push!(distrib_param_arr, pair)
@@ -57,7 +84,7 @@ function build_simulation_configs()
             for run_id in 1:SIMULATION_CONFIG.nruns
                 p_init, p_bij, u0_bij = init()
                 # need to inform u0 to inform number of state variables
-                model = HybridFuncRespModel(ModelParams(p=p_init, u0=zeros(3); SYNTHETIC_DATA_PARAMS.solver_params...))
+                model = HybridFuncRespModel(ModelParams(p=p_init, u0=zeros(Float32, 3); SYNTHETIC_DATA_PARAMS.solver_params...))
 
                 # Inference problem
                 infprob = InferenceProblem(
@@ -105,39 +132,13 @@ function run_single_inference(config, data, inference_params)
         info_per_its = inference_params.info_per_its,
         epochs = inference_params.epochs,
         multi_threading = inference_params.multi_threading,
+        adtype = Optimization.AutoZygote()
     )
 
     result = stats.value
     final_loss = result.losses[end]
     return (group_size, noise, final_loss, stats.time, result, run_id, name(model))
 end
-
-SYNTHETIC_DATA_PARAMS = (; p_true = ComponentArray(
-                                                    H = [1.24, 2.5],
-                                                    q = [4.98, 0.8],
-                                                    r = [1.0, -0.4, -0.08],
-                                                    A = [1.0]),
-                        tsteps =  range(500.0, step=4, length=100),
-                        solver_params = (;alg = Tsit5(),
-                                        abstol = 1e-4,
-                                        reltol = 1e-4,
-                                        sensealg= BacksolveAdjoint(autojacvec=ReverseDiffVJP(true)),
-                                        maxiters= 50_000,
-                                        verbose = false),
-                        perturb = 0.5,
-                        u0_true = [0.77, 0.060, 0.945],)
-
-SIMULATION_CONFIG = (;group_sizes = [11],
-                    noises      = [0.1],
-                    nruns       = 10,)
-
-INFERENCE_PARAMS = (;optimizers = [OptimizationOptimisers.Adam(1e-2)],
-                    verbose_loss = true,
-                    info_per_its = 10,
-                    multi_threading = false,
-                    epochs = [5000],
-                    loss_likelihood =  LossLikelihood(),
-                    )
 
 true_model = Model3SP(ModelParams(;u0 = SYNTHETIC_DATA_PARAMS.u0_true,
                                 p = SYNTHETIC_DATA_PARAMS.p_true, 

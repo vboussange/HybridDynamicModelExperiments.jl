@@ -34,12 +34,69 @@ include("../../src/utils.jl")
 result_path_func_resp_model = "../../scripts/inference_hybrid_functional_response_model/results/2025-01-17/inference_hybrid_functional_response_model.jld2"
 @load joinpath(result_path_func_resp_model) results synthetic_data p_true
 
-# Test, to adapt
-# hybrid_model = HybridFuncRespModel(ModelParams(p = ComponentArray()))
-# true_model = Model3SP(ModelParams())
+fig, axs = plt.subplots(1,2, figsize=(6,3.5))
+
+ax = axs[0]
+hybrid_model = HybridFuncRespModel(ModelParams(p = ComponentArray()))
+true_model = Model3SP(ModelParams())
+
+abundance_ranges = minimum(synthetic_data, dims=2), maximum(synthetic_data, dims=2)
+abundance_array = range(abundance_ranges[1], stop=abundance_ranges[2], length=100)
+
+ys = []
+losses = []
+for r in eachrow(results)
+        res = r.res
+        model = res.infprob.m
+        p_trained = res.p_trained
+        inferred_feeding_rates = hcat([feeding(hybrid_model, c, p_trained).nzval for c in abundance_array]...)
+        push!(ys,inferred_feeding_rates)
+        push!(losses, r.loss)
+end
+ymed = dropdims(mean(cat(ys..., dims=3), AnalyticWeights(exp.(.-losses)), 3), dims=3)
+ystd = dropdims(std(cat(ys..., dims=3), AnalyticWeights(exp.(.-losses)), 3), dims=3)
+ymin = ymed .- 3 * ystd
+ymax = ymed .+ 3* ystd
+true_feeding_rates = hcat([feeding(true_model, c, p_true).nzval for c in abundance_array]...)
+
+colors = ["tab:blue", "tab:red"]
+
+for i in 1:2
+    x = hcat(abundance_array...)[i,:]
+    ax.fill_between(x, 
+            ymin[i,:], ymax[i,:], 
+            # label="Neural network",
+            linestyle="-", 
+            color = colors[i],
+            alpha = 0.1,
+            linewidth=0.3)
+    ax.plot(x, 
+            ymed[i,:],
+            label=L"Feeding rate, $\text{NN}(\hat p, u)$",
+            linestyle="-", 
+            color = colors[i],
+            linewidth=1.,
+            alpha = 1.,)
+    ax.plot(x, 
+        true_feeding_rates[i, :], 
+        color = colors[i],
+        linestyle="--", 
+        linewidth=1.)
+end
+ax.legend(handles=[
+    Line2D([0], [0], color="gray", linestyle="--", label="Ground truth"),
+    Line2D([0], [0], color="tab:blue", linestyle="-", label="NN-based,\nconsumer"),
+    Line2D([0], [0], color="tab:red", linestyle="--", label= "NN-based,\npredator"),
+
+])
+ax.set_xlabel("Abundance")
+ax.set_ylabel("Feeding rate")
+ax.set_title("Inferred feeding rates")
+fig
+
+
 # p = results.res[1].p_trained
 # inferred_feeding_rates = hcat([feeding(hybrid_model, c, p).nzval for c in eachcol(synthetic_data)]...)
-# true_feeding_rates = hcat([feeding(true_model, c, p_true).nzval for c in eachcol(synthetic_data)]...)
 
 # p1 = Plots.scatter(synthetic_data[1:2,:]', inferred_feeding_rates', title="inferred rates")
 # p2 = Plots.scatter(synthetic_data[1:2,:]', true_feeding_rates', title="true rates")
@@ -47,7 +104,6 @@ result_path_func_resp_model = "../../scripts/inference_hybrid_functional_respons
 
 # discarding unsuccessful inference results
 filter!(row -> !isinf(row.loss), results)
-results[!,"1/s"] = 1 ./ results.s
 
 results[!, :val] = zeros(size(results,1))
 for df in groupby(results, :s)
@@ -194,7 +250,6 @@ ax.plot(water_avail[:],
 ax.legend()
 ax.set_xlabel(L"Environmental forcing, $u$")
 ax.set_ylabel(L"Resource basal growth rate, $r_1(u)$")
-
 
 # %%
 

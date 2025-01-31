@@ -1,10 +1,10 @@
 using UnPack
 using Bijectors, ComponentArrays, Distributions, Graphs, JLD2
 using LinearAlgebra, OrdinaryDiffEq, OptimizationOptimisers, OptimizationOptimJL
-using ParametricModels, PiecewiseInference, Pkg, SciMLSensitivity, SparseArrays
+using PiecewiseInference, Pkg, SciMLSensitivity, SparseArrays
 using Statistics
 
-include("3sp_NN_model.jl")
+include("hybrid_growth_rate_model.jl")
 include("loss_fn.jl")
 
 # Main simulation function
@@ -21,7 +21,7 @@ function simu(pars, datas_arr, epochs, inference_params)
 
     stats = @timed inference(infprob; group_size = group_size,
                                            data = data_w_noise, 
-                                           adtype, epochs, inference_params...)
+                                           adtype, epochs=[epochs], inference_params...)
 
     res = stats.value
     l = res.losses[end]

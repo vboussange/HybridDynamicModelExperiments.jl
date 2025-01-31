@@ -8,10 +8,6 @@ import Lux: zeros32
 using Random
 using NNlib
 
-# overloading required to use Bijectors.Inverse as an activation function
-import NNlib.fast_act
-fast_act(f::Bijectors.Inverse, ::AbstractArray = 1:0) = f
-
 """
     HybridFuncRespModel(mp, HlSize=5, seed=0)
 
@@ -52,9 +48,9 @@ function HybridFuncRespModel(mp, HlSize=5, seed=0)
     mlp() = Lux.Chain(Lux.Dense(1, HlSize, tanh),
                         Lux.Dense(HlSize, HlSize, tanh), 
                         Lux.Dense(HlSize, HlSize, tanh), 
-                        Lux.Dense(HlSize, 1, last_activ_fun, use_bias=false))
+                        Lux.Dense(HlSize, 1))
 
-    # TODO: the use of Parallel may be an overkill, instead we may a tuple of neural nets to be unravelled
+    # TODO: the use of Parallel may be an overkill, instead we may want a tuple of neural nets to be unravelled
     # This may be more efficient
     _neural_net = Parallel(nothing, mlp(), mlp())
     p_nn, st = Lux.setup(rng, _neural_net)
@@ -63,7 +59,7 @@ function HybridFuncRespModel(mp, HlSize=5, seed=0)
     function func_resp(u, p_nn)
         x = ([u[1]], [u[2]])
         y = neural_net(x, p_nn)
-        return vcat(y...)
+        return last_activ_fun(vcat(y...))
     end
 
     p = ComponentArray(mp.p; p_nn)

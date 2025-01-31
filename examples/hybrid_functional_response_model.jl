@@ -23,7 +23,7 @@ function init(model::HybridFuncRespModel, perturb=0.5)
     T = eltype(p_true)
     distrib_param_arr = Pair{Symbol, Any}[]
 
-    for dp in keys(p_true)
+    for dp in [:r, :A]
         dp == :p_nn && continue
         pair = dp => Product([Uniform(sort([(1f0-perturb/2f0) * k, (1f0+perturb/2f0) * k])...) for k in p_true[dp]])
         push!(distrib_param_arr, pair)
@@ -47,7 +47,7 @@ tspan = (0., 800)
 tsteps = 550.:4.:800.
 u0_true = Float32[0.5,0.8,0.5]
 p_hybrid = ComponentArray(r = Float32[0.5, -0.2, -0.1],
-                            A = Float32[0.7])
+                            A = Float32[1.15])
 
 hybrid_model = HybridFuncRespModel(ModelParams(;p=p_hybrid,
                                         tspan,

@@ -104,7 +104,7 @@ for (opt, nameopt) in zip([OptimizationOptimJL.LBFGS(linesearch = LineSearches.B
         push!(results_df, (group_size, stats.time, res, nameopt, ps, perr_all, perr_all[end]))
     end
 end
-save_results(@__FILE__; results=results_df)
+save_results(@__FILE__; results=results_df, inference_params...)
 
 
 if true

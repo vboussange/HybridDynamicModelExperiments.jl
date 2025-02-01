@@ -153,7 +153,8 @@ function create_simulation_parameters(data_arr, p_trues)
 
         # SimpleModel
         model = Model3SP(ModelParams(;p = SYNTHETIC_DATA_PARAMS.p_true,
-                                    u0= u0_init, 
+                                    u0= u0_init,
+                                    saveat = SYNTHETIC_DATA_PARAMS.tsteps,
                                     SYNTHETIC_DATA_PARAMS.solver_params...))
         p_init, p_bij, u0_bij = initialize_params_and_constraints(model)
         infprob = InferenceProblem(model, 
@@ -170,6 +171,7 @@ function create_simulation_parameters(data_arr, p_trues)
 
         model = HybridGrowthRateModel(ModelParams(;p = p_init, 
                                                 u0= u0_init, 
+                                                saveat = SYNTHETIC_DATA_PARAMS.tsteps,
                                                 SYNTHETIC_DATA_PARAMS.solver_params...))
         infprob = InferenceProblem(model, model.mp.p; 
                                     loss_u0_prior = LossLikelihood(), 
@@ -194,4 +196,4 @@ run_simulations([simulation_parameters[2] for p in workers()], data_arr, 10) # p
 
 println("Starting simulations...")
 results = run_simulations(simulation_parameters, data_arr, INFERENCE_PARAMS.epochs)
-save_results(string(@__FILE__); results, data_arr, p_trues)
+save_results(string(@__FILE__); results, data_arr, p_trues, SYNTHETIC_DATA_PARAMS...)

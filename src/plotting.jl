@@ -32,33 +32,12 @@ function tap_results(result_name)
     filter!(row -> !isinf(row.loss), df_results)
 
     # Calculating parameter error
-
-    # FIXME: Parameters A in current manuscript corresponds to A/K in
-    # simulations, where A and K are unidentifiable. As such, for correct
-    # parameter error estimation, we compute the ratio, which is identifiable.
-    # For further complications, parameter K is named K₁₁ for
-    # Model3SP and K for other models 
-
-    if occursin("3sp", result_name)
-        Kname = "K₁₁"
-    else
-        Kname = "K"
-    end
-    df_results[!, "p_trained_fix"] = [ComponentVector(H=res.p_trained["H"], q=res.p_trained["q"], r=res.p_trained["r"], A=res.p_trained["A"] / res.p_trained[Kname]) for res in df_results[:, "res"]]
-    TrueParameters = ComponentVector(H=TrueParameters["H"], q= TrueParameters["q"], r=TrueParameters["r"], A=TrueParameters["A"] / TrueParameters[Kname])
+    df_results[!, "p_trained_fix"] = [ComponentVector(H=res.p_trained["H"], q=res.p_trained["q"], r=res.p_trained["r"], A=res.p_trained["A"]) for res in df_results[:, "res"]]
+    TrueParameters = ComponentVector(H=TrueParameters["H"], q= TrueParameters["q"], r=TrueParameters["r"], A=TrueParameters["A"])
 
     df_results[!, :par_err_median] = [median(abs.((r.p_trained_fix .- TrueParameters) ./ r.p_trained_fix)) for r in eachrow(df_results)]
 
     # Calculating forecasting error
-
-    # FIXME: Simulations were run with Model3SP defined with A
-    # and K parameters, but current Model3SP has been modified
-    # according to manuscript with only A parameter, so we need to assign values A/K to parameter A
-    # for making correct forecasts. In the future, all models should be defined
-    # according to manuscript
-    if occursin("3sp", result_name)
-        [r.res.p_trained["A"] .= r.p_trained_fix["A"] for r in eachrow(df_results)]
-    end
     df_results[!, :val] = zeros(size(df_results, 1))
     for r in eachrow(df_results)
         try

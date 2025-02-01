@@ -4,6 +4,7 @@ using LinearAlgebra, OrdinaryDiffEq, OptimizationOptimisers, OptimizationOptimJL
 using PiecewiseInference, Pkg, SciMLSensitivity, SparseArrays
 using Statistics
 
+include("3sp_model.jl")
 include("hybrid_growth_rate_model.jl")
 include("loss_fn.jl")
 

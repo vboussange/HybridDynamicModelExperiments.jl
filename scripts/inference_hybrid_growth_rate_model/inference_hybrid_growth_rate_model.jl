@@ -114,11 +114,17 @@ end
 
 function initialize_params_and_constraints_hybrid_model()
     T = eltype(SYNTHETIC_DATA_PARAMS.p_true)
+    perturb = SYNTHETIC_DATA_PARAMS.perturb
     distrib_param_arr = Pair{Symbol, Any}[]
 
-    for dp in [:A, :H, :q]
+    for dp in keys(SYNTHETIC_DATA_PARAMS.p_true)
         dp == :p_nn && continue
-        pair = dp => Product([Uniform(sort(T[(1f0-SYNTHETIC_DATA_PARAMS.perturb/2f0) * k, (1f0+SYNTHETIC_DATA_PARAMS.perturb/2f0) * k])...) for k in SYNTHETIC_DATA_PARAMS.p_true[dp]])
+        if  dp == :r
+            p = SYNTHETIC_DATA_PARAMS.p_true[dp][2:end] # the first growth rate is fitted by the neural net, but we fit r coeff for consumer and predator
+        else
+            p = SYNTHETIC_DATA_PARAMS.p_true[dp]
+        end
+        pair = dp => Product([Uniform(sort(T[(1f0-perturb/2f0) * k, (1f0+perturb/2f0) * k])...) for k in p])
         push!(distrib_param_arr, pair)
     end
     pair_nn = :p_nn => Uniform(-Inf, Inf)
@@ -177,7 +183,7 @@ function create_simulation_parameters(data_arr, p_trues)
     return pars_arr
 end
 
-# setup_distributed_environment("simul_model_selec.jl")
+setup_distributed_environment("simul_model_selec.jl")
 include("../../src/simul_model_selec.jl")
 data_arr, p_trues = generate_data()
 simulation_parameters = create_simulation_parameters(data_arr, p_trues);

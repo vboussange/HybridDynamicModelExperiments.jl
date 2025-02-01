@@ -165,4 +165,4 @@ for config in configs
     push!(results_df, row_tuple)
 end
 
-save_results(@__FILE__; results=results_df, synthetic_data, p_true = P_TRUE)
+save_results(@__FILE__; results=results_df, synthetic_data, p_true = SYNTHETIC_DATA_PARAMS.p_true)

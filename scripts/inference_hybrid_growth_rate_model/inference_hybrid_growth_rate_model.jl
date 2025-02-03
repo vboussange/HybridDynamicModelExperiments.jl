@@ -46,7 +46,7 @@ SYNTHETIC_DATA_PARAMS = (;p_true = ComponentArray(
 
 SIMULATION_CONFIG = (;group_sizes = [5],
                     noises      = [0.1],
-                    nruns       = 10,
+                    nruns       = 100,
                     ss = exp.(range(log(8f-1), log(100f-1), length = 5)))
 
 INFERENCE_PARAMS = (;optimizers = [OptimizationOptimisers.Adam(1e-2)],
@@ -172,7 +172,8 @@ function create_simulation_parameters(data_arr, p_trues)
         model = HybridGrowthRateModel(ModelParams(;p = p_init, 
                                                 u0= u0_init, 
                                                 saveat = SYNTHETIC_DATA_PARAMS.tsteps,
-                                                SYNTHETIC_DATA_PARAMS.solver_params...))
+                                                SYNTHETIC_DATA_PARAMS.solver_params...),
+                                                seed=run)
         infprob = InferenceProblem(model, model.mp.p; 
                                     loss_u0_prior = LossLikelihood(), 
                                     loss_likelihood = LossLikelihood(), 

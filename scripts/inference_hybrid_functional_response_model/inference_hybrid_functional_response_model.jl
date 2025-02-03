@@ -46,7 +46,7 @@ SIMULATION_CONFIG = (;group_sizes = [5],
 
 INFERENCE_PARAMS = (;optimizers = [OptimizationOptimisers.Adam(1e-2)],
                     verbose_loss = true,
-                    info_per_its = 10,
+                    info_per_its = 100,
                     multi_threading = false,
                     epochs = [5000],
                     loss_likelihood =  LossLikelihood(),
@@ -84,7 +84,11 @@ function build_simulation_configs()
             for run_id in 1:SIMULATION_CONFIG.nruns
                 p_init, p_bij, u0_bij = init()
                 # need to inform u0 to inform number of state variables
-                model = HybridFuncRespModel(ModelParams(p=p_init, u0=zeros(Float32, 3); SYNTHETIC_DATA_PARAMS.solver_params...))
+                model = HybridFuncRespModel(ModelParams(p=p_init, 
+                                                        u0=zeros(Float32, 3),
+                                                        saveat = SYNTHETIC_DATA_PARAMS.tsteps,
+                                                        SYNTHETIC_DATA_PARAMS.solver_params...),
+                                                        seed=run_id)
 
                 # Inference problem
                 infprob = InferenceProblem(

@@ -34,7 +34,7 @@ function HybridGrowthRateModel(mp, HlSize=5, seed=0)
     I, J, _ = findnz(adjacency_matrix(foodweb))
 
     # neural net
-    rng = Random.default_rng()
+    rng = TaskLocalRNG()
     Random.seed!(rng, seed)
 
     _neural_net = Lux.Chain(Lux.Dense(1, HlSize, rbf), 

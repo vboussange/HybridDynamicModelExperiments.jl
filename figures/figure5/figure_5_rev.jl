@@ -258,7 +258,7 @@ fig.set_facecolor("none")
 fig.tight_layout()
 display(fig)
 
-fig.savefig(split(@__FILE__,".")[1]*".pdf", dpi = 300)
+fig.savefig(split(@__FILE__,".")[1]*".pdf", dpi = 300, bbox_inches = "tight")
 
 # %%
 

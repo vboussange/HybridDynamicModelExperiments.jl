@@ -29,6 +29,7 @@ include("../../../src/3sp_model.jl")
 include("../../../src/hybrid_growth_rate_model.jl")
 include("../../../src/hybrid_functional_response_model.jl")
 include("../../../src/utils.jl")
+include("../../../src/plotting.jl")
 
 result_path_hybrid_growth_rate_model = "../../../scripts/inference_hybrid_growth_rate_model/results/2025-02-01/inference_hybrid_growth_rate_model.jld2"
 @load joinpath(result_path_hybrid_growth_rate_model) results data_arr p_trues tsteps
@@ -136,10 +137,8 @@ display(fig)
 # ax2
 # -----------------------------
 # calculating parameter error
-# TODO: select approproate s so that the comparison is fair between the two model
-# TODO: make box plot comparing the parameter error for each sub parameter, between the two models
-s_to_plot = 0.8f0
-df_to_plot = df_to_plot[df_to_plot.s .== s_to_plot, :]
+inv_s_to_plot = 0.1
+df_to_plot = df_to_plot[df_to_plot[:, "1/s"] .== inv_s_to_plot, :]
 
 idx_s = findfirst([p.s[1] == s_to_plot for p in p_trues])
 p_true = p_trues[idx_s]
@@ -160,7 +159,67 @@ for r in eachrow(df_to_plot)
     push!(p_trained_filter_ar, p_trained_filter)
 end
 df_to_plot[!, "p_trained_filtered"] = p_trained_filter_ar
-df_to_plot[!, :par_err_median] = [median(abs.((r.p_trained_filtered .- p_true) ./ r.p_trained_filtered)) for r in eachrow(df_to_plot)]
+
+par_err_median = []
+for r in eachrow(df_to_plot)
+    par_residual = abs.((r.p_trained_filtered .- p_true) ./ r.p_trained_filtered)
+    _par_err_median = []
+    for k in keys(par_residual)
+        push!(_par_err_median, median(par_residual[k]))
+    end
+    push!(par_err_median, _par_err_median)
+end
+par_err_median = hcat(par_err_median...)
+[df_to_plot[!, k] = par_err_median[i, :] for (i, k) in enumerate(keys(p_true))]
+
+# PLOTTING
+ax = axs[1]
+dfg_model = groupby(df_to_plot, "scenario");
+
+color_palette = ["tab:purple", "tab:orange"]
+linestyles = ["--", "-."]
+spread = 0.7 #spread of box plots
+pars = ["H", "q", "r", "A"]
+
+for (j,df_model_i) in enumerate(dfg_model)
+    y = []
+    for k in pars
+        push!(y, df_model_i[:,k])
+    end
+    xx = (1:length(pars)) .+ ((j -1) / length(pars) .- 0.5)*spread # we artificially shift the x values to better visualise the std 
+    # ax.plot(x,err_arr,                
+    #         color = color_palette[j] )
+    bplot = ax.boxplot(y,
+                positions = xx,
+                showfliers = false,
+                widths = 0.1,
+                vert=true,  # vertical box alignment
+                patch_artist=true,  # fill with color
+                # notch = true,
+                # label = "$(j) time series", 
+                boxprops= pydict(Dict("alpha" => .3))
+                )
+
+    # putting the colors
+    for patch in bplot["boxes"]
+        patch.set_facecolor(color_palette[j])
+        patch.set_edgecolor(color_palette[j])
+    end
+    for item in ["caps", "whiskers","medians"]
+        for patch in bplot[item]
+            patch.set_color(color_palette[j])
+        end
+    end
+end
+
+ax.set_ylabel("Parameter error")
+# ax.set_yscale("log")
+# ax.set_ylim(-0.05,1.1)
+ax.set_xticks(collect(1:length(pars)).-0.25)
+ax.set_xticklabels(pars)
+ax.set_yscale("log")
+display(fig)
+
 
 
 
@@ -182,7 +241,7 @@ fig.set_facecolor("none")
 fig.tight_layout()
 display(fig)
 
-fig.savefig(split(@__FILE__,".")[1]*".pdf", dpi = 300)
+fig.savefig(split(@__FILE__,".")[1]*".pdf", dpi = 300, bbox_inches = "tight")
 
 # %%
 

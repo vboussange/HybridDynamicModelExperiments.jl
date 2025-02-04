@@ -20,7 +20,7 @@ struct HybridFuncRespModel{MP, II, F} <: AbstractModel3SP
     func_resp::F # functional response
 end
 
-function HybridFuncRespModel(mp, HlSize=5, seed=0)
+function HybridFuncRespModel(mp; HlSize=5, seed=0)
 
     # foodweb
     foodweb = DiGraph(3)

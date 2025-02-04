@@ -31,7 +31,7 @@ include("../../../src/hybrid_functional_response_model.jl")
 include("../../../src/utils.jl")
 include("../../../src/plotting.jl")
 
-result_path_hybrid_growth_rate_model = "../../../scripts/inference_hybrid_growth_rate_model/results/2025-02-01/inference_hybrid_growth_rate_model.jld2"
+result_path_hybrid_growth_rate_model = "../../../scripts/inference_hybrid_growth_rate_model/results/2025-02-03/inference_hybrid_growth_rate_model.jld2"
 @load joinpath(result_path_hybrid_growth_rate_model) results data_arr p_trues tsteps
 
 
@@ -50,16 +50,14 @@ for df in groupby(results, :s)
     data = data_arr[idx_s]
     for r in eachrow(df)
 
-        # TODO: FIX: we should save `saveat` in kwargs upstream
-        kwargs = (r.res.infprob.m.mp.kwargs..., saveat=tsteps)
-        mp = remake(r.res.infprob.m.mp; p = p_trues[idx_s], kwargs=kwargs)
-        water_dep_em = Model3SPVaryingGrowthRate(mp)
+        mp = remake(r.res.infprob.m.mp; p = p_trues[idx_s])
+        true_model = Model3SPVaryingGrowthRate(mp)
         
-        m = typeof(r.res.infprob.m).name.wrapper(mp)
-        infprob = InferenceProblem(m, r.res.infprob.p0; r.res.infprob.p_bij, r.res.infprob.u0_bij, r.res.infprob.loss_param_prior, r.res.infprob.loss_u0_prior, r.res.infprob.loss_likelihood)
-        res = InferenceResult(infprob, r.res.minloss, r.res.p_trained, r.res.u0s_trained, r.res.ranges, r.res.losses)
+        # m = typeof(r.res.infprob.m).name.wrapper(mp)
+        # infprob = InferenceProblem(m, r.res.infprob.p0; r.res.infprob.p_bij, r.res.infprob.u0_bij, r.res.infprob.loss_param_prior, r.res.infprob.loss_u0_prior, r.res.infprob.loss_likelihood)
+        # res = InferenceResult(infprob, r.res.minloss, r.res.p_trained, r.res.u0s_trained, r.res.ranges, r.res.losses)
 
-        r.val = validate(res, data, water_dep_em)
+        r.val = validate(r.res, data, true_model)
     end
 end
 
@@ -129,7 +127,7 @@ ax.legend(handles=[Line2D([0],
         linestyle = linestyles[i], 
         # linestyle="", 
         label=labels[i]) for i in 1:2])
-
+ax.set_yscale("log")
 display(fig)
 
 
@@ -140,7 +138,7 @@ display(fig)
 inv_s_to_plot = 0.1
 df_to_plot = df_to_plot[df_to_plot[:, "1/s"] .== inv_s_to_plot, :]
 
-idx_s = findfirst([p.s[1] == s_to_plot for p in p_trues])
+idx_s = findfirst([p.s[1] .≈ 1/ inv_s_to_plot for p in p_trues])
 p_true = p_trues[idx_s]
 p_true = ComponentVector(H=p_true.H, q= p_true.q, r=p_true.r[2:end], A=p_true.A)
 
@@ -217,7 +215,6 @@ ax.set_ylabel("Parameter error")
 # ax.set_ylim(-0.05,1.1)
 ax.set_xticks(collect(1:length(pars)).-0.25)
 ax.set_xticklabels(pars)
-ax.set_yscale("log")
 display(fig)
 
 

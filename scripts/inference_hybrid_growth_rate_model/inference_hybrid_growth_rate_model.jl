@@ -46,12 +46,12 @@ SYNTHETIC_DATA_PARAMS = (;p_true = ComponentArray(
 
 SIMULATION_CONFIG = (;group_sizes = [5],
                     noises      = [0.1],
-                    nruns       = 100,
+                    nruns       = 10,
                     ss = exp.(range(log(8f-1), log(100f-1), length = 5)))
 
 INFERENCE_PARAMS = (;optimizers = [OptimizationOptimisers.Adam(1e-2)],
                     verbose_loss = true,
-                    info_per_its = 10,
+                    info_per_its = 100,
                     multi_threading = false,
                     epochs = 5000,
                     )

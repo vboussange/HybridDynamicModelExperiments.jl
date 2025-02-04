@@ -25,7 +25,7 @@ end
 
 rbf(x) = exp.(-(x.^2)) # custom activation function
 
-function HybridGrowthRateModel(mp, HlSize=5, seed=0)
+function HybridGrowthRateModel(mp; HlSize=5, seed=0)
     # foodweb
     foodweb = DiGraph(3)
     add_edge!(foodweb, 2 => 1)  # Consumer to Resource

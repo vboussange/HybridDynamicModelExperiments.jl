@@ -84,7 +84,7 @@ function build_simulation_configs()
             for run_id in 1:SIMULATION_CONFIG.nruns
                 p_init, p_bij, u0_bij = init()
                 # need to inform u0 to inform number of state variables
-                model = HybridFuncRespModel(ModelParams(p=p_init, 
+                model = HybridFuncRespModel(ModelParams(;p=p_init, 
                                                         u0=zeros(Float32, 3),
                                                         saveat = SYNTHETIC_DATA_PARAMS.tsteps,
                                                         SYNTHETIC_DATA_PARAMS.solver_params...),

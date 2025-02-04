@@ -36,7 +36,7 @@ fig, axs = plt.subplots(1,2, figsize=(6,3.5))
 ax = axs[0]
 
 
-result_path_func_resp_model = "../../scripts/inference_hybrid_functional_response_model/results/2025-01-31/inference_hybrid_functional_response_model.jld2"
+result_path_func_resp_model = "../../scripts/inference_hybrid_functional_response_model/results/2025-02-03/inference_hybrid_functional_response_model.jld2"
 @load joinpath(result_path_func_resp_model) results synthetic_data p_true
 
 hybrid_model = HybridFuncRespModel(ModelParams(p = ComponentArray()))
@@ -162,7 +162,7 @@ display(fig)
 #         label=labels[i]) for i in 1:2])
 
 
-result_path_hybrid_growth_rate_model = "../../scripts/inference_hybrid_growth_rate_model/results/2025-01-31/inference_hybrid_growth_rate_model.jld2"
+result_path_hybrid_growth_rate_model = "../../scripts/inference_hybrid_growth_rate_model/results/2025-02-03/inference_hybrid_growth_rate_model.jld2"
 @load joinpath(result_path_hybrid_growth_rate_model) results data_arr p_trues
 
 mydict = Dict("HybridGrowthRateModel" => L"\mathcal{M}_3^{\text{NN}}", 

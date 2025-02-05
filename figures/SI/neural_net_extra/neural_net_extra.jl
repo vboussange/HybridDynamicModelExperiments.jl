@@ -31,7 +31,7 @@ include("../../../src/hybrid_functional_response_model.jl")
 include("../../../src/utils.jl")
 include("../../../src/plotting.jl")
 
-result_path_hybrid_growth_rate_model = "../../../scripts/inference_hybrid_growth_rate_model/results/2025-02-03/inference_hybrid_growth_rate_model.jld2"
+result_path_hybrid_growth_rate_model = "../../../scripts/inference_hybrid_growth_rate_model/results/2025-02-05/inference_hybrid_growth_rate_model.jld2"
 @load joinpath(result_path_hybrid_growth_rate_model) results data_arr p_trues tsteps
 
 
@@ -127,7 +127,7 @@ ax.legend(handles=[Line2D([0],
         linestyle = linestyles[i], 
         # linestyle="", 
         label=labels[i]) for i in 1:2])
-ax.set_yscale("log")
+# ax.set_yscale("log")
 display(fig)
 
 

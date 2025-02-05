@@ -11,7 +11,6 @@ julia scripts/inference_3sp/inference_3sp.jl 10
 ```
 will run the script over 10 processes.
 =#
-cd(@__DIR__)
 using JLD2
 using DataFrames
 using Random
@@ -20,15 +19,26 @@ using ProgressMeter
 using ComponentArrays
 import OrdinaryDiffEq: Tsit5
 using OptimizationOptimisers
-using PiecewiseInference
-using SciMLSensitivity
 using Distributions
 using Bijectors
-
 include("../../src/utils.jl")
-include("../../src/run_simulations.jl")
-include("../../src/loss_fn.jl")
 
+# setting up the distributed computing environment
+using Distributed
+procs_to_add = isempty(ARGS) ? 0 : parse(Int, ARGS[1])
+addprocs(procs_to_add, exeflags="--project=$(Base.active_project())")
+@everywhere begin 
+    using PiecewiseInference
+    using SciMLSensitivity
+
+    cd(@__DIR__)
+    include("../../src/3sp_model.jl")
+    include("../../src/hybrid_growth_rate_model.jl")
+    include("../../src/loss_fn.jl")
+
+end
+
+# setting up the global parameters
 SYNTHETIC_DATA_PARAMS = (;p_true = ComponentArray(
                                                 H = Float32[1.24, 2.5],
                                                 q = Float32[4.98, 0.8],
@@ -56,16 +66,6 @@ INFERENCE_PARAMS = (;optimizers = [OptimizationOptimisers.Adam(1e-2)],
                     epochs = 5000,
                     )
 
-Random.seed!(5)
-
-function generate_inference_params()
-    return (tsteps = SYNTHETIC_DATA_PARAMS.tsteps,
-            optimizers = INFERENCE_PARAMS.optimizers,
-            verbose_loss = INFERENCE_PARAMS.verbose_loss,
-            info_per_its = INFERENCE_PARAMS.info_per_its,
-            multi_threading = INFERENCE_PARAMS.multi_threading,)
-end
-
 function generate_data()
     data_arr = []
     p_trues = []
@@ -81,18 +81,6 @@ function generate_data()
         push!(p_trues, ps)
     end
     data_arr, p_trues
-end
-
-function generate_df_results()
-    DataFrame(group_size = Int[], 
-            noise = Float64[], 
-            loss = Float64[], 
-            time = Float64[], 
-            res = Any[], 
-            adtype = Any[],
-            s = Float64[],
-            model = String[],
-            )
 end
 
 # Initialize parameters and setup constraints
@@ -145,11 +133,15 @@ function create_simulation_parameters(data_arr, p_trues)
     nruns = SIMULATION_CONFIG.nruns
     adtype = Optimization.AutoZygote()
 
-    pars_arr = Dict{Symbol,Any}[]
+    pars_arr = NamedTuple[]
     for group_size in group_sizes, noise in noises, run in 1:nruns, d in 1:length(data_arr)
         u0_init = data_arr[d][:,1]
         p_true = p_trues[d]
         pref = p_true.s[1]
+        data = data_arr[d]
+
+        noisy_data = data .* exp.(noise * randn(size(data)))
+
 
         # SimpleModel
         model = Model3SP(ModelParams(;p = SYNTHETIC_DATA_PARAMS.p_true,
@@ -163,7 +155,7 @@ function create_simulation_parameters(data_arr, p_trues)
                                     loss_likelihood = LossLikelihood(), 
                                     p_bij, u0_bij)
 
-        sim_params = pack_simulation_parameters(;group_size, noise, model, d, infprob, pref, adtype)
+        sim_params = (;group_size, noise, model, data = noisy_data, infprob, pref, adtype)
         push!(pars_arr, sim_params)
 
         # Hybrid model
@@ -179,22 +171,57 @@ function create_simulation_parameters(data_arr, p_trues)
                                     loss_likelihood = LossLikelihood(), 
                                     p_bij, u0_bij)
 
-        sim_params = pack_simulation_parameters(;group_size, noise, model, d, infprob, pref, adtype)
+        sim_params = (;group_size, noise, model, data=noisy_data, infprob, pref, adtype)
         push!(pars_arr, sim_params)
 
     end
     return pars_arr
 end
 
-setup_distributed_environment("simul_model_selec.jl")
-include("../../src/simul_model_selec.jl")
 data_arr, p_trues = generate_data()
 simulation_parameters = create_simulation_parameters(data_arr, p_trues);
 
-println("Warming up...")
-run_simulations([simulation_parameters[1] for p in workers()], data_arr, 10) # precompilation for std model
-run_simulations([simulation_parameters[2] for p in workers()], data_arr, 10) # precompilation for omniv
+pmap_res = @showprogress pmap(1:length(simulation_parameters)) do i
+    try
+        # invoke garbage collection to avoid memory overshoot on SLURM
+        GC.gc()
+        @unpack group_size, noise, adtype, data, model, infprob, noise, pref = simulation_parameters[i]
+        println("Launching simulations for group_size = $group_size, noise = $noise")
 
-println("Starting simulations...")
-results = run_simulations(simulation_parameters, data_arr, INFERENCE_PARAMS.epochs)
-save_results(string(@__FILE__); results, data_arr, p_trues, SYNTHETIC_DATA_PARAMS...)
+        stats = @timed inference(infprob; group_size = group_size,
+                                            data = data, 
+                                            adtype, 
+                                            epochs=[INFERENCE_PARAMS.epochs], 
+                                            tsteps = SYNTHETIC_DATA_PARAMS.tsteps,
+                                            optimizers = INFERENCE_PARAMS.optimizers,
+                                            verbose_loss = INFERENCE_PARAMS.verbose_loss,
+                                            info_per_its = INFERENCE_PARAMS.info_per_its,
+                                            multi_threading = INFERENCE_PARAMS.multi_threading)
+        res = stats.value
+        l = res.losses[end]
+        return true, (group_size, noise, l, stats.time, res, typeof(adtype), pref, name(model))
+
+    catch e
+        println("error with", pars_arr[i])
+        println(e)
+        (false, nothing)
+    end
+end
+
+df_results = DataFrame(group_size = Int[], 
+                        noise = Float64[], 
+                        loss = Float64[], 
+                        time = Float64[], 
+                        res = Any[], 
+                        adtype = Any[],
+                        s = Float64[],
+                        model = String[],
+                        )
+
+for (st, row) in pmap_res
+    if st 
+        push!(df_results, row)
+    end
+end
+
+save_results(string(@__FILE__); results=df_results, data_arr, p_trues, SYNTHETIC_DATA_PARAMS...)

@@ -6,24 +6,16 @@ include("hybrid_growth_rate_model.jl")
 include("hybrid_functional_response_model.jl")
 include("loss_fn.jl")
 
-function pack_simulation_parameters(;kwargs...)
-    sim_params = Dict{Symbol, Any}()
-    for k in kwargs
-        sim_params[k[1]] = k[2]
-    end
-    return sim_params
-end
-
 function run_simulations(pars_arr, data, epochs; kwargs...)
     inference_params = generate_inference_params()
     pmap_res = @showprogress pmap(1:length(pars_arr)) do i
-        try
+        # try
             (true, simu(pars_arr[i], data, epochs, inference_params), kwargs...)
-        catch e
-            println("error with", pars_arr[i])
-            println(e)
-            (false, nothing)
-        end
+        # catch e
+        #     println("error with", pars_arr[i])
+        #     println(e)
+        #     (false, nothing)
+        # end
     end
 
     df_results = generate_df_results()

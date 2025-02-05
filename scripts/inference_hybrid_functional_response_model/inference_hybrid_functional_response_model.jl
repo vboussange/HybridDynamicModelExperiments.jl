@@ -4,6 +4,7 @@
 #     Inference Simulation on a 3-Species Model using HybridFuncRespModel
 # -------------------------------------------------------------------------
 
+cd(@__DIR__)
 using JLD2
 using DataFrames
 using Random
@@ -16,7 +17,6 @@ using PiecewiseInference
 using SciMLSensitivity
 using Distributions
 using Bijectors
-cd(@__DIR__)
 
 Random.seed!(2)
 

@@ -47,7 +47,7 @@
 \begin{tikzpicture}[x=4.3cm,y=1.2cm]
     \readlist\Nnod{1,5,5,5,1} % array of number of nodes per layer
     \readlist\Nstr{d,d+50,} % array of string number of nodes per layer
-    \readlist\Cstr{$u$,,$r_1(u)$} % array of coefficient symbol per layer
+    \readlist\Cstr{,,} % array of coefficient symbol per layer
     \def\yshift{0.} % shift last node for dots
     
     % LOOP over LAYERS
@@ -82,10 +82,10 @@
     }
     
     % LABELS
-    \node[above=.1,align=center,mydarkgreen] at (N1-1.90) {Input layer\\[-0.2em](Environmental\\[-0.2em]forcing)};
-    \node[above=.1,align=center,mydarkblue] at (N2-1.90) {1st hidden layer};
-    \node[above=.1,align=center,mydarkblue] at (N3-1.90) {2nd hidden layer};
-    \node[above=.1,align=center,mydarkblue] at (N4-1.90) {3rd hidden layer};
-    \node[above=.1,align=center,mydarkred] at (N\Nnodlen-1.60) {Output layer\\[-0.2em](Resource\\[-0.2em]growth rate)};
+    \node[above=.1,align=center,mydarkgreen, above left=0cm of N1-1] {\large{Environmental}\\\large{forcing}};
+    \node[above=.1,align=center,mydarkblue] at ([yshift=-7cm]N3-1.90) (hidlay) {\large{Hidden layers}};
+    \node[above=.1,align=center,mydarkgreen, left=2cm of hidlay] {\large{Input layer}};
+    \node[above=.1,align=center,mydarkred, right=2cm of hidlay] {\large{Output layer}};
+    \node[above=.1,align=center,mydarkred, above right=0cm of N\Nnodlen-1.60] {\large{Resource}\\\large{growth rate}};
 \end{tikzpicture}
 \end{document}

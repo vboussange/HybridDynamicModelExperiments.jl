@@ -99,9 +99,9 @@ infprob = InferenceProblem(hybrid_model, p_init;
                             data, 
                             group_size = 5, 
                             adtype=Optimization.AutoZygote(), 
-                            epochs=[500, 50], 
+                            epochs=[5000, 50], 
                             tsteps = tsteps,
-                            optimizers = [OptimizationOptimisers.Adam(2e-2), OptimizationOptimJL.LBFGS()],
+                            optimizers = [OptimizationOptimisers.Adam(1e-2), OptimizationOptimJL.LBFGS()],
                             verbose_loss = true,
                             info_per_its = 10,
                             multi_threading = false)

@@ -34,33 +34,38 @@ function HybridFuncRespModel(mp; HlSize=5, seed=0)
     Random.seed!(rng, seed)
 
 
-    # can only throw positive values
     # version 1: no separate neural net for each species
-    # neural_net = Lux.Chain(Lux.Dense(2, HlSize, relu), 
-    #                     Lux.Dense(HlSize, HlSize, relu), 
-    #                     Lux.Dense(HlSize, HlSize, relu), 
-    #                     Lux.Dense(HlSize, 2, relu, use_bias=false))
-    # p_nn, st = Lux.setup(rng, neural_net)
-    # func_resp = StatefulLuxLayer{true}(neural_net, nothing, st)
-    
-    # version 2: separate neural net for each species 
     last_activ_fun = inverse(bijector(Uniform(0f0, Inf)))
-    mlp() = Lux.Chain(Lux.Dense(1, HlSize, tanh),
+    _neural_net = Lux.Chain(Lux.Dense(2, HlSize, tanh),
                         Lux.Dense(HlSize, HlSize, tanh), 
                         Lux.Dense(HlSize, HlSize, tanh), 
-                        Lux.Dense(HlSize, 1))
-
-    # TODO: the use of Parallel may be an overkill, instead we may want a tuple of neural nets to be unravelled
-    # This may be more efficient
-    _neural_net = Parallel(nothing, mlp(), mlp())
+                        Lux.Dense(HlSize, 2))
     p_nn, st = Lux.setup(rng, _neural_net)
     neural_net = StatefulLuxLayer{true}(_neural_net, nothing, st)
 
     function func_resp(u, p_nn)
-        x = ([u[1]], [u[2]])
-        y = neural_net(x, p_nn)
+        y = neural_net(u, p_nn)
         return last_activ_fun(vcat(y...))
     end
+
+    # version 2: separate neural net for each species 
+    # last_activ_fun = inverse(bijector(Uniform(0f0, Inf)))
+    # mlp() = Lux.Chain(Lux.Dense(1, HlSize, tanh),
+    #                     Lux.Dense(HlSize, HlSize, tanh), 
+    #                     Lux.Dense(HlSize, HlSize, tanh), 
+    #                     Lux.Dense(HlSize, 1))
+
+    # # TODO: the use of Parallel may be an overkill, instead we may want a tuple of neural nets to be unravelled
+    # # This may be more efficient
+    # _neural_net = Parallel(nothing, mlp(), mlp())
+    # p_nn, st = Lux.setup(rng, _neural_net)
+    # neural_net = StatefulLuxLayer{true}(_neural_net, nothing, st)
+
+    # function func_resp(u, p_nn)
+    #     x = ([u[1]], [u[2]])
+    #     y = neural_net(x, p_nn)
+    #     return last_activ_fun(vcat(y...))
+    # end
 
     p = ComponentArray(mp.p; p_nn)
     mp = remake(mp; p)

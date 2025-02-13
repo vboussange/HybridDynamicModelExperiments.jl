@@ -107,6 +107,7 @@ for r in eachrow(results_hybrid_model)
         model = res.infprob.m
         p_trained = res.p_trained
         inferred_feeding_rates = hcat([feeding(hybrid_model, c, p_trained).nzval for c in abundance_array]...)
+        inferred_feeding_rates .*= hcat(abundance_array...)[1:2, :]
         push!(ys,inferred_feeding_rates)
         push!(losses, r.loss)
 end
@@ -116,6 +117,7 @@ ymax = dropdims(maximum(cat(ys..., dims=3), dims=3), dims=3)
 # ymin = ymed .- 3 * ystd
 # ymax = ymed .+ 3* ystd
 true_feeding_rates = hcat([feeding(true_model, c, p_true).nzval for c in abundance_array]...)
+true_feeding_rates .*= hcat(abundance_array...)[1:2, :]
 
 colors = ["tab:blue", "tab:red"]
 
@@ -147,18 +149,19 @@ ax.legend(handles=[
     Line2D([0], [0], color="gray", linestyle="--", label="Ground truth"),
     Line2D([0], [0], color="gray", linestyle="-", label="NN-based parametrization")
     ],
-    loc="upper right")
+    loc="lower right", bbox_to_anchor=(1., 0.1))
 ax.set_xlabel("Abundance")
 ax.set_ylabel("Feeding rate")
 ax.set_title("Inferred feeding rates")
-ax.set_ylim(0, 5)
+ax.set_yscale("log")
+# ax.set_xscale("log")
 
 display(fig)
 
 ax1.axis("off")
 
 _let = ["A","B","C","D"]
-for (i,ax) in enumerate(axs)
+for (i,ax) in enumerate([ax1, ax2, ax3])
     _x = -0.1
     ax.text(_x, 1.05, _let[i],
         fontsize=12,

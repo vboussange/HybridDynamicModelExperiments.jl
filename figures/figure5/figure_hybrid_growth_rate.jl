@@ -190,7 +190,8 @@ ax.plot(water_avail[:],
         # label="True growth rate",
         color = "tab:green")
 ax.legend(handles=[
-        Line2D([0], [0], color="tab:green", linestyle="-", label= "Primary producer"),
+        Line2D([0], [0], color="tab:green", linestyle="-", label= "NN-based parametrization"),
+        Line2D([0], [0], color="tab:green", linestyle="--", label= "Ground truth"),
         ],
         loc="upper right")
 ax.set_title("Inferred growth rate")
@@ -202,7 +203,7 @@ display(fig)
 ax1.axis("off")
 
 _let = ["A","B","C","D"]
-for (i,ax) in enumerate(axs)
+for (i,ax) in enumerate([ax1, ax2, ax3])
     _x = -0.1
     ax.text(_x, 1.05, _let[i],
         fontsize=12,

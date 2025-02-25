@@ -31,7 +31,7 @@ include("../../../src/hybrid_functional_response_model.jl")
 include("../../../src/utils.jl")
 include("../../../src/plotting.jl")
 
-result_path_hybrid_growth_rate_model = "../../../../scripts/inference_hybrid_growth_rate_model/results/2025-02-03/inference_hybrid_growth_rate_model.jld2"
+result_path_hybrid_growth_rate_model = "../../../scripts/inference_hybrid_growth_rate_model/results/2025-02-05/inference_hybrid_growth_rate_model.jld2"
 @load joinpath(result_path_hybrid_growth_rate_model) results data_arr p_trues tsteps
 
 
@@ -159,28 +159,17 @@ ax.set_xticks(collect(1:length(pars)).-0.25)
 ax.set_xticklabels(pars)
 display(fig)
 
+labels = [first(df.scenario) for df in dfg_model]
+ax.legend(handles=[Line2D([0], 
+        [0], 
+        color=color_palette[i],
+        linestyle = linestyles[i], 
+        # linestyle="", 
+        label=labels[i]) for i in 1:2])
 
-
-
-_let = ["A","B","C","D"]
-for (i,ax) in enumerate(axs)
-    _x = -0.1
-    ax.text(_x, 1.05, _let[i],
-        fontsize=12,
-        fontweight="bold",
-        va="bottom",
-        ha="left",
-        transform=ax.transAxes ,
-        zorder = 199
-    )
-end
-
-[ax.set_facecolor("none") for ax in axs]
+ax.set_facecolor("none")
 fig.set_facecolor("none")
 fig.tight_layout()
 display(fig)
 
 fig.savefig(split(@__FILE__,".")[1]*".pdf", dpi = 300, bbox_inches = "tight")
-
-# %%
-

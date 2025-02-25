@@ -31,11 +31,11 @@ include("../../../src/hybrid_functional_response_model.jl")
 include("../../../src/utils.jl")
 include("../../../src/plotting.jl")
 
-result_path_hybrid_growth_rate_model = "../../../scripts/inference_hybrid_growth_rate_model/results/2025-02-05/inference_hybrid_growth_rate_model.jld2"
+result_path_hybrid_growth_rate_model = "../../../../scripts/inference_hybrid_growth_rate_model/results/2025-02-03/inference_hybrid_growth_rate_model.jld2"
 @load joinpath(result_path_hybrid_growth_rate_model) results data_arr p_trues tsteps
 
 
-fig, axs = plt.subplots(1,2, figsize=(6,3.5))
+fig, ax = plt.subplots(1, figsize=(4,3.5))
 
 # -----------------------------
 # ax1
@@ -69,66 +69,6 @@ results[:,"scenario"] = replace(results[:,"model"], mydict...)
 gdf_results = groupby(results, :noise)
 df_to_plot = subset(gdf_results, :noise => x -> first(x) == 0.1)
 dfg_model = groupby(df_to_plot, "scenario");
-
-
-
-# ## Fig1
-ax = axs[0]
-color_palette = ["tab:purple", "tab:orange"]
-linestyles = ["--", "-."]
-spread = 0.7 #spread of box plots
-for (j,df_model_i) in enumerate(dfg_model)
-    dfg_model_i = groupby(df_model_i,"1/s", sort = true)
-    y = []
-    for (i,results) in enumerate(dfg_model_i)
-        push!(y, results.val)
-    end
-    xx = (1:length(dfg_model_i)) .+ ((j -1) / length(dfg_model_i) .- 0.5)*spread # we artificially shift the x values to better visualise the std 
-    # ax.plot(x,err_arr,                
-    #         color = color_palette[j] )
-    bplot = ax.boxplot(y,
-                positions = xx,
-                showfliers = false,
-                widths = 0.1,
-                vert=true,  # vertical box alignment
-                patch_artist=true,  # fill with color
-                # notch = true,
-                # label = "$(j) time series", 
-                boxprops= pydict(Dict("alpha" => .3))
-                )
-    ax.plot(xx, median.(y), color=color_palette[j], linestyle = linestyles[j])
-    # putting the colors
-    for patch in bplot["boxes"]
-        patch.set_facecolor(color_palette[j])
-        patch.set_edgecolor(color_palette[j])
-    end
-    for item in ["caps", "whiskers","medians"]
-        for patch in bplot[item]
-            patch.set_color(color_palette[j])
-        end
-    end
-end
-
-
-
-# %%
-labels = [first(df.scenario) for df in dfg_model]
-ax.set_ylabel("Forecast error")
-# ax.set_yscale("log")
-# ax.set_ylim(-0.05,1.1)
-ax.set_xlabel(L"1/s")
-x = sort!(unique(df_to_plot."1/s"))
-x = round.(x, digits=1)
-ax.set_xticks(collect(1:length(x)).-0.25)
-ax.set_xticklabels(x)
-ax.legend(handles=[Line2D([0], 
-        [0], 
-        color=color_palette[i],
-        linestyle = linestyles[i], 
-        # linestyle="", 
-        label=labels[i]) for i in 1:2])
-# ax.set_yscale("log")
-display(fig)
 
 
 # -----------------------------
@@ -171,7 +111,9 @@ par_err_median = hcat(par_err_median...)
 [df_to_plot[!, k] = par_err_median[i, :] for (i, k) in enumerate(keys(p_true))]
 
 # PLOTTING
-ax = axs[1]
+mydict = Dict("HybridGrowthRateModel" => "Hybrid model", 
+            "Model3SP" => "Null model")
+df_to_plot[:,"scenario"] = replace(df_to_plot[:,"model"], mydict...)
 dfg_model = groupby(df_to_plot, "scenario");
 
 color_palette = ["tab:purple", "tab:orange"]

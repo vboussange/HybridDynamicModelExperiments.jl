@@ -1,6 +1,5 @@
 #=
-Ecological functions to define the 7 species model
-
+7 species model
 =#
 using SparseArrays
 using ComponentArrays

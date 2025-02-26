@@ -1,3 +1,7 @@
+#=
+Utilities to run inference simulations in the partial observation setting.
+=#
+
 using UnPack
 using Bijectors, ComponentArrays, Distributions, Graphs, JLD2
 using LinearAlgebra, OrdinaryDiffEq, OptimizationOptimisers, OptimizationOptimJL

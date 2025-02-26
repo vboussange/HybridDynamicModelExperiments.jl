@@ -2,6 +2,7 @@
 Short exampling showcasing the fit of a model with 
 a neural network to account for functional response.
 =#
+
 cd(@__DIR__)
 import OrdinaryDiffEq: Tsit5
 using Plots

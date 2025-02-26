@@ -1,3 +1,8 @@
+#=
+3-species model incorporating a neural network for resource species growth rate,
+and a varying growth rate model influenced by environmental factors.
+=#
+
 using SparseArrays
 using Lux
 using Random

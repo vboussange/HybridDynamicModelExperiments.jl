@@ -1,3 +1,7 @@
+#=
+3 species model.
+=#
+
 using SparseArrays
 using ComponentArrays
 using UnPack

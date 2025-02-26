@@ -1,8 +1,7 @@
-#!/usr/bin/env julia
-
-# -------------------------------------------------------------------------
-#     Inference Simulation on a 3-Species Model using HybridFuncRespModel
-# -------------------------------------------------------------------------
+#=
+Running inference simulations with `Model3SP` and
+`HybridFuncRespModel`.
+=#
 
 cd(@__DIR__)
 using JLD2

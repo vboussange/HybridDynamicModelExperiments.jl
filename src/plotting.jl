@@ -1,3 +1,7 @@
+#=
+Utilities for plotting and processing results.
+=#
+
 using PythonCall, PythonPlot
 nx = pyimport("networkx")
 np = pyimport("numpy")

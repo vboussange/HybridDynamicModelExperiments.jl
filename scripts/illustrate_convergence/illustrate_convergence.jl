@@ -1,5 +1,5 @@
 #= 
-Inference simulations wuth `Model3SP` for illustrating convergence with different learning strategy in figure 1.
+Inference simulations with `Model3SP` for illustrating convergence with different learning strategy in figure 1.
 Three learning strategies:
 1. No segmentation
 2. No segmentation with initial parameter values close to true parameter values

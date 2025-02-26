@@ -1,6 +1,8 @@
 #=
-Short exampling showcasing the fit of a 3 species model.
+Short exampling showcasing the fit of a 3 species model were the growth rate of
+the resource species is parametrized by a neural network.
 =#
+
 cd(@__DIR__)
 import OrdinaryDiffEq: Tsit5
 using Plots

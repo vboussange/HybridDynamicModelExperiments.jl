@@ -1,3 +1,7 @@
+#=
+Utilities to run inference simulations.
+=#
+
 using UnPack
 using Bijectors, ComponentArrays, Distributions, Graphs, JLD2
 using LinearAlgebra, OrdinaryDiffEq, OptimizationOptimisers, OptimizationOptimJL

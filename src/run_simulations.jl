@@ -1,3 +1,7 @@
+#=
+Utility to run simulations in parallel using Distributed.jl
+=#
+
 using DataFrames, ProgressMeter, Distributed, ComponentArrays
 include("3sp_model.jl")
 include("5sp_model.jl")

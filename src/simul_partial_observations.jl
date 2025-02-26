@@ -5,7 +5,7 @@ Utilities to run inference simulations in the partial observation setting.
 using UnPack
 using Bijectors, ComponentArrays, Distributions, Graphs, JLD2
 using LinearAlgebra, OrdinaryDiffEq, OptimizationOptimisers, OptimizationOptimJL
-using ParametricModels, PiecewiseInference, Pkg, SciMLSensitivity, SparseArrays
+using PiecewiseInference, Pkg, SciMLSensitivity, SparseArrays
 using Statistics
 
 include("3sp_model.jl")

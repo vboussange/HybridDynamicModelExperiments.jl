@@ -28,13 +28,13 @@ PythonPlot = "274fc56d-3b97-40fa-a1cd-1b4a50311bf9"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 SciMLSensitivity = "1ed8b502-d754-442c-8d5d-10ac956f44a1"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
-[sources]
-PiecewiseInference = {path = "PiecewiseInference.jl"}
-
 [compat]
 julia = "≥ 1.11"
 
+[sources]
+PiecewiseInference = {source = "https://github.com/vboussange/PiecewiseInference.jl"}

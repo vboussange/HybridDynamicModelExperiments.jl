@@ -156,6 +156,7 @@ ax.set_ylabel("Parameter error")
 # ax.set_yscale("log")
 # ax.set_ylim(-0.05,1.1)
 ax.set_xticks(collect(1:length(pars)).-0.25)
+pars = ["H", "q", "g", "A"]
 ax.set_xticklabels(pars)
 display(fig)
 

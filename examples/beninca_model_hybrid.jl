@@ -57,7 +57,7 @@ p_init = ComponentArray(
                 m_B = [0.003f0])
 
 # Model initialization with true parameters
-model = HybridBenincaModel(ModelParams(;p= p_init,
+model_hybrid = HybridBenincaModel(ModelParams(;p= p_init,
                             tspan,
                             u0 = u0_init,
                             alg,
@@ -70,8 +70,9 @@ model = HybridBenincaModel(ModelParams(;p= p_init,
 
 # Data generation
 # TODO: we need to fine-tune the neural net and parameter bijectors to obtain stable simulations
+# But first check if the model is well coded by plugging in a simple mortality function
 # NOTE: it could be that unstable simulations are the cause of the `inference` failing
-sim0 = simulate(model, u0 = data[:,1]) |> Array # 19.720 ms
+sim0 = simulate(model_hybrid, u0 = data[:,1]) |> Array # throws error
 ax_sim0 = Plots.plot(tsteps, sim0', title = "Initial guess", labels = ["B₀" "Bᵢ" "A" "M"])
 Plots.plot(ax_sim0, ax_data)
 

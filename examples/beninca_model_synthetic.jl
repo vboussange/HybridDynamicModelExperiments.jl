@@ -39,7 +39,7 @@ p_true = ComponentArray(
 forcing = SyntheticTempForcing(30.0f0, 20.0f0)
 
 # Model initialization with true parameters
-model = ModelBeninca(ModelParams(;p= p_true,
+model = classic_beninca_model(ModelParams(;p= p_true,
                             tspan,
                             u0 = u0_true,
                             alg,
@@ -51,7 +51,7 @@ model = ModelBeninca(ModelParams(;p= p_true,
                             ), forcing)
 
 # Data generation
-data = simulate(model) |> Array # 19.720 ms
+data = simulate(model) |> Array
 ax_data = Plots.plot(tsteps, data', title = "Data", labels = ["B₀" "Bᵢ" "A" "M"])
 
 """

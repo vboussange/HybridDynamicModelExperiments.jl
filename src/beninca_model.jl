@@ -10,14 +10,22 @@ using Lux
 import Lux: zeros32
 using Random
 using NNlib
-using Interpolations
+using Interpolations: linear_interpolation, Flat
+using RollingFunctions: runmean
 DATA_PATH = joinpath(@__DIR__, "../data/beninca")
 
 
-function load_data_forcing()
+function load_data_forcing(window_size = 20)
     forcing_df = DataFrame(CSV.File(joinpath(DATA_PATH, "forcing_merged.csv")))
     forcing_df[!, 1] = Date.(forcing_df[:, 1]) # Convert first column to Date
     forcing_df[!, 2:end] = Float32.(forcing_df[:, 2:end])
+
+    # Calculating running average
+    for col in names(forcing_df)[2:end]
+        forcing_df[!, col] = runmean(forcing_df[!, col],
+                                    window_size,
+                                                   )
+    end
 
     # Normalise forcing columns (zero mean, unit variance)
     for col in names(forcing_df)[2:end]
@@ -25,6 +33,7 @@ function load_data_forcing()
         σ = std(forcing_df[!, col])
         forcing_df[!, col] = (forcing_df[!, col] .- μ) ./ σ
     end
+
     return forcing_df
 end
 
@@ -32,23 +41,21 @@ end
 abstract type AbstractForcing end
 abstract type AbstractTrueForcing <: AbstractForcing end
 
-struct TrueTempForcing{I} <: AbstractTrueForcing # 1D true forcing
-    interpolation::I
+struct DummyForcing{T} <: AbstractForcing
+    forcing::T
 end
-function TrueTempForcing() 
-    forcing_df = load_data_forcing()
-    return TrueTempForcing(linear_interpolation(Dates.days.(forcing_df[:, 1]), forcing_df[:, "Temperature [oC]"], extrapolation_bc = Flat()))
-end
-(forcing::TrueTempForcing)(t) = [forcing.interpolation(t)]
-ndims(forcing::TrueTempForcing) = 1
+(forcing::DummyForcing)(t) = [forcing.forcing]
+ndims(forcing::DummyForcing) = 1
 
 struct TrueForcing{I} <: AbstractTrueForcing # 3D true forcing
     interpolation::Vector{I}
 end
 
-function TrueForcing() 
-    forcing_df = load_data_forcing()
-    return TrueForcing([linear_interpolation(Dates.days.(forcing_df[:, 1]), f, extrapolation_bc = Flat()) for f in eachcol(forcing_df[:, 2:end])])
+function TrueForcing(T::DataType, 
+                    vars = ["Temperature [oC]", "Wave height [m]", "Wind run [km/day]"], 
+                    window_size = 20) 
+    forcing_df = load_data_forcing(window_size)
+    return TrueForcing([linear_interpolation(Dates.days.(forcing_df[:, 1]), forcing_df[:, v] .|> T, extrapolation_bc = Flat()) for v in vars])
 end
 (forcing::TrueForcing)(t) = vcat([interp(t) for interp in forcing.interpolation]...)
 ndims(forcing::TrueForcing) = length(forcing.interpolation)
@@ -72,7 +79,7 @@ end
 
 rbf(x) = exp.(-(x.^2)) # custom activation function
 
-function hybrid_beninca_model(mp, forcing::AbstractForcing; HlSize=5, seed=0)
+function hybrid_beninca_model(mp, forcing::AbstractForcing; HlSize=20, seed=0)
     rng = TaskLocalRNG()
     Random.seed!(rng, seed)
 
@@ -82,12 +89,24 @@ function hybrid_beninca_model(mp, forcing::AbstractForcing; HlSize=5, seed=0)
         Lux.Dense(ndims(forcing), HlSize, relu), 
         Lux.Dense(HlSize, HlSize, relu), 
         Lux.Dense(HlSize, HlSize, relu), 
-        Lux.Dense(HlSize, 2, x -> clamp.(x, 1f-2, 2f-2)), # output layer with 2 outputs (m_A and m_M)
+        # Lux.Dense(HlSize, HlSize, relu), 
+        # # Lux.Dense(HlSize, 2, x -> 2f-2 .* rbf.(x)), # output layer with 2 outputs (m_A and m_M)
+        Lux.Dense(HlSize,
+                2, 
+                # init_weight = glorot_uniform(; gain=1e-6)
+                ) # output layer with 2 outputs (m_A and m_M) with bijector
     )
 
     p_nn, st = Lux.setup(rng, _neural_net)
     mortality_rate = StatefulLuxLayer{true}(_neural_net, nothing, st)
-    mortality(t, p) = mortality_rate(forcing(t), p.p_nn)
+    last_activ_fun = inverse(bijector(Uniform(1f-4, 5f-2)))
+    # last_activ_fun = x -> clamp.(x, eltype(x)(1e-4), eltype(x)(5e-2))
+
+    function mortality(t, p) 
+        x = mortality_rate(forcing(t), p.p_nn) # TODO: we could look back in the forcing history
+        x = last_activ_fun(x) # apply inverse bijector to the output
+        return x
+    end
 
     p = ComponentArray(mp.p; p_nn)
     mp = remake(mp; p)
@@ -98,7 +117,7 @@ end
 
 function (model::ModelBeninca)(du, u, p, t)
     T = eltype(u)
-    ũ = max.(u, zero(T))
+    ũ = clamp.(u, zero(T), one(T)) # clamp to [0, 1] to avoid negative or too large values
 
     # B₀ (cover by barnacles without crustose algae), Bᵢ (cover by barnacles
     # overgrown with crustose algae), A (coverage of crustose algae), M (coverage by

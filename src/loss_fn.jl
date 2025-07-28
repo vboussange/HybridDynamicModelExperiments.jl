@@ -1,9 +1,10 @@
 ## Loss function
-struct LossLikelihood end
+struct LossLikelihood end #TODO: this should be included in PiecewiseInference.jl
 function (::LossLikelihood)(data, pred, rng)
-    if any(pred .<= 0.) # we do not tolerate non-positive ICs -
-        return Inf
-    elseif size(data) != size(pred) # preventing Zygote to crash
+    T = eltype(data)
+    data = max.(data, T(1f-6)) # we do not tolerate negative data
+    pred = max.(pred, T(1f-6)) #
+    if size(data) != size(pred) # preventing Zygote to crash
         return Inf
     end
 

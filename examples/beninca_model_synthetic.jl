@@ -55,11 +55,11 @@ data = simulate(model) |> Array
 ax_data = Plots.plot(tsteps, data', title = "Data", labels = ["B₀" "Bᵢ" "A" "M"])
 
 """
-    init(model::ModelBeninca, perturb=0.5)
+    init(model::BenincaModel, perturb=0.5)
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
-function init(model::ModelBeninca, perturb=1f0)
+function init(model::BenincaModel, perturb=1f0)
     p_true = model.mp.p
     T = eltype(p_true)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1f0-perturb/2f0) * k, (1f0+perturb/2f0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])

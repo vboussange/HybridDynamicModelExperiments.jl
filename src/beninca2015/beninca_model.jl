@@ -12,13 +12,21 @@ using Random
 using NNlib
 using Interpolations: linear_interpolation, Flat
 using RollingFunctions: runmean
-DATA_PATH = joinpath(@__DIR__, "../data/beninca")
+DATA_PATH = joinpath(dirname(@__FILE__), "../../data/beninca")
 
 
-function load_data_forcing(window_size = 20)
+# importing data
+function load_data(T::Type{<:Real}=Float64)
+    data_df = DataFrame(CSV.File(joinpath(DATA_PATH, "beninca_data.csv")))
+    data_df[!, 1] = Date.(data_df[:, 1])  # Convert first column to Date
+    data_df[!, 2:end] = T.(data_df[:, 2:end])
+    return data_df
+end
+
+function load_data_forcing(T::Type{<:Real}=Float64, window_size = 20)
     forcing_df = DataFrame(CSV.File(joinpath(DATA_PATH, "forcing_merged.csv")))
     forcing_df[!, 1] = Date.(forcing_df[:, 1]) # Convert first column to Date
-    forcing_df[!, 2:end] = Float32.(forcing_df[:, 2:end])
+    forcing_df[!, 2:end] = T.(forcing_df[:, 2:end])
 
     # Calculating running average
     for col in names(forcing_df)[2:end]
@@ -54,8 +62,8 @@ end
 function TrueForcing(T::DataType, 
                     vars = ["Temperature [oC]", "Wave height [m]", "Wind run [km/day]"], 
                     window_size = 20) 
-    forcing_df = load_data_forcing(window_size)
-    return TrueForcing([linear_interpolation(Dates.days.(forcing_df[:, 1]), forcing_df[:, v] .|> T, extrapolation_bc = Flat()) for v in vars])
+    forcing_df = load_data_forcing(T, window_size)
+    return TrueForcing([linear_interpolation(Dates.days.(forcing_df[:, 1]), forcing_df[:, v], extrapolation_bc = Flat()) for v in vars])
 end
 (forcing::TrueForcing)(t) = vcat([interp(t) for interp in forcing.interpolation]...)
 ndims(forcing::TrueForcing) = length(forcing.interpolation)
@@ -67,14 +75,14 @@ end
 (forcing::SyntheticTempForcing{T})(t) where T = (forcing.T_max - forcing.T_mean) * cos((T(2π) * (t - T(32))) / T(365))
 
 
-struct ModelBeninca{MP, F} <: AbstractODEModel
+struct BenincaModel{MP, F} <: AbstractODEModel
     mp::MP
     mortality::F
 end
 
 function classic_beninca_model(mp, forcing::AbstractForcing)
     mortality(t, p) = p[[:m_A, :m_M]] .* (one(eltype(p)) + p.α[] * forcing(t))
-    return ModelBeninca(mp, mortality)
+    return BenincaModel(mp, mortality)
 end
 
 rbf(x) = exp.(-(x.^2)) # custom activation function
@@ -86,12 +94,12 @@ function hybrid_beninca_model(mp, forcing::AbstractForcing; HlSize=20, seed=0)
     # neural net takes forcing, and outputs mortality rates
     # of A and M
     _neural_net = Lux.Chain(
-        Lux.Dense(ndims(forcing), HlSize, relu), 
-        Lux.Dense(HlSize, HlSize, relu), 
-        Lux.Dense(HlSize, HlSize, relu), 
+        # Lux.Dense(ndims(forcing), HlSize, relu), 
+        # Lux.Dense(HlSize, HlSize, relu), 
+        # Lux.Dense(HlSize, HlSize, relu), 
         # Lux.Dense(HlSize, HlSize, relu), 
         # # Lux.Dense(HlSize, 2, x -> 2f-2 .* rbf.(x)), # output layer with 2 outputs (m_A and m_M)
-        Lux.Dense(HlSize,
+        Lux.Dense(ndims(forcing),
                 2, 
                 # init_weight = glorot_uniform(; gain=1e-6)
                 ) # output layer with 2 outputs (m_A and m_M) with bijector
@@ -111,11 +119,11 @@ function hybrid_beninca_model(mp, forcing::AbstractForcing; HlSize=20, seed=0)
     p = ComponentArray(mp.p; p_nn)
     mp = remake(mp; p)
 
-    return ModelBeninca(mp, mortality)
+    return BenincaModel(mp, mortality)
 end
 
 
-function (model::ModelBeninca)(du, u, p, t)
+function (model::BenincaModel)(du, u, p, t)
     T = eltype(u)
     ũ = clamp.(u, zero(T), one(T)) # clamp to [0, 1] to avoid negative or too large values
 

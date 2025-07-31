@@ -10,24 +10,17 @@ using Optimization, OptimizationOptimisers, OptimizationOptimJL
 using SciMLSensitivity
 using Dates, DataFrames, CSV
 using LinearAlgebra
-DATA_PATH = joinpath(@__DIR__, "../data/beninca")
-include("../src/beninca_model.jl")
-include("../src/loss_fn.jl")
 
-# importing data
-function load_data()
-    data_df = DataFrame(CSV.File(joinpath(DATA_PATH, "beninca_data.csv")))
-    data_df[!, 1] = Date.(data_df[:, 1])  # Convert first column to Date
-    data_df[!, 2:end] = Float64.(data_df[:, 2:end])
-    return data_df
-end
+include("../../src/beninca/beninca_model.jl")
+include("../../src/loss_fn.jl")
 
-data_df = load_data()
+MyType = MyType
+data_df = load_data(MyType)
 train_idx, test_idx = 1:200, 201:size(data_df, 1)
 data = Matrix(data_df[:, 2:end])'
 data_training = data[:, train_idx]
 tsteps = data_df[:, 1]
-tsteps_days = Dates.date2epochdays.(tsteps) .|> Float64
+tsteps_days = Dates.date2epochdays.(tsteps) .|> MyType
 tsteps_days_training = tsteps_days[train_idx]
 tsteps_days_test = tsteps_days[test_idx]
 # NOTE: to convert back to Date, 
@@ -40,10 +33,12 @@ ax_data = Plots.plot(tsteps,
                     ylim = (0, 1))
 
 # constructing the interpolation for the forcing data
-forcing = DummyForcing(0.0)
-# forcing = TrueTempForcing(Float64) # 1D true forcing
-# forcing = TrueForcing(Float64, ["Wind run [km/day]"], 20)
-# forcing = TrueForcing(Float64, ["Wave height [m]"], 30)
+# forcing = DummyForcing(0.0)
+# forcing = TrueTempForcing(MyType) # 1D true forcing
+# forcing = TrueForcing(MyType, ["Temperature [oC]"], 10)
+# forcing = TrueForcing(MyType, ["Wind run [km/day]"], 20)
+# forcing = TrueForcing(MyType, ["Wave height [m]"], 30)
+forcing = TrueForcing(MyType)
 
 ax_forcing = Plots.plot(tsteps, hcat(forcing.(tsteps_days)...)', title = "Forcing")
 Plots.plot(ax_data, ax_forcing, layout = @layout([a; b]), size = (800, 400))
@@ -83,7 +78,7 @@ model_hybrid = hybrid_beninca_model(ModelParams(;p= p_init,
 # But first check if the model is well coded by plugging in a simple mortality function
 # NOTE: it could be that unstable simulations are the cause of the `inference` failing
 sim0 = simulate(model_hybrid, u0 = data[:,5]) |> Array # works
-ax_sim0 = Plots.plot(tsteps, sim0', title = "Initial guess", labels = ["B₀" "Bᵢ" "A" "M"])
+ax_sim0 = Plots.plot(tsteps[train_idx], sim0', title = "Initial guess", labels = ["B₀" "Bᵢ" "A" "M"])
 Plots.plot(ax_sim0, ax_data)
 
 p_bij = (c_BR = bijector(Uniform(1e-4, 0.5)),
@@ -101,7 +96,7 @@ loss_param_prior(p) = norm(p.p_nn) * 1e-3 # regularization on neural network par
 infprob = InferenceProblem(model_hybrid, model_hybrid.mp.p; 
                             loss_u0_prior = loss_likelihood, 
                             loss_likelihood = loss_likelihood, 
-                            loss_param_prior = loss_param_prior,
+                            # loss_param_prior = loss_param_prior,
                             p_bij, u0_bij)
 
 # debugging
@@ -116,13 +111,14 @@ infprob = InferenceProblem(model_hybrid, model_hybrid.mp.p;
 res_inf = inference(infprob;
                     data=Matrix(data_training), 
                     group_size = 6, # months
+                    batchsizes = [5, 5],
                     adtype=Optimization.AutoZygote(), 
                     epochs=[800, 200], 
                     tsteps = tsteps_days_training,
-                    optimizers = [OptimizationOptimisers.Adam(eta = 1e-2), 
+                    optimizers = [OptimizationOptimisers.Adam(eta = 1e-3), 
                                 OptimizationOptimisers.Adam(1e-4)],
                     verbose_loss = true,
-                    info_per_its = 1,
+                    info_per_its = 100,
                     multi_threading = false) # Minimum loss for all batches: 3027.13037109375
 
 # Simulation with inferred parameters
@@ -177,16 +173,16 @@ end
 
 # Plotting predictions based on the last u0s trained
 
-idx_start = first(res_inf.ranges[end])
-idx_end = test_idx[20]
-data_extrapolated = simulate(
-            model_hybrid,
-            p = res_inf.p_trained,
-            tspan = (tsteps_days[idx_start], tsteps_days[idx_end]),
-            saveat = 10.,
-            u0 = res_inf.u0s_trained[end]
-        )[:, 2:end]
-plot(data_extrapolated)
-scatter!(tsteps_days[idx_start:idx_end], data[:, idx_start:idx_end]',
-    ylim = (0, 1),
-    color = Plots.palette(:auto)[1:4]')
+# idx_start = first(res_inf.ranges[end])
+# idx_end = test_idx[20]
+# data_extrapolated = simulate(
+#             model_hybrid,
+#             p = res_inf.p_trained,
+#             tspan = (tsteps_days[idx_start], tsteps_days[idx_end]),
+#             saveat = 10.,
+#             u0 = res_inf.u0s_trained[end]
+#         )[:, 2:end]
+# plot(data_extrapolated)
+# scatter!(tsteps_days[idx_start:idx_end], data[:, idx_start:idx_end]',
+#     ylim = (0, 1),
+#     color = Plots.palette(:auto)[1:4]')

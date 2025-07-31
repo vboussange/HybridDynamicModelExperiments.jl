@@ -8,13 +8,13 @@ function (::LossLikelihood)(data, pred, rng)
         return Inf
     end
 
-    l = sum((log.(data) .- log.(pred)).^2)
-
-    if l isa Number # preventing any other reason for Zygote to crash
-        return l
-    else 
-        return Inf
-    end
+    l = sum((log.(data) .- log.(pred)).^2) / length(data)
+    return l
+    # if l isa Number # preventing any other reason for Zygote to crash
+    #     return l
+    # else 
+    #     return Inf
+    # end
 end
 
 (l::LossLikelihood)(data, pred) = l(data, pred, nothing) # method required for loss_u0_prior in InferenceProblem

@@ -6,29 +6,30 @@ import OrdinaryDiffEq: Tsit5
 using Plots
 using Distributions
 using Bijectors
-using Optimization, OptimizationOptimisers
+using Optimisers
 using SciMLSensitivity
-include("../src/3sp_model.jl")
-include("../src/loss_fn.jl")
+using HybridModelling
+import HybridModellingBenchmark: Model3SP, LogMSELoss, train, TuringBackend, InferICs
+import Lux
+using Random
+
+const FloatType = Float32
 
 """
     init(model::Model3SP, perturb=0.5)
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
-function init(model::Model3SP, perturb=1.)
-    p_true = model.mp.p
-    T = eltype(p_true)
+function init(::Model3SP, p_true, perturb=1f0)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1f0-perturb/2f0) * k, (1f0+perturb/2f0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
 
-
-    p_bij = NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)])
-    u0_bij = bijector(Uniform(T(1e-3), T(5e0)))  # For initial conditions
+    p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
+    u0_transform = bijector(Uniform(1f-3, 5f0))  # For initial conditions
     
-    p_init = NamedTuple([k => rand(distrib_param[k]) for k in keys(distrib_param)])
-    p_init = ComponentArray(p_init) .|> eltype(data)
+    # TODO: prob;em with rand(Uniform), casts to Float64
+    p_init = NamedTuple([k => rand(distrib_param[k])  .|> FloatType for k in keys(distrib_param)])
 
-    return p_init, p_bij, u0_bij
+    return p_init, p_transform, u0_transform
 end
 
 
@@ -36,52 +37,38 @@ end
 alg = Tsit5()
 abstol = 1e-6
 reltol = 1e-6
-tspan = (0., 800)
-tsteps = 550.:4.:800.
-u0_true = Float32[0.5,0.8,0.5]
-p_true = ComponentArray(H = Float32[1.24, 2.5],
-                        q = Float32[4.98, 0.8],
-                        r = Float32[1.0, -0.4, -0.08],
-                        A = Float32[1.0])
+tspan = (0f0, 800f0)
+tsteps = 550f0:4f0:800f0
+u0_true = Float32[0.77, 0.060, 0.945]
+p_true = (;H = Float32[1.24, 2.5],
+            q = Float32[4.98, 0.8],
+            r = Float32[1.0, -0.4, -0.08],
+            A = Float32[1.0])
 
-# Model initialization with true parameters
-model = Model3SP(ModelParams(;p= p_true,
-                            tspan,
-                            u0 = u0_true,
-                            alg,
-                            reltol,
-                            abstol,
-                            saveat = tsteps,
-                            verbose = false, # suppresses warnings for maxiters
-                            maxiters = 50_000,
-                            ))
+model = Model3SP()
+p_init, p_transform, u0_transform = init(model, p_true)
+
+# Lux model initialization with biased parameters
+parameters = ParameterLayer(constraint = Constraint(p_transform), 
+                            init_value = p_init)
+lux_model = ODEModel((;parameters), Model3SP(); alg, abstol, reltol, tspan, saveat = tsteps)
+
+# True Lux model initialization
+parameters = ParameterLayer(constraint = NoConstraint(), 
+                            init_value = p_true)
+lux_true_model = ODEModel((;parameters), Model3SP(); alg, abstol, reltol, tspan, saveat = tsteps)
+
+rng = MersenneTwister(1)
 
 # Data generation
-data = simulate(model) |> Array # 19.720 ms
+# TODO: here we have a problem, the data does not seem right
+ps_true, st = Lux.setup(rng, lux_true_model)
+data, _ = lux_model((;u0 = u0_true), ps_true, st)
 ax = Plots.scatter(tsteps, data', title = "Data")
 
 # Defining inference problem
 # Model initialized with perturbed parameters
-loss_likelihood = LossLikelihood()
-p_init, p_bij, u0_bij = init(model)
-infprob = InferenceProblem(model, p_init; 
-                            loss_u0_prior = loss_likelihood, 
-                            loss_likelihood = loss_likelihood, 
-                            p_bij, u0_bij)
-ax2 = Plots.plot(simulate(model, p=p_init), title="Initial guess")
-# Inference
-res_inf = inference(infprob;
-                    data, 
-                    group_size = 7, 
-                    adtype=Optimization.AutoZygote(), 
-                    epochs=[200], 
-                    tsteps = tsteps,
-                    optimizers = [OptimizationOptimisers.Adam(5e-2)],
-                    verbose_loss = true,
-                    info_per_its = 10,
-                    multi_threading = false)
+loss_likelihood = LogMSELoss()
+dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8)
 
-# Simulation with inferred parameters
-sim_res_inf = simulate(model, p = res_inf.p_trained, u0=data[:, 1], tspan=(tsteps[1], tsteps[end]))
-ax3 = Plots.plot(sim_res_inf, title="Predictions after training")
-Plots.plot(ax, ax2, ax3)
+train(TuringBackend(), InferICs(true); model, rng, dataloader)

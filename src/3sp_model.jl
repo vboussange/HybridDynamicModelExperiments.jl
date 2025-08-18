@@ -13,19 +13,20 @@ abstract type AbstractEcosystemModel <: AbstractODEModel end
 
 abstract type AbstractModel3SP <: AbstractEcosystemModel end
 
-function (::Type{T})(mp) where T <: AbstractModel3SP 
+function (::Type{T})() where T <: AbstractModel3SP 
     foodweb = DiGraph(3)
     add_edge!(foodweb, 2 => 1)  # Consumer to Resource
     add_edge!(foodweb, 3 => 2)  # Predator to Consumer
 
     I, J, _ = findnz(adjacency_matrix(foodweb))
-    T(mp, I, J)
+    T(I, J)
 end
 
-function (model::AbstractEcosystemModel)(du, u, p, t)
+function (model::AbstractEcosystemModel)(components, u, ps, t)
+    p = components.parameters(ps.parameters)
     ũ = max.(u, zero(eltype(u)))
-    du .= ũ .* (intinsic_growth_rate(model, p, t) .- competition(model, ũ, p) .+ feed_pred_gains(model, ũ, p))
-    return nothing
+    du = ũ .* (intinsic_growth_rate(model, p, t) .- competition(model, ũ, p) .+ feed_pred_gains(model, ũ, p))
+    return du
 end
 
 intinsic_growth_rate(::AbstractEcosystemModel, p, t) = p.r
@@ -46,8 +47,7 @@ function feed_pred_gains(model::AbstractModel3SP, u, p)
     return  (F .- F') * u
 end
 
-struct Model3SP{MP,II,JJ} <: AbstractModel3SP
-    mp::MP
+struct Model3SP{II,JJ} <: AbstractModel3SP
     I::II
     J::JJ
 end
@@ -62,20 +62,19 @@ function create_sparse_matrices(m::AbstractModel3SP, p)
     return Warr, Harr, qarr
 end
 
-struct SimpleEcosystemModelOmniv3SP{MP,II,JJ} <: AbstractModel3SP
-    mp::MP
+struct SimpleEcosystemModelOmniv3SP{II,JJ} <: AbstractModel3SP
     I::II
     J::JJ
 end
 
-function SimpleEcosystemModelOmniv3SP(mp)
+function SimpleEcosystemModelOmniv3SP()
     foodweb = DiGraph(3)
     add_edge!(foodweb, 2 => 1)  # Consumer to Resource
     add_edge!(foodweb, 3 => 2)  # Predator to Consumer
     add_edge!(foodweb, 3 => 1)  # Predator to Resource
 
     I, J, _ = findnz(adjacency_matrix(foodweb))
-    SimpleEcosystemModelOmniv3SP(mp, I, J)
+    SimpleEcosystemModelOmniv3SP(I, J)
 end
 
 function create_sparse_matrices(::SimpleEcosystemModelOmniv3SP, I, J, p)

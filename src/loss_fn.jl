@@ -1,6 +1,6 @@
 ## Loss function
-struct LossLikelihood end #TODO: this should be included in PiecewiseInference.jl
-function (::LossLikelihood)(data, pred, rng)
+struct LogMSELoss end #TODO: this should be included in PiecewiseInference.jl
+function (::LogMSELoss)(data, pred)
     T = eltype(data)
     data = max.(data, T(1f-6)) # we do not tolerate negative data
     pred = max.(pred, T(1f-6)) #
@@ -17,7 +17,6 @@ function (::LossLikelihood)(data, pred, rng)
     # end
 end
 
-(l::LossLikelihood)(data, pred) = l(data, pred, nothing) # method required for loss_u0_prior in InferenceProblem
 
 struct LossLikelihoodPartialObs end
 function (::LossLikelihoodPartialObs)(data, pred, rng)
@@ -42,5 +41,3 @@ function (::LossLikelihoodPartialObs)(data, pred, rng)
         return Inf
     end
 end
-
-(l::LossLikelihoodPartialObs)(data, pred) = l(data, pred, nothing) # method required for loss_u0_prior in InferenceProblem

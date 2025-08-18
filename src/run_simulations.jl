@@ -3,32 +3,25 @@ Utility to run simulations in parallel using Distributed.jl
 =#
 
 using DataFrames, ProgressMeter, Distributed, ComponentArrays
-include("3sp_model.jl")
-include("5sp_model.jl")
-include("7sp_model.jl")
-include("hybrid_growth_rate_model.jl")
-include("hybrid_functional_response_model.jl")
-include("loss_fn.jl")
 
-function run_simulations(pars_arr, data, epochs; kwargs...)
-    inference_params = generate_inference_params()
-    pmap_res = @showprogress pmap(1:length(pars_arr)) do i
-        # try
-            (true, simu(pars_arr[i], data, epochs, inference_params), kwargs...)
-        # catch e
-        #     println("error with", pars_arr[i])
-        #     println(e)
-        #     (false, nothing)
-        # end
-    end
-
-    df_results = generate_df_results()
-
-    for (st, row) in pmap_res
-        if st 
-            push!(df_results, row)
+# distributes simulations
+function run_simulations(varying_params; fixed_params...)
+    pmap_res = @showprogress pmap(1:length(varying_params)) do i
+        try
+            kwargs = merge(fixed_params, varying_params[i])
+            experimental_setup, kwargs = pop!(kwargs, :experimental_setup) # TODO: check if this works
+            optim_backend, kwargs = pop!(kwargs, :optim_backend)
+            simulation = simu(optim_backend, experimental_setup; kwargs...)
+            (;success = true, simulation)
+        catch e
+            println("error with", varying_params[i])
+            println(e)
+            (;success = false,  simulation = nothing)
         end
     end
+
+    df_results = DataFrame(pmap_res)
+
     return df_results
 end
 

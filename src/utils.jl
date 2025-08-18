@@ -12,6 +12,11 @@ function save_results(pathfile; results, kwargs...)
     println("saved in $(joinpath(dir, namefile))")
 end
 
+# Generate noisy data
+function generate_noisy_data(data, noise)
+    return data .* exp.(noise * randn(size(data)))
+end
+
 using PiecewiseInference
 import PiecewiseInference: AbstractODEModel
 function validate(infres::InferenceResult, ode_data, true_model::AbstractODEModel; length_horizon = nothing)

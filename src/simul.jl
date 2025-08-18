@@ -8,17 +8,6 @@ using LinearAlgebra, OrdinaryDiffEq, OptimizationOptimisers, OptimizationOptimJL
 using PiecewiseInference, Pkg, SciMLSensitivity, SparseArrays
 using Statistics
 
-include("3sp_model.jl")
-include("5sp_model.jl")
-include("7sp_model.jl")
-include("loss_fn.jl")
-
-
-# Generate noisy data
-function generate_noisy_data(data, noise)
-    return data .* exp.(noise * randn(size(data)))
-end
-
 # Initialize parameters and setup constraints
 function initialize_params_and_constraints(model, data, perturb_param)
     p_true = model.mp.p
@@ -30,36 +19,32 @@ function initialize_params_and_constraints(model, data, perturb_param)
     return ComponentArray(p_init) .|> eltype(data), distrib_param, p_bij, u0_bij
 end
 
-# Main simulation function
-function simu(pars, data, epochs, inference_params, perturb_param = 1.5)
+# simulation function, preprocess before train, train, and postprocess
+function simu(optim_backend, experimental_setup; segmentsize, batchsize, shift=nothing, noise, data, tsteps, kwargs...)
 
     # invoke garbage collection to avoid memory overshoot on SLURM
     GC.gc()
-
-    @unpack group_size, noise, adtype, model, batchsize = pars
-
-    println("Launching simulations for group_size = $group_size, noise = $noise")
+    isnothing(shift) && shift = segmentsize - 1
 
     data_w_noise = generate_noisy_data(data, noise)
-    p_init, distrib_param, p_bij, u0_bij = initialize_params_and_constraints(model, data, perturb_param)
-    loss_likelihood = LossLikelihood()
+    dataloader = SegmentedTimeSeries((data_w_noise, tsteps); segmentsize, batchsize, shift)
 
-    infprob = InferenceProblem(model, p_init; 
-                                loss_u0_prior = loss_likelihood, 
-                                loss_likelihood = loss_likelihood, 
-                                p_bij, u0_bij)
+    println("Launching simulations for segmentsize = $segmentsize, noise = $noise")
 
-    stats = @timed inference(infprob; group_size = group_size,
-                                           data = data_w_noise, 
-                                           batchsizes = [batchsize], 
-                                           adtype, 
-                                           epochs, 
-                                           inference_params...)
+    stats = @timed train(optim_backend, experimental_setup; dataloader, kwargs)
 
     res = stats.value
-    p_trained = res.p_trained
+    p_trained = get_parameter_values(res)
     err = median([median(abs.(p_trained[k] - model.mp.p[k]) ./ model.mp.p[k]) for k in keys(p_trained)])
-    l = res.losses[end]
+    l = get_loss(res)
 
-    return group_size, batchsize, noise, err, l, stats.time, res, typeof(adtype)
+    return (;segmentsize, 
+            batchsize, 
+            noise, 
+            med_par_err = err, 
+            loss = l, 
+            time = stats.time, 
+            res, 
+            adtype = typeof(adtype), 
+            optim_backend = nameof(optim_backend))
 end

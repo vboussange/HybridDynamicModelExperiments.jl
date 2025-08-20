@@ -7,6 +7,7 @@ module HybridModellingBenchmark
     include("generics.jl")
     include("utils.jl")
     include("lux_trainer.jl")
+    include("turing_trainer.jl")
 
     include("3sp_model.jl")
     include("5sp_model.jl")
@@ -18,5 +19,9 @@ module HybridModellingBenchmark
     include("plotting.jl")
 
     include("run_simulations.jl")
+    include("simul.jl")
+
+    export Model3SP, Model5SP, Model7SP, HybridFunctionalResponseModel, HybridGrowthRateModel
+    export simu
 
 end

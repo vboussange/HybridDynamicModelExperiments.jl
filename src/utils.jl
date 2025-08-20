@@ -41,3 +41,9 @@ function params_sensibility(ode_data, true_model::AbstractODEModel, loss_likelih
     lossfn(p) =  loss_likelihood(simulate(true_model; p), ode_data, nothing)
     diag(ForwardDiff.hessian(lossfn, true_model.mp.p))
 end
+
+function pop(nt::NamedTuple, key)
+    value = getproperty(nt, key)
+    nt = Base.structdiff(nt, NamedTuple{(key,)})
+    return (value, nt)
+end

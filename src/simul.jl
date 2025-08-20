@@ -2,49 +2,64 @@
 Utilities to run inference simulations.
 =#
 
-using UnPack
-using Bijectors, ComponentArrays, Distributions, Graphs, JLD2
-using LinearAlgebra, OrdinaryDiffEq, OptimizationOptimisers, OptimizationOptimJL
-using PiecewiseInference, Pkg, SciMLSensitivity, SparseArrays
-using Statistics
+using HybridModelling
+using Distributions
+using Bijectors
 
-# Initialize parameters and setup constraints
-function initialize_params_and_constraints(model, data, perturb_param)
-    p_true = model.mp.p
-    T = eltype(p_true)
-    distrib_param = NamedTuple([dp => Product([Uniform(sort([T((1-perturb_param/2) * k), T((1+perturb_param/2)* k)])...) for k in p_true[dp]]) for dp in keys(p_true)])
-    p_bij = NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)])
-    u0_bij = bijector(Uniform(T(1e-3), T(5e0)))  # For initial conditions
-    p_init = NamedTuple([k => rand(distrib_param[k]) for k in keys(distrib_param)])
-    return ComponentArray(p_init) .|> eltype(data), distrib_param, p_bij, u0_bij
+function init(model::AbstractEcosystemModel; alg, abstol, reltol, sensealg, maxiters, p_true, perturb=1f0, kwargs...)
+    distrib_param = NamedTuple([dp => Product([Uniform(sort([(1f0-perturb/2f0) * k, (1f0+perturb/2f0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
+
+    p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
+    
+    # TODO: problem with rand(Uniform), casts to Float64
+    p_init = NamedTuple([k => rand(distrib_param[k])  .|> eltype(p_true[1]) for k in keys(distrib_param)])
+
+    parameters = ParameterLayer(constraint = Constraint(p_transform), 
+                                init_value = p_init)
+    lux_model = ODEModel((;parameters), model; alg, abstol, reltol, sensealg, maxiters)
+
+    return lux_model
 end
 
 # simulation function, preprocess before train, train, and postprocess
-function simu(optim_backend, experimental_setup; segmentsize, batchsize, shift=nothing, noise, data, tsteps, kwargs...)
+function simu(optim_backend, experimental_setup; model, p_true, segmentsize, batchsize, shift=nothing, noise, data, tsteps, adtype, kwargs...)
 
     # invoke garbage collection to avoid memory overshoot on SLURM
     GC.gc()
-    isnothing(shift) && shift = segmentsize - 1
+    if isnothing(shift)
+        shift = segmentsize - 1
+    end
 
     data_w_noise = generate_noisy_data(data, noise)
     dataloader = SegmentedTimeSeries((data_w_noise, tsteps); segmentsize, batchsize, shift)
 
-    println("Launching simulations for segmentsize = $segmentsize, noise = $noise")
+    # Lux model initialization with biased parameters
+    lux_model = init(model; p_true, kwargs...)
+    println("Launching simulations for segmentsize = $segmentsize, noise = $noise, backend = $(typeof(optim_backend)), experimental_setup = $(typeof(experimental_setup))")
+    # try
+        stats = @timed train(optim_backend, experimental_setup; model = lux_model, dataloader, kwargs...)
+        res = stats.value
+        p_trained = get_parameter_values(res)
+        err = median([median(abs.(p_trained[k] - p_true[k]) ./ p_true[k]) for k in keys(p_trained)])
+        l = get_loss(res)
+        time = stats.time
+    # catch
+    #     println("Error occurred during training")
+    #     res = missing
+    #     time = missing
+    #     err = missing
+    #     l = missing
+    # end
 
-    stats = @timed train(optim_backend, experimental_setup; dataloader, kwargs)
-
-    res = stats.value
-    p_trained = get_parameter_values(res)
-    err = median([median(abs.(p_trained[k] - model.mp.p[k]) ./ model.mp.p[k]) for k in keys(p_trained)])
-    l = get_loss(res)
 
     return (;segmentsize, 
             batchsize, 
             noise, 
             med_par_err = err, 
             loss = l, 
-            time = stats.time, 
+            time, 
             res, 
             adtype = typeof(adtype), 
-            optim_backend = nameof(optim_backend))
+            optim_backend = typeof(optim_backend),
+            experimental_setup = typeof(experimental_setup))
 end

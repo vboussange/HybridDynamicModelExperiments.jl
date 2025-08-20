@@ -4,19 +4,19 @@ function train(::LuxBackend,
                 rng,
                 dataloader,
                 loss_fn = LogMSELoss(),
-                ad_backend = Lux.AutoZygote(),
+                adtype = Lux.AutoZygote(),
                 verbose_frequency = 10,
                 opt = Adam(1e-3), 
                 n_epochs = 1000, 
                 kwargs...)
 
-    function feature_wrapper((batched_segments, tsteps_batch))
+    function feature_wrapper((batched_segments, batched_tsteps))
         return [
             (;u0 = batched_segments[:, 1, i],
-            saveat = tsteps_batch[:, i], 
-            tspan = (tsteps_batch[1, i], tsteps_batch[end, i])
+            saveat = batched_tsteps[:, i], 
+            tspan = (batched_tsteps[1, i], batched_tsteps[end, i])
             )
-            for i in 1:batchsize
+            for i in 1:size(batched_tsteps, 2)
         ]
     end
 
@@ -29,7 +29,7 @@ function train(::LuxBackend,
         tot_loss = 0.
         for (batched_segments, batched_tsteps) in dataloader
             _, loss, _, train_state = Training.single_train_step!(
-                ad_backend,
+                adtype,
                 loss_fn, 
                 ((batched_segments, batched_tsteps), batched_segments),
                 train_state)
@@ -45,11 +45,11 @@ end
 
 function train(::LuxBackend, 
                 ::InferICs{true};
-                model,
+                model::AbstractLuxLayer,
                 rng,
                 dataloader,
                 loss_fn = MSELoss(),
-                ad_backend = Lux.AutoZygote(),
+                adtype = Lux.AutoZygote(),
                 verbose_frequency = 10,
                 opt, 
                 n_epochs, 
@@ -71,7 +71,7 @@ function train(::LuxBackend,
             saveat = tsteps_batch[:, i], 
             tspan = (tsteps_batch[1, i], tsteps_batch[end, i])
             )
-            for i in 1:batchsize
+            for i in 1:length(token)
         ]
     end
 
@@ -80,12 +80,11 @@ function train(::LuxBackend,
     ps, st = Lux.setup(rng, ode_model_with_ics)
     train_state = Training.TrainState(ode_model_with_ics, ps, st, opt)
 
-
     for epoch in 1:n_epochs
         tot_loss = 0.
         for (batched_tokens, (batched_segments, batched_tsteps)) in dataloader
             _, loss, _, train_state = Training.single_train_step!(
-                ad_backend, 
+                adtype, 
                 loss_fn, 
                 ((batched_tokens, batched_tsteps), batched_segments),
                 train_state)
@@ -98,4 +97,5 @@ function train(::LuxBackend,
     return train_state
 end
 
-get_parameter_values(train_state::Training.TrainState) = train_state.parameters.model
+get_parameter_values(train_state::Training.TrainState) = train_state.parameters.model.parameters
+get_loss(train_state::Training.TrainState) = nothing # Lux does not return a loss value in the train state

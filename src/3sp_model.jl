@@ -5,11 +5,9 @@
 using SparseArrays
 using ComponentArrays
 using UnPack
-using PiecewiseInference
-using PiecewiseInference: AbstractODEModel
 import Graphs: DiGraph, add_edge!, adjacency_matrix
 
-abstract type AbstractEcosystemModel <: AbstractODEModel end
+abstract type AbstractEcosystemModel end
 
 abstract type AbstractModel3SP <: AbstractEcosystemModel end
 

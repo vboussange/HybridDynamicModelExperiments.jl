@@ -2,12 +2,12 @@
 Short exampling showcasing the fit of a 3 species model.
 =#
 cd(@__DIR__)
-import Distributions: ProductNamedTuple
 import OrdinaryDiffEq: Tsit5
 import Turing: HMC
 import ADTypes: AutoZygote
 using Plots
 using Distributions
+import Distributions: ProductNamedTupleDistribution
 using Bijectors
 using Optimisers
 using SciMLSensitivity
@@ -35,15 +35,6 @@ function init(::Model3SP, ::LuxBackend, p_true, perturb=1f0)
     return p_init, p_transform, u0_transform
 end
 
-function init(::Model3SP, ::TuringBackend, p_true, perturb=1f0)
-    distrib_param = ProductNamedTupleDistribution(NamedTuple([dp => Product([Uniform(sort([(1f0-perturb/2f0) * k, (1f0+perturb/2f0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)]))
-    # Careful: see https://github.com/JuliaStats/Distributions.jl/issues/1995
-    p_init = Lux.fmap(FloatType, rand(distrib_param))
-
-    return p_init, p_prior
-end
-
-
 # Model metaparameters
 alg = Tsit5()
 sensealg = GaussAdjoint()
@@ -57,9 +48,8 @@ p_true = (;H = Float32[1.24, 2.5],
             q = Float32[4.98, 0.8],
             r = Float32[1.0, -0.4, -0.08],
             A = Float32[1.0])
-
 model = Model3SP()
-p_init, p_transform, u0_transform = init(model, p_true)
+p_init, p_transform, u0_transform = init(model, backend, p_true)
 
 # Lux model initialization with biased parameters
 parameters = ParameterLayer(constraint = Constraint(p_transform), 
@@ -92,13 +82,3 @@ dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = 
 #     opt = Adam(5e-3), 
 #     adtype,
 #     n_epochs = 1000)
-
-## Testing Turing backend
-train(TuringBackend(),
-    InferICs(true);
-    model = lux_model, 
-    rng, 
-    dataloader, 
-    sampler = HMC(0.05, 4; adtype), 
-    n_iterations = 1000, 
-    σ=0.1)

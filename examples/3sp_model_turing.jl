@@ -87,7 +87,8 @@ chain = train(TuringBackend(),
         rng, 
         dataloader, 
         sampler = HMC(0.05, 4; adtype), 
-        n_iterations = 4000)
+        n_iterations = 4000, 
+        )
 
 using StatsPlots
 plot(chain)

@@ -1,13 +1,13 @@
 function train(::LuxBackend, 
                 ::InferICs{false};
                 model::AbstractLuxLayer,
-                rng,
+                rng=Random.default_rng(),
                 dataloader,
                 loss_fn = LogMSELoss(),
                 adtype = Lux.AutoZygote(),
-                verbose_frequency = 10,
                 opt = Adam(1e-3), 
                 n_epochs = 1000, 
+                verbose_frequency = 10,
                 kwargs...)
 
     function feature_wrapper((batched_segments, batched_tsteps))
@@ -46,7 +46,7 @@ end
 function train(::LuxBackend, 
                 ::InferICs{true};
                 model::AbstractLuxLayer,
-                rng,
+                rng=Random.default_rng(),
                 dataloader,
                 loss_fn = MSELoss(),
                 adtype = Lux.AutoZygote(),

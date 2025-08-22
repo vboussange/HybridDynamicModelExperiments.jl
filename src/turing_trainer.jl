@@ -78,11 +78,11 @@ end
 
 function train(::TuringBackend, 
                 ::InferICs{true};
-                datadistrib,
-                model_priors,
-                model,
-                rng,
+                model::AbstractLuxLayer,
+                rng=Random.default_rng(),
                 dataloader,
+                datadistrib,
+                model_priors, # TODO: ideally, model_priors are embedded within `model`, possibly in its state. Depending on the backend, we transform the priors into NamedTransform or the likes
                 sampler = HMC(0.05, 4; adtype=AutoForwardDiff()),
                 n_iterations, 
                 kwargs...)
@@ -113,17 +113,17 @@ function train(::TuringBackend,
 
     turing_fit = create_turing_model(priors, datadistrib, st_model)
 
-    ch = sample(turing_fit(xs, ys), sampler, n_iterations, kwargs...)
+    ch = sample(rng, turing_fit(xs, ys), sampler, n_iterations, kwargs...)
     return ch
 end
 
 function train(::TuringBackend, 
                 ::InferICs{false};
+                model,
+                rng=Random.default_rng(),
+                dataloader,
                 datadistrib,
                 model_priors,
-                model,
-                rng,
-                dataloader,
                 sampler = HMC(0.05, 4; adtype=AutoForwardDiff()),
                 n_iterations,
                 kwargs...)
@@ -142,7 +142,7 @@ function train(::TuringBackend,
     st_model = StatefulLuxLayer{true}(model, ps_init, st)
     turing_fit = create_turing_model(model_priors, datadistrib, st_model)
 
-    ch = sample(turing_fit(xs, ys), sampler, n_iterations, kwargs...)
+    ch = sample(rng, turing_fit(xs, ys), sampler, n_iterations, kwargs...)
     return ch
 end
 

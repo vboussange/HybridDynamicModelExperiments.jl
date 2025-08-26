@@ -78,6 +78,6 @@ fixed_params = merge(fixed_params, (;data))
 
 println("Starting simulations...")
 simulation_parameters = create_simulation_parameters()
-results = run_simulations(SerialMode(), simulation_parameters; fixed_params...)
+results = run_simulations(ParallelMode(), simulation_parameters; fixed_params...)
 
 save_results(string(@__FILE__); results)

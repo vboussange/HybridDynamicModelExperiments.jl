@@ -14,7 +14,6 @@ Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
-DynamicHMC = "bbc10e6e-7c05-544b-b16e-64fede858acb"
 DynamicPPL = "366bfd00-2699-11ea-058f-f148b4cae6d8"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
@@ -53,11 +52,11 @@ UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
+[sources]
+HybridModelling = {path = "../HybridModelling.jl"}
+
 [compat]
 DiffEqBase = "6.183.2"
 Plots = "1.40.19"
 SciMLBase = "2.112.0"
 julia = "= 1.11.6"
-
-[sources.HybridModelling]
-path = "../HybridModelling.jl"

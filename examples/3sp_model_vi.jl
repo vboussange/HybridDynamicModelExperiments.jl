@@ -3,12 +3,9 @@ Short exampling showcasing the fit of a 3 species model.
 =#
 cd(@__DIR__)
 import OrdinaryDiffEq: Tsit5
-import Turing: NUTS
 import ADTypes: AutoZygote, AutoForwardDiff
 using Plots
 using Distributions
-import Distributions: ProductNamedTupleDistribution
-using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridModelling
@@ -16,7 +13,6 @@ import HybridModellingExperiments: Model3SP, LogMSELoss, train, MCMCBackend, VIB
 import Lux
 using Random
 
-const FloatType = Float64
 
 """
     init(model::Model3SP, perturb=0.5)
@@ -33,9 +29,9 @@ end
 # Model metaparameters
 alg = Tsit5()
 sensealg = ForwardDiffSensitivity()
-# adtype = AutoForwardDiff()
+adtype = AutoForwardDiff()
 # sensealg = GaussAdjoint()
-adtype = AutoZygote()
+# adtype = AutoZygote()
 abstol = 1e-4
 reltol = 1e-4
 tspan = (0e0, 800e0)
@@ -67,7 +63,7 @@ ax = Plots.scatter(tsteps, data', title = "Data")
 # Defining inference problem
 datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 # Model initialized with perturbed parameters
-dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=2, partial_batch = true)
+dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = true)
 
 ## Testing Turing backend
 # chain = train(MCMCBackend(),
@@ -87,7 +83,7 @@ res = train(backend,
         datadistrib, 
         model_priors = ps_priors,
         model = lux_model, 
-        rng, 
+        rng,
         dataloader, 
         n_iterations = 1000, 
         adtype

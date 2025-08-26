@@ -4,7 +4,7 @@ Short exampling showcasing the fit of a 3 species model.
 cd(@__DIR__)
 import OrdinaryDiffEq: Tsit5
 import Turing: NUTS
-import ADTypes: AutoZygote, AutoForwardDiff
+import ADTypes: AutoZygote, AutoForwardDiff, AutoReverseDiff
 using Plots
 using Distributions
 import Distributions: ProductNamedTupleDistribution
@@ -12,11 +12,10 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridModelling
+using HybridModellingExperiments
 import HybridModellingExperiments: Model3SP, LogMSELoss, train, MCMCBackend, LuxBackend, InferICs, forecast
 import Lux
 using Random
-
-const FloatType = Float64
 
 """
     init(model::Model3SP, perturb=0.5)
@@ -36,6 +35,8 @@ sensealg = ForwardDiffSensitivity()
 adtype = AutoForwardDiff()
 # sensealg = GaussAdjoint()
 # adtype = AutoZygote()
+# adtype = AutoReverseDiff(;compile=true) # fails
+# adtype = AutoMooncake()
 abstol = 1e-4
 reltol = 1e-4
 tspan = (0e0, 800e0)
@@ -67,7 +68,7 @@ ax = Plots.scatter(tsteps, data', title = "Data")
 # Defining inference problem
 datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 # Model initialized with perturbed parameters
-dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=4, partial_batch = true)
+dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = true)
 
 ## Testing Turing backend
 # chain = train(MCMCBackend(),
@@ -88,8 +89,14 @@ res = train(MCMCBackend(),
             model = lux_model, 
             rng, 
             dataloader, 
-            sampler = NUTS(; adtype), 
+            sampler = NUTS(1000, 0.65; adtype), 
             n_iterations = 1000,)
 
 using StatsPlots
 plot(res.chains)
+
+
+using DynamicPPL
+st_model = Lux.StatefulLuxLayer{true}(lux_true_model, ps_true, st)
+turing_model = HybridModellingExperiments.create_turing_model(ps_priors, datadistrib, st_model)((;u0 = u0_true), data)
+DynamicPPL.DebugUtils.model_warntype(turing_model)

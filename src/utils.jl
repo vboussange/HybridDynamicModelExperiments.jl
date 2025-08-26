@@ -20,30 +20,30 @@ function generate_noisy_data(data, noise)
     return data .* exp.(noise * randn(size(data)))
 end
 
-using PiecewiseInference
-import PiecewiseInference: AbstractODEModel
-function validate(infres::InferenceResult, ode_data, true_model::AbstractODEModel; length_horizon = nothing)
-    loss_likelihood = infres.infprob.loss_likelihood
-    tsteps = true_model.mp.kwargs[:saveat]
-    mystep = tsteps[2]-tsteps[1]
-    ranges = infres.ranges
-    isnothing(length_horizon) && (length_horizon = length(ranges[1]))
-    tsteps_forecast = range(start = tsteps[end]+mystep, step = mystep, length=length_horizon)
+# using PiecewiseInference
+# import PiecewiseInference: AbstractODEModel
+# function validate(infres::InferenceResult, ode_data, true_model::AbstractODEModel; length_horizon = nothing)
+#     loss_likelihood = infres.infprob.loss_likelihood
+#     tsteps = true_model.mp.kwargs[:saveat]
+#     mystep = tsteps[2]-tsteps[1]
+#     ranges = infres.ranges
+#     isnothing(length_horizon) && (length_horizon = length(ranges[1]))
+#     tsteps_forecast = range(start = tsteps[end]+mystep, step = mystep, length=length_horizon)
 
-    forcasted_data = forecast(infres, tsteps_forecast) |> Array
-    true_forecasted_data = simulate(true_model; 
-                                    u0 = ode_data[:,ranges[end][1]],
-                                    tspan = (tsteps[ranges[end][1]], tsteps_forecast[end]), 
-                                    saveat = tsteps_forecast) |> Array
+#     forcasted_data = forecast(infres, tsteps_forecast) |> Array
+#     true_forecasted_data = simulate(true_model; 
+#                                     u0 = ode_data[:,ranges[end][1]],
+#                                     tspan = (tsteps[ranges[end][1]], tsteps_forecast[end]), 
+#                                     saveat = tsteps_forecast) |> Array
 
-    loss_likelihood(forcasted_data, true_forecasted_data, nothing)
-end
+#     loss_likelihood(forcasted_data, true_forecasted_data, nothing)
+# end
 
-using ForwardDiff
-function params_sensibility(ode_data, true_model::AbstractODEModel, loss_likelihood)
-    lossfn(p) =  loss_likelihood(simulate(true_model; p), ode_data, nothing)
-    diag(ForwardDiff.hessian(lossfn, true_model.mp.p))
-end
+# using ForwardDiff
+# function params_sensibility(ode_data, true_model::AbstractODEModel, loss_likelihood)
+#     lossfn(p) =  loss_likelihood(simulate(true_model; p), ode_data, nothing)
+#     diag(ForwardDiff.hessian(lossfn, true_model.mp.p))
+# end
 
 function pop(nt::NamedTuple, key)
     value = getproperty(nt, key)

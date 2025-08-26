@@ -2,7 +2,7 @@ using Lux
 using HybridModellingExperiments
 using HybridModelling
 import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, run_simulations, LogMSELoss, save_results
-import HybridModellingExperiments: SerialMode, DistributedMode, ParallelMode
+import HybridModellingExperiments: SerialMode, ParallelMode
 import OrdinaryDiffEq: Tsit5
 import SciMLSensitivity: ForwardDiffSensitivity
 import ADTypes: AutoForwardDiff
@@ -13,9 +13,6 @@ using Dates
 using Random
 using JLD2
 using DataFrames
-
-HybridModellingExperiments.setup_distributed_environment(10)
-
 
 const p_true = (H = [1.24, 2.5],
                         q = [4.98, 0.8],

@@ -12,7 +12,7 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridModelling
-import HybridModellingBenchmark: Model3SP, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
+import HybridModellingExperiments: Model3SP, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
 

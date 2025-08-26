@@ -12,8 +12,8 @@ will run the script over 10 processes.
 cd(@__DIR__)
 using Lux
 using HybridModelling
-using HybridModellingBenchmark; HybridModellingBenchmark.setup_distributed_environment()
-import HybridModellingBenchmark: Model3SP, LuxBackend, MCMCBackend, InferICs, run_simulations
+using HybridModellingExperiments; HybridModellingExperiments.setup_distributed_environment()
+import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, run_simulations
 import OrdinaryDiffEq: Tsit5
 import SciMLSensitivity: ForwardDiffSensitivity, GaussAdjoint
 import ADTypes: AutoForwardDiff

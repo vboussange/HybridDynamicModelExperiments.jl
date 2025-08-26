@@ -1,8 +1,8 @@
 using Lux
-using HybridModellingBenchmark
+using HybridModellingExperiments
 using HybridModelling
-import HybridModellingBenchmark: Model3SP, LuxBackend, MCMCBackend, InferICs, run_simulations, LogMSELoss, save_results
-import HybridModellingBenchmark: SerialMode, DistributedMode, ParallelMode
+import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, run_simulations, LogMSELoss, save_results
+import HybridModellingExperiments: SerialMode, DistributedMode, ParallelMode
 import OrdinaryDiffEq: Tsit5
 import SciMLSensitivity: ForwardDiffSensitivity
 import ADTypes: AutoForwardDiff
@@ -14,7 +14,7 @@ using Random
 using JLD2
 using DataFrames
 
-HybridModellingBenchmark.setup_distributed_environment(10)
+HybridModellingExperiments.setup_distributed_environment(10)
 
 
 const p_true = (H = [1.24, 2.5],

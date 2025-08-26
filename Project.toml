@@ -1,4 +1,4 @@
-name = "HybridModellingBenchmark"
+name = "HybridModellingExperiments"
 uuid = "db45465f-713d-4613-945c-8d4268dbd4f0"
 authors = ["Victor Boussange <vic.boussange@gmail.com> and contributors"]
 version = "1.0.0-DEV"

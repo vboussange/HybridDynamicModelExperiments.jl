@@ -1,4 +1,4 @@
-module HybridModellingBenchmark
+module HybridModellingExperiments
     __precompile__(false)
 
     using Lux

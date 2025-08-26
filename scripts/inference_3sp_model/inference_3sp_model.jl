@@ -13,7 +13,7 @@ cd(@__DIR__)
 using Lux
 using HybridModelling
 using HybridModellingBenchmark; HybridModellingBenchmark.setup_distributed_environment()
-import HybridModellingBenchmark: Model3SP, LuxBackend, TuringBackend, InferICs, run_simulations
+import HybridModellingBenchmark: Model3SP, LuxBackend, MCMCBackend, InferICs, run_simulations
 import OrdinaryDiffEq: Tsit5
 import SciMLSensitivity: ForwardDiffSensitivity, GaussAdjoint
 import ADTypes: AutoForwardDiff
@@ -63,7 +63,7 @@ function create_simulation_parameters(iterations)
     noises = 0:0.1:0.5
     nruns = 10
     batchsizes = [10]
-    optim_backends = [LuxBackend(), TuringBackend()]
+    optim_backends = [LuxBackend(), MCMCBackend()]
     models = [Model3SP()]
     ic_estims = [InferICs(true), InferICs(false)]
 

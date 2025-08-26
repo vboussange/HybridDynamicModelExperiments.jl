@@ -24,7 +24,7 @@ function train(::LuxBackend,
         u0 = segment_data[:, 1]
         t0 = segment_tsteps[1]
         if isa(experimental_setup, InferICs{false})
-            push!(ic_list, ParameterLayer(constraint = u0_constraint, init_value = (), init_state_value = (;t0, u0)))
+            push!(ic_list, ParameterLayer(constraint = u0_constraint, init_value = (;), init_state_value = (;t0, u0)))
         elseif isa(experimental_setup, InferICs{true})
             push!(ic_list, ParameterLayer(constraint = u0_constraint, init_value = (;u0), init_state_value = (;t0)))
         end
@@ -68,7 +68,7 @@ function train(::LuxBackend,
         end
         push!(info, callback(tot_loss, ode_model_with_ics, get_parameter_values(train_state), get_state_values(train_state)))
     end
-    best_model = StatefulLuxLayer{true}(model, best_ps, st)
+    best_model = StatefulLuxLayer{true}(ode_model_with_ics, best_ps, st)
     return (;best_model, info)
 end
 

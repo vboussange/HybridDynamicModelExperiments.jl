@@ -1,4 +1,4 @@
-import Turing: @model, HMC, sample, Chains, arraydist
+import Turing: @model, NUTS, sample, Chains, arraydist, q_meanfield_gaussian, vi
 import DynamicPPL
 import DynamicPPL: @varname, VarName
 using Distributions
@@ -45,7 +45,7 @@ function create_turing_model(ps_priors, data_distrib, st_model)
         varinfo_ref = Ref(varinfo)
         
         # Function to handle each node in the param_prior structure
-        function handle_node(path, node)
+        function handle_node(path, node::Distributions.Distribution)
             # Generate variable name from path
             varname = Symbol(join(path, "_"))
             # Sample parameter and update varinfo
@@ -53,6 +53,8 @@ function create_turing_model(ps_priors, data_distrib, st_model)
             varinfo_ref[] = new_varinfo
             return value
         end
+
+        handle_node(path, node) = (;)
         
         # Apply fmap_with_path to sample all parameters and maintain structure
         ps = fmap_with_path(handle_node, ps_priors)
@@ -75,15 +77,18 @@ function create_turing_model(ps_priors, data_distrib, st_model)
     return (xs, ys) -> DynamicPPL.Model(generated_model, (; xs, ys))
 end
 
+# TODO: ideally, `model_priors` should be embedded within `model`, possibly in its state. Depending on the backend, we transform the priors into NamedTransform
+# TODO: here, the model returned is the one with the highest log posterior (for consistency with LuxBakend; taking the mean of a bimodal posterior distribution is not sensible). However, this model should not be used for predictions; instead, predictions should be made by sampling parameters from the chain, and taking the mean of the predictions. The latter allows to benefit from uncertainty quantifications.
+# TODO: For both InferICs{false} and InferICs{true}, we should define an InitialConditions layer, where in one case, parameters are null and ics are stored in states; Careful with how you setup the distributions!
 
-function train(::TuringBackend, 
-                ::InferICs{true};
+function train(::MCMCBackend, 
+                experimental_setup::InferICs;
                 model::AbstractLuxLayer,
                 rng=Random.default_rng(),
                 dataloader,
                 datadistrib,
-                model_priors, # TODO: ideally, model_priors are embedded within `model`, possibly in its state. Depending on the backend, we transform the priors into NamedTransform or the likes
-                sampler = HMC(0.05, 4; adtype=AutoForwardDiff()),
+                model_priors,
+                sampler = NUTS(; adtype=AutoForwardDiff()),
                 n_iterations, 
                 kwargs...)
 
@@ -97,10 +102,16 @@ function train(::TuringBackend,
     for tok in tokens(dataloader)
         segment_data, segment_tsteps = dataloader[tok]
         u0 = segment_data[:, 1]
+        t0 = segment_tsteps[1]
         push!(xs, (;u0 = tok, saveat = segment_tsteps, tspan = (segment_tsteps[1], segment_tsteps[end])))
         push!(ys, segment_data)
-        push!(ic_list, ParameterLayer())
-        push!(u0_priors, (;u0 = arraydist(datadistrib.(u0))))
+        if isa(experimental_setup, InferICs{true})
+            push!(ic_list, ParameterLayer(init_state_value = (;t0)))
+            push!(u0_priors, (;u0 = arraydist(datadistrib.(u0))))
+        elseif isa(experimental_setup, InferICs{false})
+            push!(ic_list, ParameterLayer(init_state_value = (;t0, u0)))
+            push!(u0_priors, (;))
+        end
     end
     ics = InitialConditions(ic_list)
     u0_priors = NamedTuple{ntuple(i -> Symbol(:u0_, i), length(ic_list))}(u0_priors)
@@ -113,38 +124,96 @@ function train(::TuringBackend,
 
     turing_fit = create_turing_model(priors, datadistrib, st_model)
 
-    ch = sample(rng, turing_fit(xs, ys), sampler, n_iterations, kwargs...)
-    return ch
+    chains = sample(rng, turing_fit(xs, ys), sampler, n_iterations, kwargs...)
+    # best_ps = get_best_parameters(chains, ps_init)
+    # best_model = StatefulLuxLayer{true}(model, best_ps, st)
+    return (;chains)
 end
 
-function train(::TuringBackend, 
-                ::InferICs{false};
-                model,
+function train(::VIBackend, 
+                experimental_setup::InferICs;
+                model::AbstractLuxLayer,
                 rng=Random.default_rng(),
                 dataloader,
                 datadistrib,
                 model_priors,
-                sampler = HMC(0.05, 4; adtype=AutoForwardDiff()),
-                n_iterations,
+                q_init = q_meanfield_gaussian,
+                n_iterations, 
                 kwargs...)
 
     dataloader = tokenize(dataloader)
 
     xs = []
     ys = []
+    ic_list = ParameterLayer[]
+    u0_priors = []
+
     for tok in tokens(dataloader)
         segment_data, segment_tsteps = dataloader[tok]
-        push!(xs, (;u0 = segment_data[:, 1], saveat = segment_tsteps, tspan = (segment_tsteps[1], segment_tsteps[end])))
+        u0 = segment_data[:, 1]
+        t0 = segment_tsteps[1]
+        push!(xs, (;u0 = tok, saveat = segment_tsteps, tspan = (segment_tsteps[1], segment_tsteps[end])))
         push!(ys, segment_data)
+        if isa(experimental_setup, InferICs{true})
+            push!(ic_list, ParameterLayer(init_state_value = (;t0)))
+            push!(u0_priors, (;u0 = arraydist(datadistrib.(u0))))
+        elseif isa(experimental_setup, InferICs{false})
+            push!(ic_list, ParameterLayer(init_state_value = (;t0, u0)))
+            push!(u0_priors, (;))
+        end
     end
+    ics = InitialConditions(ic_list)
+    u0_priors = NamedTuple{ntuple(i -> Symbol(:u0_, i), length(ic_list))}(u0_priors)
 
-    ps_init, st = Lux.setup(rng, model) 
-    st_model = StatefulLuxLayer{true}(model, ps_init, st)
-    turing_fit = create_turing_model(model_priors, datadistrib, st_model)
+    ode_model_with_ics = Chain(initial_conditions = ics, model = model)
+    priors = (initial_conditions = u0_priors, model = model_priors)
 
-    ch = sample(rng, turing_fit(xs, ys), sampler, n_iterations, kwargs...)
-    return ch
+    ps_init, st = Lux.setup(rng, ode_model_with_ics)
+    st_model = StatefulLuxLayer{true}(ode_model_with_ics, ps_init, st)
+
+    turing_fit = create_turing_model(priors, datadistrib, st_model)
+    turing_model = turing_fit(xs, ys)
+    q_avg, q_last, info, state = vi(rng, turing_model, q_init(rng, turing_model), n_iterations; kwargs...)
+    # best_ps = get_best_parameters(chains, ps_init)
+    # best_model = StatefulLuxLayer{true}(model, best_ps, st)
+    return (;q_avg, q_last, info, state)
 end
 
-get_parameter_values(ch::Chains) = nothing # TODO: to complete
-get_loss(ch::Chains) = nothing
+# function train(::MCMCBackend, 
+#                 ::InferICs{false};
+#                 model,
+#                 rng=Random.default_rng(),
+#                 dataloader,
+#                 datadistrib,
+#                 model_priors,
+#                 sampler = NUTS(; adtype=AutoForwardDiff()),
+#                 n_iterations,
+#                 kwargs...)
+
+#     dataloader = tokenize(dataloader)
+
+#     xs = []
+#     ys = []
+#     for tok in tokens(dataloader)
+#         segment_data, segment_tsteps = dataloader[tok]
+#         push!(xs, (;u0 = segment_data[:, 1], saveat = segment_tsteps, tspan = (segment_tsteps[1], segment_tsteps[end])))
+#         push!(ys, segment_data)
+#     end
+
+#     ps_init, st = Lux.setup(rng, model) 
+#     st_model = StatefulLuxLayer{true}(model, ps_init, st)
+#     turing_fit = create_turing_model(model_priors, datadistrib, st_model)
+
+#     chains = sample(rng, turing_fit(xs, ys), sampler, n_iterations, kwargs...)
+#     best_ps = get_best_parameters(chains, ps_init)
+#     best_model = StatefulLuxLayer{true}(model, best_ps, st)
+#     return (;best_model, chains)
+# end
+
+# TODO: this is not the right approach; you rather want to sample from the posterior distrib.
+# function get_best_parameters(chains::Chains, ps)
+#     lp = chains[:lp]
+#     max_idx = argmax(lp)
+#     ps_vec = reshape(chains[max_idx[1], collect(values(chains.info.varname_to_symbol)), max_idx[2]] |> Array, :)
+#     return _vector_to_parameters(ps_vec, ps)
+# end

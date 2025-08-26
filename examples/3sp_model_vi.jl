@@ -12,7 +12,7 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridModelling
-import HybridModellingBenchmark: Model3SP, LogMSELoss, train, MCMCBackend, LuxBackend, InferICs, forecast
+import HybridModellingBenchmark: Model3SP, LogMSELoss, train, MCMCBackend, VIBackend, InferICs, forecast
 import Lux
 using Random
 
@@ -23,7 +23,7 @@ const FloatType = Float64
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
-function init(::Model3SP, ::MCMCBackend, p_true, perturb=1e0)
+function init(::Model3SP, ::Union{MCMCBackend, VIBackend}, p_true, perturb=1e0)
     parameter_priors = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
     # Careful: float type is not easily imposed, see https://github.com/JuliaStats/Distributions.jl/issues/1995
     return (;parameters=parameter_priors)
@@ -33,9 +33,9 @@ end
 # Model metaparameters
 alg = Tsit5()
 sensealg = ForwardDiffSensitivity()
-adtype = AutoForwardDiff()
+# adtype = AutoForwardDiff()
 # sensealg = GaussAdjoint()
-# adtype = AutoZygote()
+adtype = AutoZygote()
 abstol = 1e-4
 reltol = 1e-4
 tspan = (0e0, 800e0)
@@ -45,7 +45,7 @@ p_true = (;H = [1.24, 2.5],
             q = [4.98, 0.8],
             r = [1.0, -0.4, -0.08],
             A = [1.0])
-backend = MCMCBackend()
+backend = VIBackend()
 model = Model3SP()
 
 # Lux model initialization with biased parameters
@@ -67,7 +67,7 @@ ax = Plots.scatter(tsteps, data', title = "Data")
 # Defining inference problem
 datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 # Model initialized with perturbed parameters
-dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=4, partial_batch = true)
+dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=2, partial_batch = true)
 
 ## Testing Turing backend
 # chain = train(MCMCBackend(),
@@ -80,16 +80,16 @@ dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=4, partial_batch = 
 #         sampler = NUTS(; adtype), 
 #         n_iterations = 1000)
 
+# TODO: sometimes, errors with log provided with - value.
 ## Testing Turing backend without ICs
-res = train(MCMCBackend(),
-            InferICs(false);
-            datadistrib, 
-            model_priors = ps_priors,
-            model = lux_model, 
-            rng, 
-            dataloader, 
-            sampler = NUTS(; adtype), 
-            n_iterations = 1000,)
-
-using StatsPlots
-plot(res.chains)
+res = train(backend,
+        InferICs(true);
+        datadistrib, 
+        model_priors = ps_priors,
+        model = lux_model, 
+        rng, 
+        dataloader, 
+        n_iterations = 1000, 
+        adtype
+        )
+z = rand(res.q_avg, 1000)

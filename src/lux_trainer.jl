@@ -1,50 +1,9 @@
-function train(::LuxBackend, 
-                ::InferICs{false};
-                model::AbstractLuxLayer,
-                rng=Random.default_rng(),
-                dataloader,
-                loss_fn = LogMSELoss(),
-                adtype = Lux.AutoZygote(),
-                opt = Adam(1e-3), 
-                n_epochs = 1000, 
-                verbose_frequency = 10,
-                kwargs...)
-
-    function feature_wrapper((batched_segments, batched_tsteps))
-        return [
-            (;u0 = batched_segments[:, 1, i],
-            saveat = batched_tsteps[:, i], 
-            tspan = (batched_tsteps[1, i], batched_tsteps[end, i])
-            )
-            for i in 1:size(batched_tsteps, 2)
-        ]
-    end
-
-    mychain = Chain(wrapper = Lux.WrappedFunction(feature_wrapper), model = model)
-    ps, st = Lux.setup(rng, mychain)
-
-    train_state = Training.TrainState(mychain, ps, st, opt)
-
-    for epoch in 1:n_epochs
-        tot_loss = 0.
-        for (batched_segments, batched_tsteps) in dataloader
-            _, loss, _, train_state = Training.single_train_step!(
-                adtype,
-                loss_fn, 
-                ((batched_segments, batched_tsteps), batched_segments),
-                train_state)
-            tot_loss += loss
-        end
-        if epoch % verbose_frequency == 0
-            println("Epoch $epoch: Total Loss = ", tot_loss)
-        end
-    end
-    return train_state
-end
-
+# TODO: For both InferICs{false} and InferICs{true}, we should define an InitialConditions layer, where in one case, parameters are null
+# TODO: train could return an info object defined by callback, see https://turinglang.org/docs/tutorials/variational-inference/
+using ComponentArrays
 
 function train(::LuxBackend, 
-                ::InferICs{true};
+                experimental_setup::InferICs;
                 model::AbstractLuxLayer,
                 rng=Random.default_rng(),
                 dataloader,
@@ -53,6 +12,8 @@ function train(::LuxBackend,
                 verbose_frequency = 10,
                 opt, 
                 n_epochs, 
+                callback = (l, m, p, s) -> nothing,
+                u0_constraint = NoConstraint(),
                 kwargs...)
 
     dataloader = tokenize(dataloader)
@@ -61,7 +22,12 @@ function train(::LuxBackend,
     for tok in tokens(dataloader)
         segment_data, segment_tsteps = dataloader[tok]
         u0 = segment_data[:, 1]
-        push!(ic_list, ParameterLayer(constraint = NoConstraint(), init_value = (;u0)))
+        t0 = segment_tsteps[1]
+        if isa(experimental_setup, InferICs{false})
+            push!(ic_list, ParameterLayer(constraint = u0_constraint, init_value = (), init_state_value = (;t0, u0)))
+        elseif isa(experimental_setup, InferICs{true})
+            push!(ic_list, ParameterLayer(constraint = u0_constraint, init_value = (;u0), init_state_value = (;t0)))
+        end
     end
     ics = InitialConditions(ic_list)
 
@@ -78,8 +44,11 @@ function train(::LuxBackend,
     ode_model_with_ics = Chain(wrapper = Lux.WrappedFunction(feature_wrapper), initial_conditions = ics, model = model)
 
     ps, st = Lux.setup(rng, ode_model_with_ics)
+    ps = ps |> ComponentArray # We transforms ps to support all sensealg types
     train_state = Training.TrainState(ode_model_with_ics, ps, st, opt)
-
+    best_ps = ps
+    best_loss = Inf
+    info = []
     for epoch in 1:n_epochs
         tot_loss = 0.
         for (batched_tokens, (batched_segments, batched_tsteps)) in dataloader
@@ -93,9 +62,15 @@ function train(::LuxBackend,
         if epoch % verbose_frequency == 0
             println("Epoch $epoch: Total Loss = ", tot_loss)
         end
+        if tot_loss < best_loss
+            best_ps = get_parameter_values(train_state)
+            best_loss = tot_loss
+        end
+        push!(info, callback(tot_loss, ode_model_with_ics, get_parameter_values(train_state), get_state_values(train_state)))
     end
-    return train_state
+    best_model = StatefulLuxLayer{true}(model, best_ps, st)
+    return (;best_model, info)
 end
 
-get_parameter_values(train_state::Training.TrainState) = train_state.parameters.model.parameters
-get_loss(train_state::Training.TrainState) = nothing # Lux does not return a loss value in the train state
+get_parameter_values(train_state::Training.TrainState) = train_state.parameters
+get_state_values(train_state::Training.TrainState) = train_state.states

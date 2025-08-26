@@ -95,14 +95,16 @@ function simu(optim_backend::LuxBackend, experimental_setup::InferICs; model, p_
 end
 
 
-function init(::AbstractEcosystemModel, ::MCMCBackend, alg, abstol, reltol, sensealg, maxiters, p_true, perturb=1f0, kwargs...)
-    model_priors = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
+function init(model::AbstractEcosystemModel, ::MCMCBackend; alg, abstol, reltol, sensealg, maxiters, p_true, perturb=1f0, kwargs...)
+    model_priors = (;parameters = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)]))
     # Careful: float type is not easily imposed, see https://github.com/JuliaStats/Distributions.jl/issues/1995
+    parameters = ParameterLayer(init_value = p_true) # p_true is only used for inferring length of parameters
     lux_model = ODEModel((;parameters), model; alg, abstol, reltol, sensealg, maxiters)
     return (;lux_model, model_priors)
 end
 
 function forecast(::MCMCBackend, st_model, chain, tsteps_forecast, nsamples=100)
+    nsamples = min(nsamples, size(chain, 1))
     last_tok = length(keys(st_model.ps.initial_conditions))
     last_ics_idx = last(keys(st_model.ps.initial_conditions))
     last_ics_t0 = st_model.st.initial_conditions[last_ics_idx].t0
@@ -111,8 +113,6 @@ function forecast(::MCMCBackend, st_model, chain, tsteps_forecast, nsamples=100)
     posterior_samples = sample(chain, nsamples; replace=false)
     preds = []
     for ps_vec in eachrow(Array(posterior_samples))
-        @show ps_vec
-        @show st_model.ps
         ps = _vector_to_parameters(ps_vec, st_model.ps)
         pred = st_model((;u0=last_tok, saveat = tsteps_forecast, tspan = (last_ics_t0, last_ics_t0 + tsteps_forecast[end])), ps)
         push!(preds, pred)
@@ -121,6 +121,7 @@ function forecast(::MCMCBackend, st_model, chain, tsteps_forecast, nsamples=100)
 end
 
 function get_parameter_error(::MCMCBackend, st_model, chain, p_true, nsamples=100)
+    nsamples = min(nsamples, size(chain, 1))
     posterior_samples = sample(chain[collect(values(chain.info.varname_to_symbol))], nsamples; replace=false)
     err = []
     for ps_vec in eachrow(Array(posterior_samples))
@@ -134,46 +135,49 @@ end
 
 
 # TODO: once simu is working with LuxBackend, try to reproduce it with the below function
-function simu(optim_backend::MCMCBackend, experimental_setup; model, p_true, segmentsize, batchsize, shift=nothing, noise, data, tsteps, adtype, kwargs...)
+function simu(optim_backend::MCMCBackend, experimental_setup; model, p_true, segmentsize, batchsize, shift=nothing, noise, data, tsteps, sensealg, loss_fn, sampler, forecast_length=10, kwargs...)
 
     # invoke garbage collection to avoid memory overshoot on SLURM
     GC.gc()
-    if isnothing(shift)
-        shift = segmentsize - 1
-    end
 
     data_w_noise = generate_noisy_data(data, noise)
-    dataloader = SegmentedTimeSeries((data_w_noise, tsteps); segmentsize, batchsize, shift)
+    train_idx, test_idx = 1:size(data, 2)-forecast_length-1, (size(data, 2)-forecast_length):size(data, 2)  
+    dataloader = SegmentedTimeSeries((data_w_noise[:, train_idx], tsteps[train_idx]); segmentsize, batchsize, shift, partial_batch = true)
 
     # Lux model initialization with biased parameters
-    @unpack lux_model, model_priors = init(model, optim_backend; p_true, kwargs...)
+    @unpack lux_model, model_priors = init(model, optim_backend; p_true, sensealg, kwargs...)
     println("Launching simulations for segmentsize = $segmentsize, noise = $noise, backend = $(typeof(optim_backend)), experimental_setup = $(typeof(experimental_setup))")
     
-    # try
-        stats = @timed train(optim_backend, experimental_setup; model = lux_model, dataloader, model_priors, kwargs...)
+    med_par_err = missing
+    forecast_err = missing
+    time = missing
+    try
+        stats = @timed train(optim_backend, 
+                            experimental_setup;
+                            model = lux_model,
+                            model_priors,
+                            dataloader,
+                            sampler,
+                            kwargs...)
         res = stats.value
 
-        med_par_err = get_parameter_error(optim_backend, st_model, chain, p_true)
+        med_par_err = get_parameter_error(optim_backend, res.st_model, res.chains, p_true)
 
-        # TODO: get prediction error for test time series
-        preds = forecast(optim_backend, st_model, tsteps[test_idx])
+        preds = forecast(optim_backend, res.st_model, res.chains, tsteps[test_idx])
         forecast_err = median(loss_fn(p, data[:, test_idx]) for p in preds)
-    # catch
-    #     println("Error occurred during training")
-    #     res = missing
-    #     time = missing
-    #     err = missing
-    #     l = missing
-    # end
+    catch
+        println("Error occurred during training")
+    end
 
-    return (;segmentsize, 
+    return (;med_par_err, 
+            forecast_err,
+            time, 
+            segmentsize, 
             batchsize, 
             noise, 
-            med_par_err = err, 
-            loss = l, 
-            time, 
-            res, 
-            adtype = typeof(adtype), 
-            optim_backend = typeof(optim_backend),
-            experimental_setup = typeof(experimental_setup))
+            sampler = string(typeof(sampler)),
+            optim_backend = string(typeof(optim_backend)),
+            experimental_setup = string(typeof(experimental_setup)),
+            sensealg = string(typeof(sensealg)),
+            infer_ics = istrue(experimental_setup))
 end

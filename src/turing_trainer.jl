@@ -107,7 +107,7 @@ function train(::MCMCBackend,
         push!(xs, (;u0 = tok, saveat = segment_tsteps, tspan = (segment_tsteps[1], segment_tsteps[end])))
         push!(ys, segment_data)
         if isa(experimental_setup, InferICs{true})
-            push!(ic_list, ParameterLayer(init_state_value = (;t0)))
+            push!(ic_list, ParameterLayer(init_value = (;u0), init_state_value = (;t0)))
             push!(u0_priors, (;u0 = arraydist(datadistrib.(u0))))
         elseif isa(experimental_setup, InferICs{false})
             push!(ic_list, ParameterLayer(init_state_value = (;t0, u0)))
@@ -125,7 +125,7 @@ function train(::MCMCBackend,
 
     turing_fit = create_turing_model(priors, datadistrib, st_model)
 
-    chains = sample(rng, turing_fit(xs, ys), sampler, n_iterations, kwargs...)
+    chains = sample(rng, turing_fit(xs, ys), sampler, n_iterations; kwargs...)
     # best_ps = get_best_parameters(chains, ps_init)
     # best_model = StatefulLuxLayer{true}(model, best_ps, st)
     return (;chains, st_model)

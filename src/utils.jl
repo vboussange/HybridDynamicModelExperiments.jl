@@ -1,4 +1,7 @@
-function save_results(pathfile; results, kwargs...)
+using Dates
+using DataFrames
+
+function save_results(pathfile; results::DataFrame, kwargs...)
     println("saving...")
     dir = joinpath(dirname(pathfile), "results", string(today()))
     !isdir(dir) && mkpath(dir)

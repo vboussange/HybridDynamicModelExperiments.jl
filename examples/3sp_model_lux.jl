@@ -12,7 +12,7 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridModelling
-import HybridModellingBenchmark: Model3SP, LogMSELoss, train, MCMCBackend, LuxBackend, InferICs
+import HybridModellingBenchmark: Model3SP, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
 
@@ -69,13 +69,13 @@ rng = MersenneTwister(1)
 σ = 0.1
 ps_true, st = Lux.setup(rng, lux_true_model)
 data, _ = lux_true_model((;u0 = u0_true), ps_true, st)
-data = rand(arraydist(LogNormal.(log.(data), σ)))
-ax = Plots.scatter(tsteps, data', title = "Data")
+data_with_noise = rand(arraydist(LogNormal.(log.(data), σ)))
+ax = Plots.scatter(tsteps, data_with_noise', title = "Data")
 
 # Defining inference problem
 # Model initialized with perturbed parameters
-loss_likelihood = LogMSELoss()
-dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = true)
+segmentsize = 8
+dataloader = SegmentedTimeSeries((data_with_noise, tsteps); segmentsize, shift=segmentsize-2, partial_batch = true)
 
 ## Testing Lux backend
 res = train(LuxBackend(),
@@ -83,9 +83,43 @@ res = train(LuxBackend(),
             model = lux_model, 
             rng, 
             dataloader, 
-            opt = Adam(1e-2), 
+            opt = Adam(1e-3), 
             adtype,
             n_epochs = 1000)
+
+function plot_segments(dataloader, st_model)
+    plt = plot()
+    colors = [:blue, :red]
+    for (batched_tokens, (batched_segments, batched_tsteps)) in tokenize(dataloader)
+
+        batched_pred = st_model((batched_tokens, batched_tsteps))
+        for (tok, segment_tsteps, segment_data, pred) in zip(batched_tokens, 
+                                                            eachslice(batched_tsteps, dims=ndims(batched_tsteps)), 
+                                                            eachslice(batched_segments, dims=ndims(batched_segments)), 
+                                                            eachslice(batched_pred, dims=ndims(batched_pred)))
+            color = colors[mod1(tok, 2)]
+            plot!(plt, segment_tsteps, segment_data', label=(tok == 1 ? "Data" : ""), color=color, linestyle=:solid)
+            plot!(plt, segment_tsteps, pred', label=(tok == 1 ? "Predicted" : ""), color=color, linestyle=:dash)
+        end
+    end
+
+    display(plt)
+    return plt
+end
+
+plot_segments(dataloader, res.best_model)
+
+
+tsteps_forecast = tspan[end]:4:tspan[end]+200
+last_tok = tokens(tokenize(dataloader))[end]
+segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
+forecasted_data = forecast(LuxBackend(), res.best_model, union(segment_tsteps, tsteps_forecast))
+true_data = lux_true_model((;u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1], tspan = (segment_tsteps[1], tsteps_forecast[end]), saveat = union(segment_tsteps, tsteps_forecast)), ps_true, st)[1]
+ax = Plots.plot(union(segment_tsteps, tsteps_forecast), forecasted_data', label = "forecasted", title="Forecasted vs true data")
+Plots.plot!(ax, union(segment_tsteps, tsteps_forecast), true_data', label = "true", linestyle = :dash, color = palette(:auto)[1:3]')
+Plots.scatter!(ax, segment_tsteps, data_with_noise[:, tsteps .∈ Ref(segment_tsteps)]', label = "training data", color = palette(:auto)[1:3]')
+
+get_parameter_error(LuxBackend(), res.best_model, p_true)
 
 # @code_warntype train(LuxBackend(),
 #                     InferICs(true);
@@ -95,3 +129,4 @@ res = train(LuxBackend(),
 #                     opt = Adam(1e-2), 
 #                     adtype,
 #                     n_epochs = 1000)
+

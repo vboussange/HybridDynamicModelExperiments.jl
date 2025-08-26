@@ -5,8 +5,11 @@ Utilities to run inference simulations.
 using HybridModelling
 using Distributions
 using Bijectors
+import Optimisers
 
-function init(model::AbstractEcosystemModel; alg, abstol, reltol, sensealg, maxiters, p_true, perturb=1f0, kwargs...)
+get_lr(opt::Optimisers.AbstractRule) = opt.eta
+
+function init(model::AbstractEcosystemModel, ::LuxBackend; alg, abstol, reltol, sensealg, maxiters, p_true, perturb=1f0, kwargs...)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1f0-perturb/2f0) * k, (1f0+perturb/2f0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
 
     p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
@@ -18,11 +21,114 @@ function init(model::AbstractEcosystemModel; alg, abstol, reltol, sensealg, maxi
                                 init_value = p_init)
     lux_model = ODEModel((;parameters), model; alg, abstol, reltol, sensealg, maxiters)
 
-    return lux_model
+    return (;lux_model)
 end
 
-# simulation function, preprocess before train, train, and postprocess
-function simu(optim_backend, experimental_setup; model, p_true, segmentsize, batchsize, shift=nothing, noise, data, tsteps, adtype, kwargs...)
+function forecast(::LuxBackend, st_model, tsteps_forecast)
+    last_tok = length(keys(st_model.ps.initial_conditions))
+    last_ics_idx = last(keys(st_model.ps.initial_conditions))
+    last_ics_t0 = st_model.st.initial_conditions[last_ics_idx].t0
+    return st_model((;u0=last_tok, saveat = tsteps_forecast, tspan = (last_ics_t0, last_ics_t0 + tsteps_forecast[end])))[:, :, 1]
+end
+
+function get_parameter_error(::LuxBackend, st_model, p_true) 
+    ps_tr, _ = st_model.model.layers.model.components.parameters(st_model.ps.model.parameters, (;))
+    med_par_err = median([median(abs.(ps_tr[k] - p_true[k]) ./ p_true[k]) for k in keys(ps_tr)])
+    return med_par_err
+end
+
+# Simulation function, preprocess before train, train, and postprocess
+# only valid for non hybrid models.
+# TODO: we need to output loss over iteration
+function simu(optim_backend::LuxBackend, experimental_setup::InferICs; model, p_true, segmentsize, batchsize, shift=nothing, noise, data, tsteps, adtype, sensealg, loss_fn, opt, forecast_length=10, kwargs...)
+
+    # invoke garbage collection to avoid memory overshoot on SLURM
+    GC.gc()
+
+    callback(l, m, p, s) = l
+
+    data_w_noise = generate_noisy_data(data, noise)
+    train_idx, test_idx = 1:size(data, 2)-forecast_length-1, (size(data, 2)-forecast_length):size(data, 2)
+    dataloader = SegmentedTimeSeries((data_w_noise[:, train_idx], tsteps[train_idx]); segmentsize, batchsize, shift, partial_batch = true)
+
+    # Lux model initialization with biased parameters
+    @unpack lux_model = init(model, optim_backend; p_true, sensealg, kwargs...)
+    println("Launching simulations for segmentsize = $segmentsize, noise = $noise, backend = $(typeof(optim_backend)), experimental_setup = $(typeof(experimental_setup))")
+    # try
+    stats = @timed train(optim_backend, 
+                        experimental_setup;
+                        model = lux_model,
+                        dataloader, 
+                        opt, 
+                        adtype, 
+                        callback, 
+                        loss_fn,
+                        kwargs...)
+    time = stats.time
+    res = stats.value
+
+    med_par_err = get_parameter_error(optim_backend, res.best_model, p_true)
+
+    preds = forecast(optim_backend, res.best_model, tsteps[test_idx])
+    forecast_err = loss_fn(preds, data[:, test_idx])
+    # catch
+    #     println("Error occurred during training")
+    #     res = missing
+    #     time = missing
+    #     err = missing
+    #     l = missing
+    # end
+
+
+    return (;med_par_err, 
+            forecast_err,
+            loss = res.info,
+            time, 
+            segmentsize, 
+            batchsize, 
+            noise, 
+            lr = get_lr(opt),
+            adtype = string(typeof(adtype)),
+            sensealg = string(typeof(sensealg)),
+            optim_backend = string(typeof(optim_backend)),
+            infer_ics = istrue(experimental_setup))
+end
+
+
+function init(::AbstractEcosystemModel, ::MCMCBackend, alg, abstol, reltol, sensealg, maxiters, p_true, perturb=1f0, kwargs...)
+    model_priors = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
+    # Careful: float type is not easily imposed, see https://github.com/JuliaStats/Distributions.jl/issues/1995
+    lux_model = ODEModel((;parameters), model; alg, abstol, reltol, sensealg, maxiters)
+    return (;lux_model, model_priors)
+end
+
+function forecast(::MCMCBackend, st_model, chain, tsteps_forecast)
+    last_ics_idx = length(st_model.parameters.initial_conditions)
+    last_ics_t0 = st_model.states.initial_conditions[last_ics_idx].t0
+    posterior_samples = [sample(chain[collect(values(chains.info.varname_to_symbol))], 100; replace=false)]
+    preds = []
+    for ps_vec in posterior_samples
+        ps = _vector_to_parameters(ps_vec, st_model.parameters)
+        pred = st_model((;u0=last_ics_idx, saveat = tsteps_forecast, tspan = (last_ics_t0, last_ics_t0 + tsteps_forecast[end])), ps)
+        push!(preds, pred)
+    end
+    return preds
+end
+
+function get_parameter_error(::MCMCBackend, st_model, chain, p_true)
+    posterior_samples = [sample(chain[collect(values(chains.info.varname_to_symbol))], 100; replace=false)]
+    err = []
+    for ps_vec in posterior_samples
+        ps = _vector_to_parameters(ps_vec, st_model.parameters)
+        med_par_err = median([median(abs.(ps[k] - p_true[k]) ./ p_true[k]) for k in keys(best_ps)])
+        push!(err, med_par_err)
+    end
+    return median(err)
+end
+
+
+# TODO: once simu is working with LuxBackend, try to reproduce it with the below function
+function simu(optim_backend::MCMCBackend, experimental_setup; model, p_true, segmentsize, batchsize, shift=nothing, noise, data, tsteps, adtype, kwargs...)
 
     # invoke garbage collection to avoid memory overshoot on SLURM
     GC.gc()
@@ -34,15 +140,18 @@ function simu(optim_backend, experimental_setup; model, p_true, segmentsize, bat
     dataloader = SegmentedTimeSeries((data_w_noise, tsteps); segmentsize, batchsize, shift)
 
     # Lux model initialization with biased parameters
-    lux_model = init(model; p_true, kwargs...)
+    @unpack lux_model, model_priors = init(model, optim_backend; p_true, kwargs...)
     println("Launching simulations for segmentsize = $segmentsize, noise = $noise, backend = $(typeof(optim_backend)), experimental_setup = $(typeof(experimental_setup))")
+    
     # try
-        stats = @timed train(optim_backend, experimental_setup; model = lux_model, dataloader, kwargs...)
+        stats = @timed train(optim_backend, experimental_setup; model = lux_model, dataloader, model_priors, kwargs...)
         res = stats.value
-        p_trained = get_parameter_values(res)
-        err = median([median(abs.(p_trained[k] - p_true[k]) ./ p_true[k]) for k in keys(p_trained)])
-        l = get_loss(res)
-        time = stats.time
+
+        med_par_err = get_parameter_error(optim_backend, st_model, chain, p_true)
+
+        # TODO: get prediction error for test time series
+        preds = forecast(optim_backend, st_model, tsteps[test_idx])
+        forecast_err = median(loss_fn(p, data[:, test_idx]) for p in preds)
     # catch
     #     println("Error occurred during training")
     #     res = missing
@@ -50,7 +159,6 @@ function simu(optim_backend, experimental_setup; model, p_true, segmentsize, bat
     #     err = missing
     #     l = missing
     # end
-
 
     return (;segmentsize, 
             batchsize, 

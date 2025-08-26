@@ -2,8 +2,8 @@
 Short exampling showcasing the fit of a 3 species model.
 =#
 cd(@__DIR__)
-import OrdinaryDiffEq: Tsit5
-import Turing: NUTS
+import OrdinaryDiffEq: Tsit5, BS3
+import Turing: NUTS, HMC
 import ADTypes: AutoZygote, AutoForwardDiff, AutoReverseDiff
 using Plots
 using Distributions
@@ -13,7 +13,7 @@ using Optimisers
 using SciMLSensitivity
 using HybridModelling
 using HybridModellingExperiments
-import HybridModellingExperiments: Model3SP, LogMSELoss, train, MCMCBackend, LuxBackend, InferICs, forecast
+import HybridModellingExperiments: Model3SP, LogMSELoss, train, MCMCBackend, LuxBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
 
@@ -30,9 +30,9 @@ end
 
 
 # Model metaparameters
-alg = Tsit5()
-sensealg = ForwardDiffSensitivity()
-adtype = AutoForwardDiff()
+alg = BS3()
+sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+sampler = HMC(0.05, 4; adtype=AutoForwardDiff()) # fastest, by far
 # sensealg = GaussAdjoint()
 # adtype = AutoZygote()
 # adtype = AutoReverseDiff(;compile=true) # fails
@@ -50,7 +50,7 @@ backend = MCMCBackend()
 model = Model3SP()
 
 # Lux model initialization with biased parameters
-parameters = ParameterLayer()
+parameters = ParameterLayer(init_value = p_true) # p_true is only used for inferring length of parameters
 lux_model = ODEModel((;parameters), Model3SP(); alg, abstol, reltol, sensealg)
 ps_priors = init(model, backend, p_true)
 
@@ -89,14 +89,21 @@ res = train(MCMCBackend(),
             model = lux_model, 
             rng, 
             dataloader, 
-            sampler = NUTS(1000, 0.65; adtype), 
+            sampler, 
             n_iterations = 1000,)
 
 using StatsPlots
 plot(res.chains)
 
+tsteps_forecast = tspan[end]:4:tspan[end]+200
+last_tok = tokens(tokenize(dataloader))[end]
+segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
+forecasted_data = forecast(MCMCBackend(), res.st_model, res.chains, union(segment_tsteps, tsteps_forecast))
+true_data = lux_true_model((;u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1], tspan = (segment_tsteps[1], tsteps_forecast[end]), saveat = union(segment_tsteps, tsteps_forecast)), ps_true, st)[1]
+ax = Plots.plot(union(segment_tsteps, tsteps_forecast), true_data', label = "true", title="Forecasted vs true data", linestyle = :dash, color = palette(:auto)[1:3]')
+for pred in forecasted_data
+    Plots.plot!(ax, union(segment_tsteps, tsteps_forecast), pred', label = "", color=Plots.palette(:auto)[1:3]', alpha=0.1)
+end
+ax
 
-using DynamicPPL
-st_model = Lux.StatefulLuxLayer{true}(lux_true_model, ps_true, st)
-turing_model = HybridModellingExperiments.create_turing_model(ps_priors, datadistrib, st_model)((;u0 = u0_true), data)
-DynamicPPL.DebugUtils.model_warntype(turing_model)
+get_parameter_error(MCMCBackend(), res.st_model, res.chains, p_true)

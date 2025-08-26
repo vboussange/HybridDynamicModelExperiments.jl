@@ -66,12 +66,12 @@ function create_simulation_parameters()
                             noise)
         push!(pars_arr, varying_params)
     end
-    return pars_arr
+    return shuffle!(fixed_params.rng, pars_arr)
 end
 
 data = generate_data(;tspan, fixed_params...)
 # using Plots; plot(fixed_params.tsteps, data')
-fixed_params = merge(fixed_params, (;data) )
+fixed_params = merge(fixed_params, (;data))
 
 # println("Warming up...")
 # simulation_parameters_warmup = create_simulation_parameters(1)

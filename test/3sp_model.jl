@@ -7,9 +7,9 @@ include("../plotting.jl")
 include("../3sp_model.jl")
 
 alg = BS3()
-abstol = 1e-6
-reltol = 1e-6
-tspan = (0., 800)
+abstol = 1e-3
+reltol = 1e-3
+tspan = (0., 800.)
 tsteps = 550.:4.:800.
 u0_true = Float32[0.5,0.8,0.5]
 

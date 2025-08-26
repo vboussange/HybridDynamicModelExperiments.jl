@@ -102,25 +102,31 @@ function init(::AbstractEcosystemModel, ::MCMCBackend, alg, abstol, reltol, sens
     return (;lux_model, model_priors)
 end
 
-function forecast(::MCMCBackend, st_model, chain, tsteps_forecast)
-    last_ics_idx = length(st_model.parameters.initial_conditions)
-    last_ics_t0 = st_model.states.initial_conditions[last_ics_idx].t0
-    posterior_samples = [sample(chain[collect(values(chains.info.varname_to_symbol))], 100; replace=false)]
+function forecast(::MCMCBackend, st_model, chain, tsteps_forecast, nsamples=100)
+    last_tok = length(keys(st_model.ps.initial_conditions))
+    last_ics_idx = last(keys(st_model.ps.initial_conditions))
+    last_ics_t0 = st_model.st.initial_conditions[last_ics_idx].t0
+
+    
+    posterior_samples = sample(chain, nsamples; replace=false)
     preds = []
-    for ps_vec in posterior_samples
-        ps = _vector_to_parameters(ps_vec, st_model.parameters)
-        pred = st_model((;u0=last_ics_idx, saveat = tsteps_forecast, tspan = (last_ics_t0, last_ics_t0 + tsteps_forecast[end])), ps)
+    for ps_vec in eachrow(Array(posterior_samples))
+        @show ps_vec
+        @show st_model.ps
+        ps = _vector_to_parameters(ps_vec, st_model.ps)
+        pred = st_model((;u0=last_tok, saveat = tsteps_forecast, tspan = (last_ics_t0, last_ics_t0 + tsteps_forecast[end])), ps)
         push!(preds, pred)
     end
     return preds
 end
 
-function get_parameter_error(::MCMCBackend, st_model, chain, p_true)
-    posterior_samples = [sample(chain[collect(values(chains.info.varname_to_symbol))], 100; replace=false)]
+function get_parameter_error(::MCMCBackend, st_model, chain, p_true, nsamples=100)
+    posterior_samples = sample(chain[collect(values(chain.info.varname_to_symbol))], nsamples; replace=false)
     err = []
-    for ps_vec in posterior_samples
-        ps = _vector_to_parameters(ps_vec, st_model.parameters)
-        med_par_err = median([median(abs.(ps[k] - p_true[k]) ./ p_true[k]) for k in keys(best_ps)])
+    for ps_vec in eachrow(Array(posterior_samples))
+        ps = _vector_to_parameters(ps_vec, st_model.ps)
+        ps = ps.model.parameters
+        med_par_err = median([median(abs.(ps[k] - p_true[k]) ./ p_true[k]) for k in keys(ps)])
         push!(err, med_par_err)
     end
     return median(err)

@@ -5,6 +5,7 @@ using Distributions
 import Lux
 import Lux:fmap
 import Functors: @leaf, fmap_with_path
+using ComponentArrays
 
 function _vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     @assert length(ps_new) == Lux.parameterlength(ps)
@@ -57,7 +58,7 @@ function create_turing_model(ps_priors, data_distrib, st_model)
         handle_node(path, node) = (;)
         
         # Apply fmap_with_path to sample all parameters and maintain structure
-        ps = fmap_with_path(handle_node, ps_priors)
+        ps = fmap_with_path(handle_node, ps_priors) |> ComponentArray
         
         # Update varinfo after sampling all parameters
         varinfo = varinfo_ref[]
@@ -127,7 +128,7 @@ function train(::MCMCBackend,
     chains = sample(rng, turing_fit(xs, ys), sampler, n_iterations, kwargs...)
     # best_ps = get_best_parameters(chains, ps_init)
     # best_model = StatefulLuxLayer{true}(model, best_ps, st)
-    return (;chains)
+    return (;chains, st_model)
 end
 
 function train(::VIBackend, 

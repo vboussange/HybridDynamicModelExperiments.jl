@@ -7,7 +7,6 @@ using ComponentArrays
 using UnPack
 import Graphs: DiGraph, add_edge!, adjacency_matrix
 
-abstract type AbstractEcosystemModel end
 
 abstract type AbstractModel3SP <: AbstractEcosystemModel end
 
@@ -20,29 +19,10 @@ function (::Type{T})() where T <: AbstractModel3SP
     T(I, J)
 end
 
-function (model::AbstractEcosystemModel)(components, u, ps, t)
-    p = components.parameters(ps.parameters)
-    ũ = max.(u, zero(eltype(u)))
-    du = ũ .* (intinsic_growth_rate(model, p, t) .- competition(model, ũ, p) .+ feed_pred_gains(model, ũ, p))
-    return du
-end
-
-intinsic_growth_rate(::AbstractEcosystemModel, p, t) = p.r
-
 function competition(::AbstractModel3SP, u, p)
     @unpack A = p
     T = eltype(u)
     return [A[1] * u[1]; zeros(T, 2)]
-end
-
-function feeding(m::AbstractModel3SP, u, p)
-    Warr, Harr, qarr = create_sparse_matrices(m, p)
-    return qarr .* Warr ./ (one(eltype(u)) .+ qarr .* Harr .* (Warr * u))
-end
-
-function feed_pred_gains(model::AbstractModel3SP, u, p)
-    F = feeding(model, u, p)
-    return  (F .- F') * u
 end
 
 struct Model3SP{II,JJ} <: AbstractModel3SP

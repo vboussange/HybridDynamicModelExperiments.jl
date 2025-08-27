@@ -12,18 +12,18 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridModelling
-import HybridModellingExperiments: Model3SP, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
+import HybridModellingExperiments: Model5SP, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
 
 const FloatType = Float64
 
 """
-    init(model::Model3SP, perturb=0.5)
+    init(model::Model5SP, perturb=0.5)
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
-function init(::Model3SP, ::LuxBackend, p_true, perturb=1e0)
+function init(::Model5SP, ::LuxBackend, p_true, perturb=1e0)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
 
     p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
@@ -37,31 +37,33 @@ end
 
 # Model metaparameters
 alg = Tsit5()
-# sensealg = ForwardDiffSensitivity()
-# adtype = AutoForwardDiff()
 sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
 adtype = AutoZygote()
+# sensealg = GaussAdjoint()
+# adtype = AutoZygote()
 abstol = 1e-4
 reltol = 1e-4
 tspan = (0e0, 800e0)
 tsteps = 550e0:4e0:800e0
-u0_true = [0.77, 0.060, 0.945]
-p_true = (;H = FloatType[1.24, 2.5],
-            q = FloatType[4.98, 0.8],
-            r = FloatType[1.0, -0.4, -0.08],
-            A = FloatType[1.0])
-model = Model3SP()
+u0_true = [0.77, 0.060, 0.945, 0.467, 0.18]
+batchsize = 10
+p_true = (ω = [0.2],
+        H = [2.89855, 7.35294, 2.89855, 7.35294],
+        q = [1.38, 0.272, 1.38, 0.272],
+        r = [1.0, -0.15, -0.08, 1.0, -0.15],
+        A = [1.0, 1.0])
+model = Model5SP()
 p_init, p_transform, u0_transform = init(model, LuxBackend(), p_true)
 
 # Lux model initialization with biased parameters
 parameters = ParameterLayer(constraint = Constraint(p_transform), 
                             init_value = p_init)
-lux_model = ODEModel((;parameters), Model3SP(); alg, abstol, reltol, sensealg)
+lux_model = ODEModel((;parameters), Model5SP(); alg, abstol, reltol, sensealg)
 
 # True Lux model initialization
 parameters = ParameterLayer(constraint = NoConstraint(), 
                             init_value = p_true)
-lux_true_model = ODEModel((;parameters), Model3SP(); alg, abstol, reltol, tspan, saveat = tsteps)
+lux_true_model = ODEModel((;parameters), Model5SP(); alg, abstol, reltol, tspan, saveat = tsteps)
 
 rng = MersenneTwister(1)
 
@@ -75,11 +77,7 @@ ax = Plots.scatter(tsteps, data_with_noise', title = "Data")
 # Defining inference problem
 # Model initialized with perturbed parameters
 segmentsize = 8
-dataloader = SegmentedTimeSeries((data_with_noise, tsteps); 
-                                segmentsize, 
-                                shift=segmentsize-2, 
-                                partial_batch = true,
-                                batchsize=10)
+dataloader = SegmentedTimeSeries((data_with_noise, tsteps); segmentsize, shift=segmentsize-2, partial_batch = true)
 
 ## Testing Lux backend
 res = train(LuxBackend(),

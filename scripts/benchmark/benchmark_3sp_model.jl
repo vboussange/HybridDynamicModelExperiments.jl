@@ -34,7 +34,7 @@ fixed_params = (alg = Tsit5(),
                 rng = Random.MersenneTwister(1234),
                 batchsize = 10,
                 optim_backend = LuxBackend(),
-                n_epochs = 5000,
+                n_epochs = 3000,
                 verbose_frequency = Inf,
                 loss_fn = LogMSELoss(),
                 forecast_length = 10)

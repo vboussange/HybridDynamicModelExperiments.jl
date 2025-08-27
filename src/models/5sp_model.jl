@@ -4,13 +4,12 @@
 using SparseArrays
 using ComponentArrays
 
-struct Model5SP{MP,II,JJ} <: AbstractODEModel
-    mp::MP
+struct Model5SP{II,JJ} <: AbstractEcosystemModel
     I::II
     J::JJ
 end
 
-function Model5SP(mp)
+function Model5SP()
     ## FOODWEB
     foodweb = DiGraph(5)
     add_edge!(foodweb, 2 => 1) # C1 to R1
@@ -20,29 +19,17 @@ function Model5SP(mp)
 
     I, J, _ = findnz(adjacency_matrix(foodweb))
 
-    Model5SP(mp, I, J)
+    Model5SP(I, J)
 end
 
-function (model::Model5SP)(du, u, p, t)
-    @unpack r = p
-    T = eltype(u)
-    ũ = max.(u, zero(T))
-
-    F = feeding(model, ũ, p, t)
-    Aarr = competition(model, ũ, p, t)
-
-    feed_pred_gains = (F .- F') * ũ
-    du .= ũ .*(r .- Aarr .+ feed_pred_gains)
-end
-
-function competition(::Model5SP, u, p, t)
+function competition(::Model5SP, u, p)
     @unpack A = p
     T = eltype(A)
     Au = vcat(A[1] * u[1], zeros(T,2), A[2] * u[4], zero(T))
     return Au
 end
 
-function feeding(model::Model5SP, u, p, t)
+function create_sparse_matrices(model::Model5SP, p)
     @unpack I, J = model
     @unpack ω, H, q = p
 
@@ -55,11 +42,11 @@ function feeding(model::Model5SP, u, p, t)
 
     # attack rates
     qarr = sparse(I, J, q, 5, 5)
-
-    return qarr .* Warr ./ (one(eltype(u)) .+ qarr .* Harr .* (Warr * u))
+    
+    return Warr, Harr, qarr
 end
 
-function get_metadata(::Model3SP)
+function get_metadata(::Model5SP)
     species_colors = ["tab:red", "tab:green", "tab:blue", "tab:orange", "tab:purple"]
     node_labels = ["R1", 
                     "C1", 

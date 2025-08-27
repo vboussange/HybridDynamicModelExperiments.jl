@@ -54,30 +54,30 @@ function simu(optim_backend::LuxBackend, experimental_setup::InferICs; model, p_
     # Lux model initialization with biased parameters
     @unpack lux_model = init(model, optim_backend; p_true, sensealg, kwargs...)
     println("Launching simulations for segmentsize = $segmentsize, noise = $noise, backend = $(typeof(optim_backend)), experimental_setup = $(typeof(experimental_setup))")
-    # try
-    stats = @timed train(optim_backend, 
-                        experimental_setup;
-                        model = lux_model,
-                        dataloader, 
-                        opt, 
-                        adtype, 
-                        callback, 
-                        loss_fn,
-                        kwargs...)
-    time = stats.time
-    res = stats.value
+    
+    med_par_err = missing
+    forecast_err = missing
+    time = missing
+    try
+        stats = @timed train(optim_backend, 
+                            experimental_setup;
+                            model = lux_model,
+                            dataloader, 
+                            opt, 
+                            adtype, 
+                            callback, 
+                            loss_fn,
+                            kwargs...)
+        time = stats.time
+        res = stats.value
 
-    med_par_err = get_parameter_error(optim_backend, res.best_model, p_true)
+        med_par_err = get_parameter_error(optim_backend, res.best_model, p_true)
 
-    preds = forecast(optim_backend, res.best_model, tsteps[test_idx])
-    forecast_err = loss_fn(preds, data[:, test_idx])
-    # catch
-    #     println("Error occurred during training")
-    #     res = missing
-    #     time = missing
-    #     err = missing
-    #     l = missing
-    # end
+        preds = forecast(optim_backend, res.best_model, tsteps[test_idx])
+        forecast_err = loss_fn(preds, data[:, test_idx])
+    catch
+        println("Error occurred during training")
+    end
 
 
     return (;med_par_err, 
@@ -134,15 +134,14 @@ function get_parameter_error(::MCMCBackend, st_model, chain, p_true, nsamples=10
 end
 
 
-# TODO: once simu is working with LuxBackend, try to reproduce it with the below function
-function simu(optim_backend::MCMCBackend, experimental_setup; model, p_true, segmentsize, batchsize, shift=nothing, noise, data, tsteps, sensealg, loss_fn, sampler, forecast_length=10, kwargs...)
+function simu(optim_backend::MCMCBackend, experimental_setup; model, p_true, segmentsize, shift=nothing, noise, data, tsteps, sensealg, loss_fn, sampler, forecast_length=10, kwargs...)
 
     # invoke garbage collection to avoid memory overshoot on SLURM
     GC.gc()
 
     data_w_noise = generate_noisy_data(data, noise)
     train_idx, test_idx = 1:size(data, 2)-forecast_length-1, (size(data, 2)-forecast_length):size(data, 2)  
-    dataloader = SegmentedTimeSeries((data_w_noise[:, train_idx], tsteps[train_idx]); segmentsize, batchsize, shift, partial_batch = true)
+    dataloader = SegmentedTimeSeries((data_w_noise[:, train_idx], tsteps[train_idx]); segmentsize, shift)
 
     # Lux model initialization with biased parameters
     @unpack lux_model, model_priors = init(model, optim_backend; p_true, sensealg, kwargs...)
@@ -159,6 +158,7 @@ function simu(optim_backend::MCMCBackend, experimental_setup; model, p_true, seg
                             dataloader,
                             sampler,
                             kwargs...)
+        time = stats.time
         res = stats.value
 
         med_par_err = get_parameter_error(optim_backend, res.st_model, res.chains, p_true)
@@ -173,11 +173,9 @@ function simu(optim_backend::MCMCBackend, experimental_setup; model, p_true, seg
             forecast_err,
             time, 
             segmentsize, 
-            batchsize, 
             noise, 
             sampler = string(typeof(sampler)),
             optim_backend = string(typeof(optim_backend)),
-            experimental_setup = string(typeof(experimental_setup)),
             sensealg = string(typeof(sensealg)),
             infer_ics = istrue(experimental_setup))
 end

@@ -33,7 +33,6 @@ fixed_params = (alg = Tsit5(),
                 sensealg = ForwardDiffSensitivity(), 
                 p_true, 
                 rng = Random.MersenneTwister(1234),
-                batchsize = 10,
                 optim_backend = MCMCBackend(),
                 sampler = HMC(0.05, 4; adtype=AutoForwardDiff()),
                 n_iterations = 2000,
@@ -41,7 +40,8 @@ fixed_params = (alg = Tsit5(),
                 forecast_length = 10,
                 noise = 0.3,
                 experimental_setup = InferICs(false),
-                datadistrib = x -> LogNormal(log(max(x, 1e-6))))
+                datadistrib = x -> LogNormal(log(max(x, 1e-6))),
+                progress=false)
 
 function generate_data(;alg, abstol, reltol, tspan, tsteps, p_true, rng, kwargs...)
     parameters = ParameterLayer(constraint = NoConstraint(), 

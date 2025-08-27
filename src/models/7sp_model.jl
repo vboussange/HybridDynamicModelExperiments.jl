@@ -4,13 +4,12 @@
 using SparseArrays
 using ComponentArrays
 
-struct Model7SP{MP,II,JJ} <: AbstractODEModel
-    mp::MP
+struct Model7SP{II,JJ} <: AbstractODEModel
     I::II
     J::JJ
 end
 
-function Model7SP(mp)
+function Model7SP()
     ## FOODWEB
     foodweb = DiGraph(7)
     add_edge!(foodweb, 2 => 1) # C1 to R1
@@ -22,29 +21,17 @@ function Model7SP(mp)
 
     I, J, _ = findnz(adjacency_matrix(foodweb))
 
-    Model7SP(mp, I, J)
+    Model7SP(I, J)
 end
 
-function (model::Model7SP)(du, u, p, t)
-    @unpack r = p
-    T = eltype(u)
-    ũ = max.(u, zero(T))
-
-    F = feeding(model, ũ, p, t)
-    Aarr = competition(model, ũ, p, t)
-
-    feed_pred_gains = (F .- F') * ũ
-    du .= ũ .*(r .- Aarr .+ feed_pred_gains)
-end
-
-function competition(::Model7SP, u, p, t)
+function competition(::Model7SP, u, p)
     @unpack A = p
     T = eltype(A)
     Au = vcat(A[1] * u[1], zeros(T,2), A[2] * u[4], zeros(T,3))
     return Au
 end
 
-function feeding(model::Model7SP, u, p, t)
+function create_sparse_matrices(model::Model7SP, p)
     @unpack I, J = model
     @unpack ω, H, q = p
 
@@ -58,7 +45,7 @@ function feeding(model::Model7SP, u, p, t)
     # attack rates
     qarr = sparse(I, J, q, 7, 7)
 
-    return qarr .* Warr ./ (one(eltype(u)) .+ qarr .* Harr .* (Warr * u))
+    return Warr, Harr, qarr
 end
 
 function get_metadata(::Model7SP)

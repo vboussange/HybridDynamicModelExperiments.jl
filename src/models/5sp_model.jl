@@ -9,6 +9,8 @@ struct Model5SP{II,JJ} <: AbstractEcosystemModel
     J::JJ
 end
 
+name(::Model5SP) = "Model5SP"
+
 function Model5SP()
     ## FOODWEB
     foodweb = DiGraph(5)
@@ -35,7 +37,7 @@ function create_sparse_matrices(model::Model5SP, p)
 
     # creating foodweb
     OT = eltype(ω)
-    Warr = sparse(I, J, vcat(one(OT), ω, one(OT) .- ω, one(OT)), 5, 5)
+    Warr = sparse(I, J, vcat(one(OT), ω[], one(OT) - ω[], one(OT)), 5, 5)
 
     # handling time
     Harr = sparse(I, J, H, 5, 5)

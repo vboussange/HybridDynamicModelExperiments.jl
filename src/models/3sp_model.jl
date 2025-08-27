@@ -30,6 +30,8 @@ struct Model3SP{II,JJ} <: AbstractModel3SP
     J::JJ
 end
 
+name(::Model3SP) = "Model3SP"
+
 function create_sparse_matrices(m::AbstractModel3SP, p)
     @unpack I, J = m
     @unpack H, q = p
@@ -45,6 +47,8 @@ struct SimpleEcosystemModelOmniv3SP{II,JJ} <: AbstractModel3SP
     J::JJ
 end
 
+name(::SimpleEcosystemModelOmniv3SP) = "SimpleEcosystemModelOmniv3SP"
+
 function SimpleEcosystemModelOmniv3SP()
     foodweb = DiGraph(3)
     add_edge!(foodweb, 2 => 1)  # Consumer to Resource
@@ -58,7 +62,7 @@ end
 function create_sparse_matrices(::SimpleEcosystemModelOmniv3SP, I, J, p)
     @unpack ω, H, q = p
     OT = eltype(ω)
-    Warr = sparse(I, J, vcat(one(OT), ω, one(OT) .- ω), 3, 3) # preference coefficients
+    Warr = sparse(I, J, vcat(one(OT), ω[], one(OT) - ω[]), 3, 3) # preference coefficients
     Harr = sparse(I, J, H, 3, 3) # Handling times
     qarr = sparse(I, J, q, 3, 3) # attack rates
     return Warr, Harr, qarr

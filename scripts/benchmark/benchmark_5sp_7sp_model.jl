@@ -79,11 +79,11 @@ function create_simulation_parameters()
     noises = [0.2]
 
     pars_arr = []
-    for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims, model in models, lr in lrs, noise in noises
+    for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims, model in models, noise in noises
         data, p_true = generate_data(model; tspan, fixed_params...)
         varying_params = (;segmentsize,
                             experimental_setup = infer_ic, 
-                            opt = Adam(lr), 
+                            opt = Adam(5e-3), 
                             model,
                             noise, 
                             data,
@@ -94,8 +94,9 @@ function create_simulation_parameters()
 end
 
 
-println("Starting simulations...")
 simulation_parameters = create_simulation_parameters()
+
+println("Starting $(length(simulation_parameters)) simulations...")
 results = run_simulations(ParallelMode(), simulation_parameters; fixed_params...)
 
 save_results(string(@__FILE__); results)

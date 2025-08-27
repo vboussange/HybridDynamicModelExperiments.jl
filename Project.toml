@@ -57,6 +57,7 @@ HybridModelling = {path = "../HybridModelling.jl"}
 
 [compat]
 DiffEqBase = "6.183.2"
+NNlib = "0.9.31"
 Plots = "1.40.19"
 SciMLBase = "2.112.0"
 julia = "= 1.11.6"

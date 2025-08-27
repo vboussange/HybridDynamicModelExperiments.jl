@@ -38,7 +38,7 @@ fixed_params = (alg = Tsit5(),
                 n_iterations = 2000,
                 loss_fn = LogMSELoss(),
                 forecast_length = 10,
-                noise = 0.3,
+                noise = 0.2,
                 experimental_setup = InferICs(false),
                 datadistrib = x -> LogNormal(log(max(x, 1e-6))),
                 progress=false)

@@ -47,11 +47,11 @@ tspan = (0e0, 800e0)
 tsteps = 550e0:4e0:800e0
 u0_true = [0.77, 0.060, 0.945, 0.467, 0.18, 0.14, 0.18]
 batchsize = 10
-p_true = (ω = Float32[0.2],
-            H = Float32[2.89855, 7.35294, 8.0, 2.89855, 7.35294, 12.0],
-            q = Float32[1.38, 0.272, 1e-1 ,1.38, 0.272, 5e-2],
-            r = Float32[1.0, -0.15, -0.08, 1.0, -0.15, -0.01, -0.005],
-            A = Float32[1.0, 1.0])
+p_true = (ω = [0.2],
+            H = [2.89855, 7.35294, 8.0, 2.89855, 7.35294, 12.0],
+            q = [1.38, 0.272, 1e-1 ,1.38, 0.272, 5e-2],
+            r = [1.0, -0.15, -0.08, 1.0, -0.15, -0.01, -0.005],
+            A = [1.0, 1.0])
 model = Model7SP()
 p_init, p_transform, u0_transform = init(model, LuxBackend(), p_true)
 
@@ -77,7 +77,11 @@ ax = Plots.scatter(tsteps, data_with_noise', title = "Data")
 # Defining inference problem
 # Model initialized with perturbed parameters
 segmentsize = 8
-dataloader = SegmentedTimeSeries((data_with_noise, tsteps); segmentsize, shift=segmentsize-2, partial_batch = true)
+dataloader = SegmentedTimeSeries((data_with_noise, tsteps); 
+                                segmentsize, 
+                                shift=segmentsize-2, 
+                                batchsize,
+                                partial_batch = true)
 
 ## Testing Lux backend
 res = train(LuxBackend(),

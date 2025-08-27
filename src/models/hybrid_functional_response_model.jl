@@ -5,75 +5,41 @@
 using SparseArrays
 using ComponentArrays
 using UnPack
-using PiecewiseInference
-import PiecewiseInference: AbstractODEModel
 using Lux
 import Lux: zeros32
 using Random
 using NNlib
 
-struct HybridFuncRespModel{MP, II, F} <: AbstractModel3SP
-    mp::MP # model parameters
+struct HybridFuncRespModel{II} <: AbstractModel3SP
     I::II # foodweb row index
     J::II # foodweb col index
-    func_resp::F # functional response
 end
 
-function HybridFuncRespModel(mp; HlSize=5, seed=0)
-
+function HybridFuncRespModel()
     # foodweb
     foodweb = DiGraph(3)
     add_edge!(foodweb, 2 => 1)  # Consumer to Resource
     add_edge!(foodweb, 3 => 2)  # Predator to Consumer
 
     I, J, _ = findnz(adjacency_matrix(foodweb))
-
-    # neural net
-    rng = TaskLocalRNG()
-    Random.seed!(rng, seed)
-
-
-    # version 1: no separate neural net for each species
-    last_activ_fun = inverse(bijector(Uniform(0f0, Inf)))
-    _neural_net = Lux.Chain(Lux.Dense(2, HlSize, tanh),
-                        Lux.Dense(HlSize, HlSize, tanh), 
-                        Lux.Dense(HlSize, HlSize, tanh), 
-                        Lux.Dense(HlSize, 2))
-    p_nn, st = Lux.setup(rng, _neural_net)
-    neural_net = StatefulLuxLayer{true}(_neural_net, nothing, st)
-
-    function func_resp(u, p_nn)
-        y = neural_net(u, p_nn)
-        return last_activ_fun(vcat(y...))
-    end
-
-    # version 2: separate neural net for each species 
-    # last_activ_fun = inverse(bijector(Uniform(0f0, Inf)))
-    # mlp() = Lux.Chain(Lux.Dense(1, HlSize, tanh),
-    #                     Lux.Dense(HlSize, HlSize, tanh), 
-    #                     Lux.Dense(HlSize, HlSize, tanh), 
-    #                     Lux.Dense(HlSize, 1))
-
-    # # TODO: the use of Parallel may be an overkill, instead we may want a tuple of neural nets to be unravelled
-    # # This may be more efficient
-    # _neural_net = Parallel(nothing, mlp(), mlp())
-    # p_nn, st = Lux.setup(rng, _neural_net)
-    # neural_net = StatefulLuxLayer{true}(_neural_net, nothing, st)
-
-    # function func_resp(u, p_nn)
-    #     x = ([u[1]], [u[2]])
-    #     y = neural_net(x, p_nn)
-    #     return last_activ_fun(vcat(y...))
-    # end
-
-    p = ComponentArray(mp.p; p_nn)
-    mp = remake(mp; p)
-    HybridFuncRespModel(mp, I, J, func_resp)
+    HybridFuncRespModel(I, J)
 end
 
-function feeding(m::HybridFuncRespModel, u, p)
-    @unpack func_resp, I, J = m
-    y = func_resp(u[1:2], p.p_nn)
+function (model::HybridFuncRespModel)(components, u, ps, t)
+    p = components.parameters(ps.parameters)
+    ũ = max.(u, zero(eltype(u)))
+    du = ũ .* (intinsic_growth_rate(model, p, t) .- competition(model, ũ, p) .+ feed_pred_gains(model, components, ũ, ps))
+    return du
+end
+
+function feeding(m::HybridFuncRespModel, components, u, ps)
+    @unpack I, J = m
+    y = components.functional_response(u[1:2], ps.functional_response)
     F = sparse(I, J, y, 3, 3)
     return F
+end
+
+function feed_pred_gains(m::HybridFuncRespModel, components, u, ps)
+    F = feeding(m, components, u, ps)
+    return  (F .- F') * u
 end

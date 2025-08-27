@@ -14,6 +14,7 @@ function train(::LuxBackend,
                 n_epochs, 
                 callback = (l, m, p, s) -> nothing,
                 u0_constraint = NoConstraint(),
+                luxtype = Lux.f64,
                 kwargs...)
 
     dataloader = tokenize(dataloader)
@@ -44,7 +45,7 @@ function train(::LuxBackend,
     ode_model_with_ics = Chain(wrapper = Lux.WrappedFunction(feature_wrapper), initial_conditions = ics, model = model)
 
     ps, st = Lux.setup(rng, ode_model_with_ics)
-    ps = ps |> ComponentArray # We transforms ps to support all sensealg types
+    ps = ps |> luxtype |> ComponentArray # We transforms ps to support all sensealg types
     train_state = Training.TrainState(ode_model_with_ics, ps, st, opt)
     best_ps = ps
     best_loss = Inf

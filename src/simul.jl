@@ -39,7 +39,6 @@ end
 
 # Simulation function, preprocess before train, train, and postprocess
 # only valid for non hybrid models.
-# TODO: we need to output loss over iteration
 function simu(optim_backend::LuxBackend, experimental_setup::InferICs; model, p_true, segmentsize, batchsize, shift=nothing, noise, data, tsteps, adtype, sensealg, loss_fn, opt, forecast_length=10, kwargs...)
 
     # invoke garbage collection to avoid memory overshoot on SLURM
@@ -82,6 +81,7 @@ function simu(optim_backend::LuxBackend, experimental_setup::InferICs; model, p_
 
     return (;med_par_err, 
             forecast_err,
+            model = name(model),
             loss = res.info,
             time, 
             segmentsize, 
@@ -171,6 +171,7 @@ function simu(optim_backend::MCMCBackend, experimental_setup; model, p_true, seg
 
     return (;med_par_err, 
             forecast_err,
+            model = name(model),
             time, 
             segmentsize, 
             noise, 

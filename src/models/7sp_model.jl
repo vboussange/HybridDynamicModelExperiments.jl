@@ -4,10 +4,12 @@
 using SparseArrays
 using ComponentArrays
 
-struct Model7SP{II,JJ} <: AbstractODEModel
+struct Model7SP{II,JJ} <: AbstractEcosystemModel
     I::II
     J::JJ
 end
+
+name(::Model7SP) = "Model7SP"
 
 function Model7SP()
     ## FOODWEB
@@ -37,7 +39,7 @@ function create_sparse_matrices(model::Model7SP, p)
 
     # creating foodweb
     OT = eltype(ω)
-    Warr = sparse(I, J, vcat(one(OT), ω, one(OT), one(OT) .- ω, ones(OT, 2)), 7, 7)
+    Warr = sparse(I, J, vcat(one(OT), ω[], one(OT), one(OT) - ω[], one(OT), one(OT)), 7, 7)
 
     # handling time
     Harr = sparse(I, J, H, 7, 7)

@@ -14,7 +14,7 @@ module HybridModellingExperiments
     include("models/5sp_model.jl")
     include("models/7sp_model.jl")
     include("models/hybrid_functional_response_model.jl")
-    # include("models/hybrid_growth_rate_model.jl")
+    include("models/hybrid_growth_rate_model.jl")
 
     include("loss_fn.jl")
 

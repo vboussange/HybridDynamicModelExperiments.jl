@@ -55,7 +55,7 @@ p_true = ComponentArray(H = Float32[1.24, 2.5],
                         s = Float32[1.])
 
 # Model initialization with true parameters
-model = Model3SPVaryingGrowthRate(ModelParams(;p= p_true,
+model = HybridGrowthRateModel(ModelParams(;p= p_true,
                                                 tspan,
                                                 u0 = u0_true,
                                                 alg,

@@ -51,7 +51,7 @@ for df in groupby(results, :s)
     for r in eachrow(df)
 
         mp = remake(r.res.infprob.m.mp; p = p_trues[idx_s])
-        true_model = Model3SPVaryingGrowthRate(mp)
+        true_model = HybridGrowthRateModel(mp)
         
         # m = typeof(r.res.infprob.m).name.wrapper(mp)
         # infprob = InferenceProblem(m, r.res.infprob.p0; r.res.infprob.p_bij, r.res.infprob.u0_bij, r.res.infprob.loss_param_prior, r.res.infprob.loss_u0_prior, r.res.infprob.loss_likelihood)

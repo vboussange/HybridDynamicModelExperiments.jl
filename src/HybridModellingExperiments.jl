@@ -7,7 +7,7 @@ module HybridModellingExperiments
     include("generics.jl")
     include("utils.jl")
     include("lux_trainer.jl")
-    include("turing_trainer.jl")
+    include("mcmc_trainer.jl")
 
     include("models/ecosystem_model.jl")
     include("models/3sp_model.jl")
@@ -25,5 +25,6 @@ module HybridModellingExperiments
 
     export Model3SP, Model5SP, Model7SP, HybridFunctionalResponseModel, HybridGrowthRateModel
     export simu
+    export MCMCBackend, LuxBackend, train, sample
 
 end

@@ -7,6 +7,8 @@ import Lux:fmap
 import Functors: @leaf, fmap_with_path
 using ComponentArrays
 using ConcreteStructs: @concrete
+import HybridModelling: SegmentedTimeSeries
+import Turing
 
 @concrete struct MCMCBackend <: AbstractOptimBackend
     sampler
@@ -15,13 +17,36 @@ using ConcreteStructs: @concrete
     kwargs
 end
 
-function MCMCBackend(sampler = NUTS(; adtype=AutoForwardDiff()),
+function MCMCBackend(sampler,
                     n_iterations,
-                    datadistrib = Normal(),
+                    datadistrib,
                     ;kwargs...)
     return MCMCBackend(sampler, n_iterations, datadistrib, kwargs)
 end
 
+# TODO: implement test
+function Turing.sample(rng::AbstractRNG, model::Union{AbstractLuxLayer, StatefulLuxLayer}, chain::Turing.MCMCChains.Chains, args...; kwargs...)
+    priors = getpriors(model)
+    posterior_samples = sample(rng, chain, args...; kwargs...)
+    mat = Array(posterior_samples)              # rows = draws, cols = flattened params
+    n = size(mat, 1)
+
+    # infer element type from first sample (or from a zero-length dummy)
+    elty = if n > 0
+        typeof(_vector_to_parameters(mat[1, :], priors))
+    else
+        typeof(_vector_to_parameters(zeros(Lux.parameterlength(priors)), priors))
+    end
+
+    samples = Vector{elty}(undef, n)
+    for i in 1:n
+        samples[i] = _vector_to_parameters(mat[i, :], priors)
+    end
+
+    return samples
+end
+
+Turing.sample(model::Union{AbstractLuxLayer, StatefulLuxLayer}, chain::Turing.MCMCChains.Chains, args...; kwargs...) = sample(Random.default_rng(), model, chain, args...; kwargs...)
 
 function _vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     @assert length(ps_new) == Lux.parameterlength(ps)
@@ -33,22 +58,6 @@ function _vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     end
     return fmap(get_ps, ps)
 end
-
-# # TODO: this is to be revised, type inference fails here
-# function _parameters_to_vector(ps::NamedTuple)
-#     total = Lux.parameterlength(ps)
-#     out = Vector(undef, total)   # parameters are expected to be numeric (Float64)
-#     i = 1
-#     function put(x)
-#         len = length(x)
-#         out[i:(i + len - 1)] .= vec(x)
-#         i += len
-#         return nothing
-#     end
-#     Lux.fmap(put, ps)
-#     @assert i - 1 == total
-#     return out
-# end
 
 # required for handling prior distributions in NamedTuples
 Lux.parameterlength(dist::Distributions.Distribution) = length(dist)
@@ -74,8 +83,9 @@ function create_turing_model(ps_priors, data_distrib, st_model)
         handle_node(path, node) = (;)
         
         # Apply fmap_with_path to sample all parameters and maintain structure
+        # convert to ComponentArray for compatibility with all SciMLSensitivity sensealg
         ps = fmap_with_path(handle_node, ps_priors) |> ComponentArray
-        
+
         # Update varinfo after sampling all parameters
         varinfo = varinfo_ref[]
 
@@ -95,19 +105,16 @@ function create_turing_model(ps_priors, data_distrib, st_model)
 end
 
 function train(backend::MCMCBackend, 
-                experimental_setup::InferICs;
                 model::AbstractLuxLayer,
-                rng=Random.default_rng(),
-                dataloader)
+                dataloader::SegmentedTimeSeries,
+                experimental_setup::InferICs,
+                rng=Random.default_rng())
 
     dataloader = tokenize(dataloader)
 
-    # TODO: 
-
     xs = []
     ys = []
-    ic_list = ParameterLayer[]
-    u0_priors = []
+    ic_list = BayesianLayer[]
 
     for tok in tokens(dataloader)
         segment_data, segment_tsteps = dataloader[tok]
@@ -117,7 +124,7 @@ function train(backend::MCMCBackend,
         push!(ys, segment_data)
         if isa(experimental_setup, InferICs{true})
             push!(ic_list, BayesianLayer(ParameterLayer(init_value = (;u0), init_state_value = (;t0)), 
-                                        (;u0 = arraydist(datadistrib.(u0)))))
+                                        (;u0 = arraydist(backend.datadistrib.(u0)))))
         elseif isa(experimental_setup, InferICs{false})
             push!(ic_list, BayesianLayer(ParameterLayer(init_state_value = (;t0, u0)),
                                         (;)))
@@ -134,95 +141,6 @@ function train(backend::MCMCBackend,
     turing_fit = create_turing_model(priors, backend.datadistrib, st_model)
 
     chains = sample(rng, turing_fit(xs, ys), backend.sampler, backend.n_iterations; backend.kwargs...)
-    # best_ps = get_best_parameters(chains, ps_init)
-    # best_model = StatefulLuxLayer{true}(model, best_ps, st)
+
     return (;chains, st_model)
 end
-
-function train(::VIBackend, 
-                experimental_setup::InferICs;
-                model::AbstractLuxLayer,
-                rng=Random.default_rng(),
-                dataloader,
-                datadistrib,
-                model_priors,
-                q_init = q_meanfield_gaussian,
-                n_iterations, 
-                kwargs...)
-
-    dataloader = tokenize(dataloader)
-
-    xs = []
-    ys = []
-    ic_list = ParameterLayer[]
-    u0_priors = []
-
-    for tok in tokens(dataloader)
-        segment_data, segment_tsteps = dataloader[tok]
-        u0 = segment_data[:, 1]
-        t0 = segment_tsteps[1]
-        push!(xs, (;u0 = tok, saveat = segment_tsteps, tspan = (segment_tsteps[1], segment_tsteps[end])))
-        push!(ys, segment_data)
-        if isa(experimental_setup, InferICs{true})
-            push!(ic_list, ParameterLayer(init_state_value = (;t0)))
-            push!(u0_priors, (;u0 = arraydist(datadistrib.(u0))))
-        elseif isa(experimental_setup, InferICs{false})
-            push!(ic_list, ParameterLayer(init_state_value = (;t0, u0)))
-            push!(u0_priors, (;))
-        end
-    end
-    ics = InitialConditions(ic_list)
-    u0_priors = NamedTuple{ntuple(i -> Symbol(:u0_, i), length(ic_list))}(u0_priors)
-
-    ode_model_with_ics = Chain(initial_conditions = ics, model = model)
-    priors = (initial_conditions = u0_priors, model = model_priors)
-
-    ps_init, st = Lux.setup(rng, ode_model_with_ics)
-    st_model = StatefulLuxLayer{true}(ode_model_with_ics, ps_init, st)
-
-    turing_fit = create_turing_model(priors, datadistrib, st_model)
-    turing_model = turing_fit(xs, ys)
-    q_avg, q_last, info, state = vi(rng, turing_model, q_init(rng, turing_model), n_iterations; kwargs...)
-    # best_ps = get_best_parameters(chains, ps_init)
-    # best_model = StatefulLuxLayer{true}(model, best_ps, st)
-    return (;q_avg, q_last, info, state)
-end
-
-# function train(::MCMCBackend, 
-#                 ::InferICs{false};
-#                 model,
-#                 rng=Random.default_rng(),
-#                 dataloader,
-#                 datadistrib,
-#                 model_priors,
-#                 sampler = NUTS(; adtype=AutoForwardDiff()),
-#                 n_iterations,
-#                 kwargs...)
-
-#     dataloader = tokenize(dataloader)
-
-#     xs = []
-#     ys = []
-#     for tok in tokens(dataloader)
-#         segment_data, segment_tsteps = dataloader[tok]
-#         push!(xs, (;u0 = segment_data[:, 1], saveat = segment_tsteps, tspan = (segment_tsteps[1], segment_tsteps[end])))
-#         push!(ys, segment_data)
-#     end
-
-#     ps_init, st = Lux.setup(rng, model) 
-#     st_model = StatefulLuxLayer{true}(model, ps_init, st)
-#     turing_fit = create_turing_model(model_priors, datadistrib, st_model)
-
-#     chains = sample(rng, turing_fit(xs, ys), sampler, n_iterations, kwargs...)
-#     best_ps = get_best_parameters(chains, ps_init)
-#     best_model = StatefulLuxLayer{true}(model, best_ps, st)
-#     return (;best_model, chains)
-# end
-
-# TODO: this is not the right approach; you rather want to sample from the posterior distrib.
-# function get_best_parameters(chains::Chains, ps)
-#     lp = chains[:lp]
-#     max_idx = argmax(lp)
-#     ps_vec = reshape(chains[max_idx[1], collect(values(chains.info.varname_to_symbol)), max_idx[2]] |> Array, :)
-#     return _vector_to_parameters(ps_vec, ps)
-# end

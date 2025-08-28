@@ -4,6 +4,7 @@ using ComponentArrays
 using Optimisers
 using ADTypes
 using ConcreteStructs: @concrete
+import HybridModelling: SegmentedTimeSeries
 
 @concrete struct LuxBackend <: AbstractOptimBackend 
     opt::Optimisers.AbstractRule
@@ -52,7 +53,7 @@ function train(::LuxBackend,
     ode_model_with_ics = Chain(wrapper = Lux.WrappedFunction(feature_wrapper), initial_conditions = ics, model = model)
 
     ps, st = Lux.setup(rng, ode_model_with_ics)
-    ps = ps |> luxtype |> ComponentArray # We transforms ps to support all sensealg types
+    ps = ps |> luxtype |> ComponentArray # We transforms ps to support all sensealg from SciMLSensitivity
     train_state = Training.TrainState(ode_model_with_ics, ps, st, opt)
     best_ps = ps
     best_loss = Inf

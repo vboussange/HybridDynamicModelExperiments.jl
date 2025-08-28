@@ -17,11 +17,6 @@ import HybridModellingExperiments: Model3SP, LogMSELoss, train, MCMCBackend, Lux
 import Lux
 using Random
 
-"""
-    init(model::Model3SP, perturb=0.5)
-
-Initialize parameters, parameter and initial condition constraints for the inference.
-"""
 function init_priors(p_true, perturb=1e0)
     parameter_priors = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
     # Careful: float type is not easily imposed, see https://github.com/JuliaStats/Distributions.jl/issues/1995
@@ -30,9 +25,10 @@ end
 
 
 # Model metaparameters
-alg = BS3()
+alg = Tsit5()
 sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
 sampler = HMC(0.05, 4; adtype=AutoForwardDiff()) # fastest, by far
+datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 # sensealg = GaussAdjoint()
 # adtype = AutoZygote()
 # adtype = AutoReverseDiff(;compile=true) # fails
@@ -46,10 +42,10 @@ p_true = (;H = [1.24, 2.5],
             q = [4.98, 0.8],
             r = [1.0, -0.4, -0.08],
             A = [1.0])
-backend = MCMCBackend()
+backend = MCMCBackend(sampler, 10, datadistrib)
 model = Model3SP()
 
-# Lux model initialization with biased parameters
+# Lux model initialization with biased uniform priors
 parameter_priors = init_priors(p_true)
 parameters = BayesianLayer(ParameterLayer(),
                             parameter_priors) # p_true is only used for inferring length of parameters
@@ -66,32 +62,15 @@ ps_true, st = Lux.setup(rng, lux_true_model)
 data, _ = lux_true_model((;u0 = u0_true), ps_true, st)
 ax = Plots.scatter(tsteps, data', title = "Data")
 
-# Defining inference problem
-datadistrib = x -> LogNormal(log(max(x, 1e-6)))
-# Model initialized with perturbed parameters
+# Defining segments
 dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = true)
 
-## Testing Turing backend
-# chain = train(MCMCBackend(),
-#         InferICs(true);
-#         datadistrib, 
-#         model_priors = ps_priors,
-#         model = lux_model, 
-#         rng, 
-#         dataloader, 
-#         sampler = NUTS(; adtype), 
-#         n_iterations = 1000)
-
-## Testing Turing backend without ICs
-res = train(MCMCBackend(),
-            InferICs(false);
-            datadistrib, 
-            model_priors = ps_priors,
-            model = lux_model, 
-            rng, 
-            dataloader, 
-            sampler, 
-            n_iterations = 1000,)
+# Training
+res = train(backend,
+            lux_model,
+            dataloader,
+            InferICs(true),
+            rng)
 
 using StatsPlots
 plot(res.chains)
@@ -99,7 +78,7 @@ plot(res.chains)
 tsteps_forecast = tspan[end]:4:tspan[end]+200
 last_tok = tokens(tokenize(dataloader))[end]
 segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
-forecasted_data = forecast(MCMCBackend(), res.st_model, res.chains, union(segment_tsteps, tsteps_forecast))
+forecasted_data = forecast(backend, res.st_model, res.chains, union(segment_tsteps, tsteps_forecast))
 true_data = lux_true_model((;u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1], tspan = (segment_tsteps[1], tsteps_forecast[end]), saveat = union(segment_tsteps, tsteps_forecast)), ps_true, st)[1]
 ax = Plots.plot(union(segment_tsteps, tsteps_forecast), true_data', label = "true", title="Forecasted vs true data", linestyle = :dash, color = palette(:auto)[1:3]')
 for pred in forecasted_data
@@ -107,4 +86,4 @@ for pred in forecasted_data
 end
 ax
 
-get_parameter_error(MCMCBackend(), res.st_model, res.chains, p_true)
+get_parameter_error(backend, res.st_model, res.chains, p_true)

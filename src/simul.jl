@@ -110,10 +110,9 @@ function forecast(::MCMCBackend, st_model, chain, tsteps_forecast, nsamples=100)
     last_ics_t0 = st_model.st.initial_conditions[last_ics_idx].t0
 
     
-    posterior_samples = sample(chain, nsamples; replace=false)
+    posterior_samples = sample(st_model, chain, nsamples; replace=false)
     preds = []
-    for ps_vec in eachrow(Array(posterior_samples))
-        ps = _vector_to_parameters(ps_vec, st_model.ps)
+    for ps in posterior_samples
         pred = st_model((;u0=last_tok, saveat = tsteps_forecast, tspan = (last_ics_t0, last_ics_t0 + tsteps_forecast[end])), ps)
         push!(preds, pred)
     end
@@ -122,10 +121,9 @@ end
 
 function get_parameter_error(::MCMCBackend, st_model, chain, p_true, nsamples=100)
     nsamples = min(nsamples, size(chain, 1))
-    posterior_samples = sample(chain[collect(values(chain.info.varname_to_symbol))], nsamples; replace=false)
+    posterior_samples = sample(st_model, chain, nsamples; replace=false)
     err = []
-    for ps_vec in eachrow(Array(posterior_samples))
-        ps = _vector_to_parameters(ps_vec, st_model.ps)
+    for ps in posterior_samples
         ps = ps.model.parameters
         med_par_err = median([median(abs.(ps[k] - p_true[k]) ./ p_true[k]) for k in keys(ps)])
         push!(err, med_par_err)

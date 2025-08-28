@@ -1,21 +1,28 @@
 # TODO: For both InferICs{false} and InferICs{true}, we should define an InitialConditions layer, where in one case, parameters are null
 # TODO: train could return an info object defined by callback, see https://turinglang.org/docs/tutorials/variational-inference/
 using ComponentArrays
+using Optimisers
+using ADTypes
+using ConcreteStructs: @concrete
+
+@concrete struct LuxBackend <: AbstractOptimBackend 
+    opt::Optimisers.AbstractRule
+    n_epochs::Int
+    adtype::ADTypes.AbstractADType
+    loss_fn
+    callback
+end
+
+LuxBackend(opt, n_epochs, adtype, loss_fn) = LuxBackend(opt, n_epochs, adtype, loss_fn, (l, m, p, s) -> nothing)
 
 function train(::LuxBackend, 
                 experimental_setup::InferICs;
                 model::AbstractLuxLayer,
                 rng=Random.default_rng(),
                 dataloader,
-                loss_fn = MSELoss(),
-                adtype = Lux.AutoZygote(),
                 verbose_frequency = 10,
-                opt, 
-                n_epochs, 
-                callback = (l, m, p, s) -> nothing,
                 u0_constraint = NoConstraint(),
-                luxtype = Lux.f64,
-                kwargs...)
+                luxtype = Lux.f64)
 
     dataloader = tokenize(dataloader)
 

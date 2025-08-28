@@ -51,7 +51,7 @@ model = Model3SP()
 
 # Lux model initialization with biased parameters
 parameter_priors = init_priors(p_true)
-parameters = BayesianLayer(ParameterLayer(init_value = p_true),
+parameters = BayesianLayer(ParameterLayer(),
                             parameter_priors) # p_true is only used for inferring length of parameters
 lux_model = ODEModel((;parameters), Model3SP(); alg, abstol, reltol, sensealg)
 

@@ -6,6 +6,7 @@ import Lux
 import Lux:fmap
 import Functors: @leaf, fmap_with_path
 using ComponentArrays
+using ConcreteStructs: @concrete
 
 @concrete struct MCMCBackend <: AbstractOptimBackend
     sampler

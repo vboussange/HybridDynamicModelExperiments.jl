@@ -23,7 +23,7 @@ const FloatType = Float64
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
-function init(::Model5SP, ::LuxBackend, p_true, perturb=1e0)
+function init(::Model5SP, p_true, perturb=1e0)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
 
     p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
@@ -53,7 +53,7 @@ p_true = (ω = [0.2],
         r = [1.0, -0.15, -0.08, 1.0, -0.15],
         A = [1.0, 1.0])
 model = Model5SP()
-p_init, p_transform, u0_transform = init(model, LuxBackend(), p_true)
+p_init, p_transform, u0_transform = init(model, p_true)
 
 # Lux model initialization with biased parameters
 parameters = ParameterLayer(constraint = Constraint(p_transform), 
@@ -78,16 +78,14 @@ ax = Plots.scatter(tsteps, data_with_noise', title = "Data")
 # Model initialized with perturbed parameters
 segmentsize = 8
 dataloader = SegmentedTimeSeries((data_with_noise, tsteps); segmentsize, shift=segmentsize-2, partial_batch = true)
+backend = LuxBackend(Adam(1e-3), 1000, adtype, LogMSELoss())
 
 ## Testing Lux backend
-res = train(LuxBackend(),
-            InferICs(true);
-            model = lux_model, 
-            rng, 
-            dataloader, 
-            opt = Adam(1e-3), 
-            adtype,
-            n_epochs = 1000)
+res = train(backend,
+            lux_model, 
+            dataloader,
+            InferICs(true),
+            rng)
 
 function plot_segments(dataloader, st_model)
     plt = plot()

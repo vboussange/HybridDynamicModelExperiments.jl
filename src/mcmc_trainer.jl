@@ -85,7 +85,8 @@ function create_turing_model(ps_priors, data_distrib, st_model)
         # Apply fmap_with_path to sample all parameters and maintain structure
         # convert to ComponentArray for compatibility with all SciMLSensitivity sensealg
         ps = fmap_with_path(handle_node, ps_priors) |> ComponentArray
-
+        @show ps
+        
         # Update varinfo after sampling all parameters
         varinfo = varinfo_ref[]
 

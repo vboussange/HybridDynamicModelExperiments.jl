@@ -16,15 +16,17 @@ import HybridModellingExperiments: Model3SP, LogMSELoss, train, LuxBackend, Infe
 import Lux
 using Random
 
-function init_parameters(p_true, perturb=1e0)
+function init_parameters(rng, p_true, perturb=1e0)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
 
     p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
     
-    p_init = NamedTuple([k => rand(distrib_param[k]) for k in keys(distrib_param)])
+    p_init = NamedTuple([k => rand(rng, distrib_param[k]) for k in keys(distrib_param)])
 
     return p_init, p_transform
 end
+
+rng = MersenneTwister(2)
 
 # Model metaparameters
 alg = Tsit5()
@@ -42,9 +44,9 @@ p_true = (;H = [1.24, 2.5],
             q = [4.98, 0.8],
             r = [1.0, -0.4, -0.08],
             A = [1.0])
-backend = LuxBackend(Adam(1e-3), 1000, adtype, LogMSELoss())
+backend = LuxBackend(Adam(1e-2), 2000, adtype, LogMSELoss())
 dudt = Model3SP()
-p_init, p_transform = init_parameters(p_true)
+p_init, p_transform = init_parameters(rng, p_true)
 u0_constraint = Constraint(Bijectors.NamedTransform((;u0 = bijector(Uniform(1e-3, 5e0)))))  # For initial conditions
 
 
@@ -57,13 +59,12 @@ lux_model = ODEModel((;parameters), dudt; alg, abstol, reltol, sensealg)
 parameters = ParameterLayer(init_value = p_true)
 lux_true_model = ODEModel((;parameters), dudt; alg, abstol, reltol, tspan, saveat = tsteps)
 
-rng = MersenneTwister(1)
 
 # Data generation
 σ = 0.1
 ps_true, st = Lux.setup(rng, lux_true_model)
 data, _ = lux_true_model((;u0 = u0_true), ps_true, st)
-data_with_noise = rand(arraydist(LogNormal.(log.(data), σ)))
+data_with_noise = rand(rng, arraydist(LogNormal.(log.(data), σ)))
 ax = Plots.scatter(tsteps, data_with_noise', title = "Data")
 
 # Defining inference problem
@@ -73,7 +74,8 @@ dataloader = SegmentedTimeSeries((data_with_noise, tsteps);
                                 segmentsize, 
                                 shift=segmentsize-2, 
                                 partial_batch = true,
-                                batchsize=10)
+                                batchsize = 10
+                                )
 
 ## Testing Lux backend
 res = train(backend,
@@ -81,7 +83,8 @@ res = train(backend,
             dataloader,
             InferICs(true),
             rng; 
-            u0_constraint)
+            # u0_constraint
+            )
 
 function plot_segments(dataloader, st_model)
     plt = plot()
@@ -125,4 +128,3 @@ get_parameter_error(backend, res.best_model, p_true)
 #                     opt = Adam(1e-2), 
 #                     adtype,
 #                     n_epochs = 1000)
-

@@ -41,7 +41,7 @@ function run_simulations(mode::ParallelMode, varying_params; fixed_params...)
     n = length(varying_params)
     results = Vector{Any}(undef, n)
     prog = Progress(n)
-    Threads.@threads for i in 1:n
+    Threads.@threads :greedy for i in 1:n
         kwargs = merge(NamedTuple(fixed_params), varying_params[i])
         experimental_setup, kwargs = pop(kwargs, :experimental_setup)
         optim_backend, kwargs = pop(kwargs, :optim_backend)

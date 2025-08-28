@@ -27,7 +27,7 @@ end
 # Model metaparameters
 alg = Tsit5()
 sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
-sampler = HMC(0.05, 4; adtype=AutoForwardDiff()) # fastest, by far
+sampler = HMC(0.05, 4; adtype=AutoZygote()) # fastest, by far
 datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 # sensealg = GaussAdjoint()
 # adtype = AutoZygote()

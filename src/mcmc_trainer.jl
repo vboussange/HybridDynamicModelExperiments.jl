@@ -17,6 +17,8 @@ import Turing
     kwargs
 end
 
+nameof(::MCMCBackend) = "MCMCBackend"
+
 function MCMCBackend(sampler,
                     n_iterations,
                     datadistrib,

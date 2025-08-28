@@ -1,5 +1,3 @@
-# TODO: For both InferICs{false} and InferICs{true}, we should define an InitialConditions layer, where in one case, parameters are null
-# TODO: train could return an info object defined by callback, see https://turinglang.org/docs/tutorials/variational-inference/
 using ComponentArrays
 using Optimisers
 using ADTypes
@@ -14,6 +12,8 @@ import HybridModelling: SegmentedTimeSeries
     verbose_frequency
     callback
 end
+
+nameof(::LuxBackend) = "LuxBackend"
 
 LuxBackend(opt, n_epochs, adtype, loss_fn; verbose_frequency = 10, callback = (l, m, p, s) -> nothing) = LuxBackend(opt, n_epochs, adtype, loss_fn, verbose_frequency, callback)
 

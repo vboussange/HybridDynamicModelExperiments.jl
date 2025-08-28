@@ -7,6 +7,21 @@ import Lux:fmap
 import Functors: @leaf, fmap_with_path
 using ComponentArrays
 
+@concrete struct MCMCBackend <: AbstractOptimBackend
+    sampler
+    n_iterations::Int
+    datadistrib
+    kwargs
+end
+
+function MCMCBackend(sampler = NUTS(; adtype=AutoForwardDiff()),
+                    n_iterations,
+                    datadistrib = Normal(),
+                    ;kwargs...)
+    return MCMCBackend(sampler, n_iterations, datadistrib, kwargs)
+end
+
+
 function _vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     @assert length(ps_new) == Lux.parameterlength(ps)
     i = 1
@@ -78,22 +93,15 @@ function create_turing_model(ps_priors, data_distrib, st_model)
     return (xs, ys) -> DynamicPPL.Model(generated_model, (; xs, ys))
 end
 
-# TODO: ideally, `model_priors` should be embedded within `model`, possibly in its state. Depending on the backend, we transform the priors into NamedTransform
-# TODO: here, the model returned is the one with the highest log posterior (for consistency with LuxBakend; taking the mean of a bimodal posterior distribution is not sensible). However, this model should not be used for predictions; instead, predictions should be made by sampling parameters from the chain, and taking the mean of the predictions. The latter allows to benefit from uncertainty quantifications.
-# TODO: For both InferICs{false} and InferICs{true}, we should define an InitialConditions layer, where in one case, parameters are null and ics are stored in states; Careful with how you setup the distributions!
-
-function train(::MCMCBackend, 
+function train(backend::MCMCBackend, 
                 experimental_setup::InferICs;
                 model::AbstractLuxLayer,
                 rng=Random.default_rng(),
-                dataloader,
-                datadistrib,
-                model_priors,
-                sampler = NUTS(; adtype=AutoForwardDiff()),
-                n_iterations, 
-                kwargs...)
+                dataloader)
 
     dataloader = tokenize(dataloader)
+
+    # TODO: 
 
     xs = []
     ys = []
@@ -107,25 +115,24 @@ function train(::MCMCBackend,
         push!(xs, (;u0 = tok, saveat = segment_tsteps, tspan = (segment_tsteps[1], segment_tsteps[end])))
         push!(ys, segment_data)
         if isa(experimental_setup, InferICs{true})
-            push!(ic_list, ParameterLayer(init_value = (;u0), init_state_value = (;t0)))
-            push!(u0_priors, (;u0 = arraydist(datadistrib.(u0))))
+            push!(ic_list, BayesianLayer(ParameterLayer(init_value = (;u0), init_state_value = (;t0)), 
+                                        (;u0 = arraydist(datadistrib.(u0)))))
         elseif isa(experimental_setup, InferICs{false})
-            push!(ic_list, ParameterLayer(init_state_value = (;t0, u0)))
-            push!(u0_priors, (;))
+            push!(ic_list, BayesianLayer(ParameterLayer(init_state_value = (;t0, u0)),
+                                        (;)))
         end
     end
     ics = InitialConditions(ic_list)
-    u0_priors = NamedTuple{ntuple(i -> Symbol(:u0_, i), length(ic_list))}(u0_priors)
 
     ode_model_with_ics = Chain(initial_conditions = ics, model = model)
-    priors = (initial_conditions = u0_priors, model = model_priors)
+    priors = getpriors(ode_model_with_ics)
 
     ps_init, st = Lux.setup(rng, ode_model_with_ics)
     st_model = StatefulLuxLayer{true}(ode_model_with_ics, ps_init, st)
 
-    turing_fit = create_turing_model(priors, datadistrib, st_model)
+    turing_fit = create_turing_model(priors, backend.datadistrib, st_model)
 
-    chains = sample(rng, turing_fit(xs, ys), sampler, n_iterations; kwargs...)
+    chains = sample(rng, turing_fit(xs, ys), backend.sampler, backend.n_iterations; backend.kwargs...)
     # best_ps = get_best_parameters(chains, ps_init)
     # best_model = StatefulLuxLayer{true}(model, best_ps, st)
     return (;chains, st_model)

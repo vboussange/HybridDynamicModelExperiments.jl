@@ -78,7 +78,7 @@ parameters = ParameterLayer(constraint = Constraint(p_transform),
 growth_rate =  Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
                                 Lux.Dense(HlSize, HlSize, NNlib.tanh), 
                                 Lux.Dense(HlSize, HlSize, NNlib.tanh), 
-                                Lux.Dense(HlSize, 1))
+                                Lux.Dense(HlSize, 1, NNlib.tanh))
 
 dudt = HybridGrowthRateModel()
 lux_model = ODEModel((;parameters, growth_rate), dudt; alg, abstol, reltol, sensealg)

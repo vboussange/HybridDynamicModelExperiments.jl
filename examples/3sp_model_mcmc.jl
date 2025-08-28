@@ -22,10 +22,10 @@ using Random
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
-function init(::Model3SP, ::MCMCBackend, p_true, perturb=1e0)
+function init_priors(p_true, perturb=1e0)
     parameter_priors = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
     # Careful: float type is not easily imposed, see https://github.com/JuliaStats/Distributions.jl/issues/1995
-    return (;parameters=parameter_priors)
+    return parameter_priors
 end
 
 
@@ -50,9 +50,10 @@ backend = MCMCBackend()
 model = Model3SP()
 
 # Lux model initialization with biased parameters
-parameters = ParameterLayer(init_value = p_true) # p_true is only used for inferring length of parameters
+parameter_priors = init_priors(p_true)
+parameters = BayesianLayer(ParameterLayer(init_value = p_true),
+                            parameter_priors) # p_true is only used for inferring length of parameters
 lux_model = ODEModel((;parameters), Model3SP(); alg, abstol, reltol, sensealg)
-ps_priors = init(model, backend, p_true)
 
 # True Lux model initialization
 parameters = ParameterLayer(init_value = p_true)

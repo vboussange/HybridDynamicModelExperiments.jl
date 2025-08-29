@@ -243,8 +243,8 @@ function simu(
             preds = forecast(optim_backend, res.st_model, res.chains, tsteps[test_idx])
             forecast_err = median(loss_fn(p, data[:, test_idx]) for p in preds)
         end
-    catch
-        println("Error occurred during training")
+    catch e
+        println("Error occurred during training: $e")
     end
 
     return (;

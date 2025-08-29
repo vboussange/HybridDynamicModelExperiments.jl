@@ -54,15 +54,15 @@ function HybridModellingExperiments.init(
         sensealg,
         maxiters,
         p_true,
-        perturb = 1.0f0,
+        perturb = 1e0,
         rng,
         kwargs...
 )
     distrib_param = NamedTuple([dp => product_distribution([Uniform(
                                                                 sort([
-                                                                (1.0f0 - perturb / 2.0f0) *
+                                                                (1e0 - perturb / 2e0) *
                                                                 k,
-                                                                (1.0f0 + perturb / 2.0f0) *
+                                                                (1e0 + perturb / 2e0) *
                                                                 k])...
                                                             ) for k in p_true[dp]])
                                 for dp in keys(p_true)])

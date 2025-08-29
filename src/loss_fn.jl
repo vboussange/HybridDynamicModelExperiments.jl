@@ -6,7 +6,7 @@ function _log_mseloss(data, pred; epsilon=1e-6)
     data = max.(data, T(epsilon)) # we do not tolerate negative data
     pred = max.(pred, T(epsilon)) #
     if size(data) != size(pred) # preventing Zygote to crash
-        return Inf
+        return T(Inf)
     end
 
     return (log.(data) .- log.(pred)).^2

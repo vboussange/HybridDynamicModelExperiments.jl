@@ -1,10 +1,10 @@
 using Lux
 using HybridModellingExperiments
 using HybridModelling
-import HybridModellingExperiments: Model3SP, HybridGrowthRate, LuxBackend, MCMCBackend, InferICs,
+import HybridModellingExperiments: Model3SP, HybridGrowthRateModel, LuxBackend, MCMCBackend, InferICs,
                                    run_simulations, LogMSELoss, save_results
 import HybridModellingExperiments: SerialMode, ParallelMode
-import OrdinaryDiffEq: Tsit5
+import OrdinaryDiffEqTsit5: Tsit5
 import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
 import ADTypes: AutoZygote, AutoForwardDiff
 import Optimisers: Adam

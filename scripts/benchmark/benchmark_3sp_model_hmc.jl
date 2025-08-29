@@ -3,7 +3,7 @@ using HybridModellingExperiments
 using HybridModelling
 import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, run_simulations, LogMSELoss, save_results
 import HybridModellingExperiments: SerialMode, ParallelMode
-import OrdinaryDiffEq: Tsit5
+import OrdinaryDiffEqTsit5: Tsit5
 import SciMLSensitivity: ForwardDiffSensitivity
 import ADTypes: AutoForwardDiff
 import Optimisers: Adam

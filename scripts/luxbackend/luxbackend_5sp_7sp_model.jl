@@ -34,9 +34,7 @@ fixed_params = (alg = Tsit5(),
     n_epochs = 1,
     verbose_frequency = Inf,
     loss_fn = LogMSELoss(),
-    forecast_length = 10,
-    u0_constraint = Constraint(Bijectors.NamedTransform((;
-        u0 = Bijectors.bijector(Uniform(1e-3, 5e0)))))  # For initial conditions
+    forecast_length = 10
 )
 
 function generate_data(model::Model5SP; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
@@ -79,7 +77,11 @@ function create_simulation_parameters()
     segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
     nruns = 10
     models = [Model5SP(), Model7SP()]
-    ic_estims = [InferICs(true), InferICs(false)]
+    ic_estims = [
+        InferICs(true,
+            Constraint(Bijectors.NamedTransform((;
+                u0 = Bijectors.bijector(Uniform(1e-3, 5e0)))))),
+        InferICs(false)]
     noises = [0.2]
 
     pars_arr = []

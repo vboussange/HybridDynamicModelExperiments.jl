@@ -1,7 +1,8 @@
 using Lux
 using HybridModellingExperiments
 using HybridModelling
-import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, run_simulations, LogMSELoss, save_results
+import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs,
+                                   run_simulations, LogMSELoss, save_results
 import HybridModellingExperiments: SerialMode, ParallelMode
 import OrdinaryDiffEq: Tsit5
 import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
@@ -16,109 +17,120 @@ using JLD2
 using DataFrames
 using Distributions
 
-mode = ParallelMode()
-const tsteps = range(500e0, step=4, length=111)
+mode = SerialMode()
+const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
 const nits = 5 # number of epochs or iterations depending on the context
 callback(l, m, p, s) = l
 loss_fn = LogMSELoss()
 
 fixed_params = (alg = Tsit5(),
-                abstol = 1e-4,
-                reltol = 1e-4,
-                tsteps,
-                maxiters = 50_000,
-                sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true)), 
-                rng = Random.MersenneTwister(1234),
-                batchsize = 10,
-                forecast_length = 10, # not used but we keep it for consistency
-                noise = 0.2)
+    abstol = 1e-4,
+    reltol = 1e-4,
+    tsteps,
+    maxiters = 50_000,
+    sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+    rng = Random.MersenneTwister(1234),
+    batchsize = 10,
+    forecast_length = 10, # not used but we keep it for consistency
+    noise = 0.2)
 
 function generate_data(model::Model3SP; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
-    
-    p_true = (;H = [1.24, 2.5],
-                q = [4.98, 0.8],
-                r = [1.0, -0.4, -0.08],
-                A = [1.0])
+    p_true = (; H = [1.24, 2.5],
+        q = [4.98, 0.8],
+        r = [1.0, -0.4, -0.08],
+        A = [1.0])
 
     u0_true = [0.77, 0.060, 0.945]
     parameters = ParameterLayer(init_value = p_true)
-    lux_true_model = ODEModel((;parameters), model; alg, abstol, reltol, tspan, saveat = tsteps)
+    lux_true_model = ODEModel(
+        (; parameters), model; alg, abstol, reltol, tspan, saveat = tsteps)
 
     ps, st = Lux.setup(rng, lux_true_model)
-    synthetic_data, _ = lux_true_model((;u0 = u0_true), ps, st)
+    synthetic_data, _ = lux_true_model((; u0 = u0_true), ps, st)
     return synthetic_data, p_true
 end
 
 function generate_data(model::Model5SP; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
-    
     p_true = (ω = [0.2],
-                H = [2.89855, 7.35294, 2.89855, 7.35294],
-                q = [1.38, 0.272, 1.38, 0.272],
-                r = [1.0, -0.15, -0.08, 1.0, -0.15],
-                A = [1.0, 1.0])
+        H = [2.89855, 7.35294, 2.89855, 7.35294],
+        q = [1.38, 0.272, 1.38, 0.272],
+        r = [1.0, -0.15, -0.08, 1.0, -0.15],
+        A = [1.0, 1.0])
 
     u0_true = [0.77, 0.060, 0.945, 0.467, 0.18]
     parameters = ParameterLayer(init_value = p_true)
 
-    lux_true_model = ODEModel((;parameters), model; alg, abstol, reltol, tspan, saveat = tsteps)
+    lux_true_model = ODEModel(
+        (; parameters), model; alg, abstol, reltol, tspan, saveat = tsteps)
 
     ps, st = Lux.setup(rng, lux_true_model)
-    synthetic_data, _ = lux_true_model((;u0 = u0_true), ps, st)
+    synthetic_data, _ = lux_true_model((; u0 = u0_true), ps, st)
     return synthetic_data, p_true
 end
 
 function generate_data(model::Model7SP; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
-    
     p_true = (ω = [0.2],
-            H = [2.89855, 7.35294, 8.0, 2.89855, 7.35294, 12.0],
-            q = [1.38, 0.272, 1e-1 ,1.38, 0.272, 5e-2],
-            r = [1.0, -0.15, -0.08, 1.0, -0.15, -0.01, -0.005],
-            A = [1.0, 1.0])
+        H = [2.89855, 7.35294, 8.0, 2.89855, 7.35294, 12.0],
+        q = [1.38, 0.272, 1e-1, 1.38, 0.272, 5e-2],
+        r = [1.0, -0.15, -0.08, 1.0, -0.15, -0.01, -0.005],
+        A = [1.0, 1.0])
 
     u0_true = [0.77, 0.060, 0.945, 0.467, 0.18, 0.14, 0.18]
     parameters = ParameterLayer(init_value = p_true)
-                                
-    lux_true_model = ODEModel((;parameters), model; alg, abstol, reltol, tspan, saveat = tsteps)
+
+    lux_true_model = ODEModel(
+        (; parameters), model; alg, abstol, reltol, tspan, saveat = tsteps)
 
     ps, st = Lux.setup(rng, lux_true_model)
-    synthetic_data, _ = lux_true_model((;u0 = u0_true), ps, st)
+    synthetic_data, _ = lux_true_model((; u0 = u0_true), ps, st)
     return synthetic_data, p_true
 end
 
 function create_simulation_parameters()
-    segmentsizes = floor.(Int, exp.(range(log(2), log(100), length=6)))
+    segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
     models = [Model3SP(), Model5SP(), Model7SP()]
     ic_estims = [InferICs(true), InferICs(false)]
     datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 
-    backends = [LuxBackend(Adam(1e-2), nits, AutoZygote(), loss_fn; verbose_frequency = Inf, callback),
-                MCMCBackend(HMC(0.05, 4, adtype=AutoForwardDiff()), nits, datadistrib; progress = false)]
+    backends = [
+        LuxBackend(
+            Adam(1e-2), nits, AutoZygote(), loss_fn; verbose_frequency = Inf, callback),
+        MCMCBackend(
+            HMC(0.05, 4, adtype = AutoForwardDiff()), nits, datadistrib; progress = false)]
     nruns = 2
 
     pars_arr = []
-    for segmentsize in segmentsizes, infer_ic in ic_estims, model in models, optim_backend in backends, _ in 1:nruns
+    for segmentsize in segmentsizes, infer_ic in ic_estims, model in models,
+        optim_backend in backends, _ in 1:nruns
+
         data, p_true = generate_data(model; tspan, fixed_params...)
-        varying_params = (;segmentsize,
-                            optim_backend,
-                            experimental_setup = infer_ic, 
-                            model,
-                            data,
-                            p_true)
+        varying_params = (; segmentsize,
+            optim_backend,
+            experimental_setup = infer_ic,
+            model,
+            data,
+            p_true)
         push!(pars_arr, varying_params)
     end
     return shuffle!(fixed_params.rng, pars_arr)
 end
 
-
 simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 
+# We separate the parameters for each backend as the simulation function return different named tuples
+lux_simulation_parameters = filter(x -> isa(x.optim_backend, LuxBackend), simulation_parameters)
+mcmc_simulation_parameters = filter(x -> isa(x.optim_backend, MCMCBackend), simulation_parameters)
 
-println("Warming up...") # precompilation
-run_simulations(mode, simulation_parameters; fixed_params...)
+println("Warming up LuxBackend...") # precompilation
+run_simulations(mode, lux_simulation_parameters; fixed_params...)
+println("Launching simulations for LuxBackend...")
+lux_results = run_simulations(mode, lux_simulation_parameters; fixed_params...)
 
-println("Launching simulations...")
-results = run_simulations(mode, simulation_parameters; fixed_params...)
+println("Warming up MCMCBackend...") # precompilation
+run_simulations(mode, mcmc_simulation_parameters; fixed_params...)
+println("Launching simulations for MCMCBackend...")
+mcmc_results = run_simulations(mode, mcmc_simulation_parameters; fixed_params...)
 
-save_results(string(@__FILE__); results, nits)
+save_results(string(@__FILE__); lux_results, mcmc_results, nits)

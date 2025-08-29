@@ -4,27 +4,30 @@ using ADTypes
 using ConcreteStructs: @concrete
 import HybridModelling: SegmentedTimeSeries
 
-@concrete struct LuxBackend <: AbstractOptimBackend 
+@concrete struct LuxBackend <: AbstractOptimBackend
     opt::Optimisers.AbstractRule
     n_epochs::Int
     adtype::ADTypes.AbstractADType
-    loss_fn
-    verbose_frequency
-    callback
+    loss_fn::Any
+    verbose_frequency::Any
+    callback::Any
 end
 
 nameof(::LuxBackend) = "LuxBackend"
 
-LuxBackend(opt, n_epochs, adtype, loss_fn; verbose_frequency = 10, callback = (l, m, p, s) -> nothing) = LuxBackend(opt, n_epochs, adtype, loss_fn, verbose_frequency, callback)
+function LuxBackend(opt, n_epochs, adtype, loss_fn; verbose_frequency = 10,
+        callback = (l, m, p, s) -> nothing)
+    return LuxBackend(opt, n_epochs, adtype, loss_fn, verbose_frequency, callback)
+end
 
-function train(backend::LuxBackend, 
-                model::AbstractLuxLayer,
-                dataloader::SegmentedTimeSeries,
-                experimental_setup::InferICs,
-                rng=Random.default_rng();
-                u0_constraint = NoConstraint(),
-                luxtype = Lux.f64)
 
+# TODO: separate ics model from main model.
+function train(backend::LuxBackend,
+        model::AbstractLuxLayer,
+        dataloader::SegmentedTimeSeries,
+        experimental_setup::InferICs,
+        rng = Random.default_rng();
+        luxtype = Lux.f64)
     dataloader = tokenize(dataloader)
 
     ic_list = ParameterLayer[]
@@ -32,25 +35,26 @@ function train(backend::LuxBackend,
         segment_data, segment_tsteps = dataloader[tok]
         u0 = segment_data[:, 1]
         t0 = segment_tsteps[1]
-        if isa(experimental_setup, InferICs{false})
-            push!(ic_list, ParameterLayer(init_value = (;), init_state_value = (;t0, u0)))
-        elseif isa(experimental_setup, InferICs{true})
-            push!(ic_list, ParameterLayer(constraint = u0_constraint, init_value = (;u0), init_state_value = (;t0)))
+        if istrue(experimental_setup)
+            push!(ic_list,
+                ParameterLayer(constraint = experimental_setup.u0_constraint,
+                    init_value = (; u0), init_state_value = (; t0)))
+        else
+            push!(ic_list, ParameterLayer(init_value = (;), init_state_value = (; t0, u0)))
         end
     end
     ics = InitialConditions(ic_list)
 
     function feature_wrapper((token, tsteps_batch))
-        return [
-            (;u0 = token[i],
-            saveat = tsteps_batch[:, i], 
-            tspan = (tsteps_batch[1, i], tsteps_batch[end, i])
-            )
-            for i in 1:length(token)
-        ]
+        return [(; u0 = token[i],
+                    saveat = tsteps_batch[:, i],
+                    tspan = (tsteps_batch[1, i], tsteps_batch[end, i])
+                )
+                for i in eachindex(token)]
     end
 
-    ode_model_with_ics = Chain(wrapper = Lux.WrappedFunction(feature_wrapper), initial_conditions = ics, model = model)
+    ode_model_with_ics = Chain(wrapper = Lux.WrappedFunction(feature_wrapper),
+        initial_conditions = ics, model = model)
 
     ps, st = Lux.setup(rng, ode_model_with_ics)
     ps = ps |> luxtype |> ComponentArray # We transforms ps to support all sensealg from SciMLSensitivity
@@ -59,12 +63,12 @@ function train(backend::LuxBackend,
     best_ps = ps
     best_loss = Inf
     info = []
-    for epoch in 1:backend.n_epochs
-        tot_loss = 0.
+    for epoch in 1:(backend.n_epochs)
+        tot_loss = 0.0
         for (batched_tokens, (batched_segments, batched_tsteps)) in dataloader
             _, loss, _, train_state = Training.single_train_step!(
-                backend.adtype, 
-                backend.loss_fn, 
+                backend.adtype,
+                backend.loss_fn,
                 ((batched_tokens, batched_tsteps), batched_segments),
                 train_state)
             tot_loss += loss
@@ -76,10 +80,13 @@ function train(backend::LuxBackend,
             best_ps = get_parameter_values(train_state)
             best_loss = tot_loss
         end
-        push!(info, backend.callback(tot_loss, ode_model_with_ics, get_parameter_values(train_state), get_state_values(train_state)))
+        push!(info,
+            backend.callback(
+                tot_loss, ode_model_with_ics, get_parameter_values(train_state),
+                get_state_values(train_state)))
     end
     best_model = StatefulLuxLayer{true}(ode_model_with_ics, best_ps, st)
-    return (;best_model, info)
+    return (; best_model, info)
 end
 
 get_parameter_values(train_state::Training.TrainState) = train_state.parameters

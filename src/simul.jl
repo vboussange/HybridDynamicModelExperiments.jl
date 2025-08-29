@@ -108,7 +108,7 @@ function simu(
     info = missing
     try
         stats = @timed train(
-            optim_backend, lux_model, dataloader, experimental_setup, rng; u0_constraint
+            optim_backend, lux_model, dataloader, experimental_setup, rng
         )
         time = stats.time
         res = stats.value

@@ -3,7 +3,7 @@ import DynamicPPL
 import DynamicPPL: @varname, VarName
 using Distributions
 import Lux
-import Lux:fmap
+import Lux: fmap
 import Functors: @leaf, fmap_with_path
 using ComponentArrays
 using ConcreteStructs: @concrete
@@ -11,23 +11,24 @@ import HybridModelling: SegmentedTimeSeries
 import Turing
 
 @concrete struct MCMCBackend <: AbstractOptimBackend
-    sampler
+    sampler::Any
     n_iterations::Int
-    datadistrib
-    kwargs
+    datadistrib::Any
+    kwargs::Any
 end
 
 nameof(::MCMCBackend) = "MCMCBackend"
 
 function MCMCBackend(sampler,
-                    n_iterations,
-                    datadistrib,
-                    ;kwargs...)
+        n_iterations,
+        datadistrib,
+        ; kwargs...)
     return MCMCBackend(sampler, n_iterations, datadistrib, kwargs)
 end
 
 # TODO: implement test
-function Turing.sample(rng::AbstractRNG, model::Union{AbstractLuxLayer, StatefulLuxLayer}, chain::Turing.MCMCChains.Chains, args...; kwargs...)
+function Turing.sample(rng::AbstractRNG, model::Union{AbstractLuxLayer, StatefulLuxLayer},
+        chain::Turing.MCMCChains.Chains, args...; kwargs...)
     priors = getpriors(model)
     posterior_samples = sample(rng, chain, args...; kwargs...)
     mat = Array(posterior_samples)              # rows = draws, cols = flattened params
@@ -48,7 +49,10 @@ function Turing.sample(rng::AbstractRNG, model::Union{AbstractLuxLayer, Stateful
     return samples
 end
 
-Turing.sample(model::Union{AbstractLuxLayer, StatefulLuxLayer}, chain::Turing.MCMCChains.Chains, args...; kwargs...) = sample(Random.default_rng(), model, chain, args...; kwargs...)
+function Turing.sample(model::Union{AbstractLuxLayer, StatefulLuxLayer},
+        chain::Turing.MCMCChains.Chains, args...; kwargs...)
+    return sample(Random.default_rng(), model, chain, args...; kwargs...)
+end
 
 function _vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     @assert length(ps_new) == Lux.parameterlength(ps)
@@ -66,28 +70,28 @@ Lux.parameterlength(dist::Distributions.Distribution) = length(dist)
 Base.vec(dist::Product) = dist.v
 @leaf Distributions.Distribution
 
-
 function create_turing_model(ps_priors, data_distrib, st_model)
     function generated_model(model, varinfo, xs, ys)
         # Use a Ref to allow updating varinfo inside the fmap_with_path closure
         varinfo_ref = Ref(varinfo)
-        
+
         # Function to handle each node in the param_prior structure
         function handle_node(path, node::Distributions.Distribution)
             # Generate variable name from path
             varname = Symbol(join(path, "_"))
             # Sample parameter and update varinfo
-            value, new_varinfo = DynamicPPL.tilde_assume!!(model.context, node, VarName{varname}(), varinfo_ref[])
+            value, new_varinfo = DynamicPPL.tilde_assume!!(
+                model.context, node, VarName{varname}(), varinfo_ref[])
             varinfo_ref[] = new_varinfo
             return value
         end
 
         handle_node(path, node) = (;)
-        
+
         # Apply fmap_with_path to sample all parameters and maintain structure
         # convert to ComponentArray for compatibility with all SciMLSensitivity sensealg
         ps = fmap_with_path(handle_node, ps_priors) |> ComponentArray
-        
+
         # Update varinfo after sampling all parameters
         varinfo = varinfo_ref[]
 
@@ -99,18 +103,20 @@ function create_turing_model(ps_priors, data_distrib, st_model)
                 model.context, arraydist(dists), ys[i], @varname(ys[i]), varinfo
             )
         end
-        
+
         return nothing, varinfo
     end
-    
+
     return (xs, ys) -> DynamicPPL.Model(generated_model, (; xs, ys))
 end
 
-function train(backend::MCMCBackend, 
-                model::AbstractLuxLayer,
-                dataloader::SegmentedTimeSeries,
-                experimental_setup::InferICs,
-                rng=Random.default_rng())
+
+# TODO: separate ics model from main model.
+function train(backend::MCMCBackend,
+        model::AbstractLuxLayer,
+        dataloader::SegmentedTimeSeries,
+        experimental_setup::InferICs,
+        rng = Random.default_rng())
 
     dataloader = tokenize(dataloader)
 
@@ -122,14 +128,19 @@ function train(backend::MCMCBackend,
         segment_data, segment_tsteps = dataloader[tok]
         u0 = segment_data[:, 1]
         t0 = segment_tsteps[1]
-        push!(xs, (;u0 = tok, saveat = segment_tsteps, tspan = (segment_tsteps[1], segment_tsteps[end])))
+        push!(xs,
+            (; u0 = tok, saveat = segment_tsteps,
+                tspan = (segment_tsteps[1], segment_tsteps[end])))
         push!(ys, segment_data)
         if isa(experimental_setup, InferICs{true})
-            push!(ic_list, BayesianLayer(ParameterLayer(init_value = (;u0), init_state_value = (;t0)), 
-                                        (;u0 = arraydist(backend.datadistrib.(u0)))))
+            push!(ic_list,
+                BayesianLayer(
+                    ParameterLayer(init_value = (; u0), init_state_value = (; t0)),
+                    (; u0 = arraydist(backend.datadistrib.(u0)))))
         elseif isa(experimental_setup, InferICs{false})
-            push!(ic_list, BayesianLayer(ParameterLayer(init_state_value = (;t0, u0)),
-                                        (;)))
+            push!(
+                ic_list, BayesianLayer(ParameterLayer(init_state_value = (; t0, u0)),
+                    (;)))
         end
     end
     ics = InitialConditions(ic_list)
@@ -142,7 +153,8 @@ function train(backend::MCMCBackend,
 
     turing_fit = create_turing_model(priors, backend.datadistrib, st_model)
 
-    chains = sample(rng, turing_fit(xs, ys), backend.sampler, backend.n_iterations; backend.kwargs...)
+    chains = sample(
+        rng, turing_fit(xs, ys), backend.sampler, backend.n_iterations; backend.kwargs...)
 
-    return (;chains, st_model)
+    return (; chains, st_model)
 end

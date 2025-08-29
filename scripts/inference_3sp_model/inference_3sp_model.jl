@@ -14,7 +14,7 @@ using Lux
 using HybridModelling
 using HybridModellingExperiments; HybridModellingExperiments.setup_distributed_environment()
 import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, run_simulations
-import OrdinaryDiffEqTsit5
+import OrdinaryDiffEqTsit5: Tsit5
 import SciMLSensitivity: ForwardDiffSensitivity, GaussAdjoint
 import ADTypes: AutoForwardDiff
 import Optimisers: Adam

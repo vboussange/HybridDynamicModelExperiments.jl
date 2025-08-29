@@ -10,7 +10,7 @@ using Random
 using Dates
 using ProgressMeter
 using ComponentArrays
-import OrdinaryDiffEqTsit5
+import OrdinaryDiffEqTsit5: Tsit5
 using OptimizationOptimisers
 using PiecewiseInference
 using SciMLSensitivity

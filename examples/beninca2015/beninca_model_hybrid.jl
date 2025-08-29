@@ -2,7 +2,7 @@
 Short exampling showcasing the fit of a 3 species model.
 =#
 cd(@__DIR__)
-import OrdinaryDiffEqTsit5
+import OrdinaryDiffEqTsit5: Tsit5
 using Plots
 using Distributions
 using Bijectors

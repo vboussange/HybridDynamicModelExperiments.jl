@@ -4,7 +4,7 @@ a neural network to account for functional response.
 =#
 
 cd(@__DIR__)
-import OrdinaryDiffEqTsit5, BS3
+import OrdinaryDiffEqTsit5: Tsit5
 import Turing: arraydist
 import ADTypes: AutoZygote, AutoForwardDiff
 using Plots

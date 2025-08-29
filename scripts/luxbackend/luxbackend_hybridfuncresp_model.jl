@@ -4,7 +4,7 @@ using HybridModelling
 import HybridModellingExperiments: Model3SP, HybridFuncRespModel, LuxBackend, MCMCBackend, InferICs,
                                    run_simulations, LogMSELoss, save_results
 import HybridModellingExperiments: SerialMode, ParallelMode
-import OrdinaryDiffEqTsit5
+import OrdinaryDiffEqTsit5: Tsit5
 import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
 import ADTypes: AutoZygote, AutoForwardDiff
 import Optimisers: Adam

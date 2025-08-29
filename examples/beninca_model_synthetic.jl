@@ -2,7 +2,7 @@
 Synthetic fit with synthetic forcing
 =#
 cd(@__DIR__)
-import OrdinaryDiffEq: Tsit5
+import OrdinaryDiffEqTsit5
 using Plots
 using Distributions
 using Bijectors

@@ -17,7 +17,7 @@ using Random
 using Dates
 using ProgressMeter
 using ComponentArrays
-import OrdinaryDiffEq: Tsit5
+import OrdinaryDiffEqTsit5
 using OptimizationOptimisers
 using Distributions
 using Bijectors

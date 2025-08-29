@@ -1,119 +1,139 @@
 #=
-Short exampling showcasing the fit of a 3 species model were the growth rate of
-the resource species is parametrized by a neural network.
+Short exampling showcasing the fit of a model with 
+a neural network to account for functional response.
 =#
 
 cd(@__DIR__)
-import OrdinaryDiffEq: Tsit5
+import OrdinaryDiffEq: Tsit5, BS3
+import Turing: arraydist
+import ADTypes: AutoZygote, AutoForwardDiff
 using Plots
 using Distributions
+import Distributions: ProductNamedTupleDistribution
 using Bijectors
-using Optimization, OptimizationOptimisers, OptimizationOptimJL
+using Optimisers
 using SciMLSensitivity
-include("../src/3sp_model.jl")
-include("../src/hybrid_growth_rate_model.jl")
-include("../src/loss_fn.jl")
+using HybridModelling
+import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
+import Lux
+using Random
+import NNlib
 
-"""
-    init(model::HybridGrowthRateModel, perturb=0.5)
+rng = MersenneTwister(1)
 
-Initialize parameters, parameter and initial condition constraints for the inference.
-"""
-function init(model::HybridGrowthRateModel, perturb=0.5)
-    p_true = model.mp.p
-    T = eltype(p_true)
-    distrib_param_arr = Pair{Symbol, Any}[]
+function init(::LuxBackend, p_true, perturb=1e0)
+    distrib_param = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
 
-    for dp in keys(p_true)
-        dp == :p_nn && continue
-        pair = dp => Product([Uniform(sort([(1f0-perturb/2f0) * k, (1f0+perturb/2f0) * k])...) for k in p_true[dp]])
-        push!(distrib_param_arr, pair)
-    end
-    pair_nn = :p_nn => Uniform(-Inf, Inf)
-    push!(distrib_param_arr, pair_nn)
-
-    distrib_param = NamedTuple(distrib_param_arr)
-
-    p_bij = NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)])
-    u0_bij = bijector(Uniform(T(1e-3), T(5e0)))  # For initial conditions
+    p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
+    u0_transform = bijector(Uniform(1e-3, 5e0))  # For initial conditions
     
-    return p_bij, u0_bij
+    # TODO: problem with rand(Uniform), casts to Float64
+    p_init = NamedTuple([k => rand(distrib_param[k])  .|> FloatType for k in keys(distrib_param)])
+
+    return p_init, p_transform, u0_transform
 end
 
-
-# Model metaparameters
+# ODE solver
 alg = Tsit5()
 abstol = 1e-4
 reltol = 1e-4
-tspan = (0., 800)
+tspan = (0e0, 800e0)
 tsteps = 550.:4.:800.
-u0_true = Float32[0.5,0.8,0.5]
-p_true = ComponentArray(H = Float32[1.24, 2.5],
-                        q = Float32[4.98, 0.8],
-                        r = Float32[1.0, -0.4, -0.08],
-                        A = Float32[1.0],
-                        s = Float32[1.])
 
-# Model initialization with true parameters
-model = HybridGrowthRateModel(ModelParams(;p= p_true,
-                                                tspan,
-                                                u0 = u0_true,
-                                                alg,
-                                                reltol,
-                                                abstol,
-                                                saveat = tsteps,
-                                                verbose = false, # suppresses warnings for maxiters
-                                                maxiters = 50_000,
-                                                ))
 
 # Data generation
-data = simulate(model) |> Array # 19.720 ms
-ax = Plots.scatter(tsteps, data', title = "Data")
+u0_true = [0.5,0.8,0.5]
+p_true = (H = [1.24, 2.5],
+        q = [4.98, 0.8],
+        r = [1.0, -0.4, -0.08],
+        A = [1.0],
+        s = [1.0])
+σ = 0.1
+dudt_true = VaryingGrowthRateModel()
+parameters = ParameterLayer(init_value = p_true)
+lux_true_model = ODEModel((;parameters), dudt_true; alg, abstol, reltol, tspan, saveat = tsteps)
 
-# Model initialized with perturbed parameters
-# Defining inference problem
-p_hybrid = ComponentArray(H = Float32[1., 2.2],
-                        q = Float32[4.3, 1.],
-                        r = Float32[-0.4, -0.08],
-                        A = Float32[1.0])
+ps_true, st = Lux.setup(rng, lux_true_model)
+data, _ = lux_true_model((;u0 = u0_true), ps_true, st)
+data_with_noise = rand(arraydist(LogNormal.(log.(data), σ)))
+ax = Plots.scatter(tsteps, data_with_noise', title = "Data")
 
-hybrid_model = HybridGrowthRateModel(ModelParams(;p=p_hybrid,
-                                                u0 = u0_true, #TODO: required to get dim of model, but this should be modified
-                                                alg,
-                                                reltol,
-                                                abstol,
-                                                verbose = false, # suppresses warnings for maxiters
-                                                maxiters = 50_000,
-                                                ))
-ax2 = Plots.plot(simulate(hybrid_model, 
-                    tspan=(tsteps[1], tsteps[end]), 
-                    u0=data[:, 1]), title = "Initial prediction")
+# Hybrid model metaparameters
+p_init = (H = [1., 2.2],
+        q = [4.3, 1.],
+        r = [-0.4, -0.08],
+        A = [1.0])
+sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+adtype = AutoZygote()
+HlSize = 5
+segmentsize = 9
+batchsize = 10
 
-loss_likelihood = LossLikelihood()
-p_bij, u0_bij = init(hybrid_model)
-p_init = hybrid_model.mp.p
-infprob = InferenceProblem(hybrid_model, p_init; 
-                            loss_u0_prior = loss_likelihood, 
-                            loss_likelihood = loss_likelihood, 
-                            p_bij, u0_bij)
+# model definition
+p_transform = Bijectors.NamedTransform((r = bijector(Uniform(-1.0, 1.0)),
+                                        A = bijector(Uniform(0.0, 2.0))))
+u0_transform = bijector(Uniform(1e-3, 5e0))
+parameters = ParameterLayer(constraint = Constraint(p_transform), 
+                            init_value = p_init)
+growth_rate =  Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
+                                Lux.Dense(HlSize, HlSize, NNlib.tanh), 
+                                Lux.Dense(HlSize, HlSize, NNlib.tanh), 
+                                Lux.Dense(HlSize, 1, NNlib.tanh))
 
-# Inference
-res_inf = inference(infprob;
-                    data, 
-                    group_size = 7, 
-                    adtype=Optimization.AutoZygote(), 
-                    epochs=[200, 50], 
-                    tsteps = tsteps,
-                    optimizers = [OptimizationOptimisers.Adam(5e-2), OptimizationOptimJL.LBFGS()],
-                    verbose_loss = true,
-                    info_per_its = 10,
-                    multi_threading = false)
-# Simulation with inferred parameters
-# intinsic_growth_rate(hybrid_model, hybrid_model.mp.p, 0.)
-# intinsic_growth_rate(hybrid_model, res_inf.p_trained, 0.)
-# intinsic_growth_rate(model, model.mp.p, 0.)
+dudt = HybridGrowthRateModel()
+lux_model = ODEModel((;parameters, growth_rate), dudt; alg, abstol, reltol, sensealg)
+
+# testing lux model
+ps, st = Lux.setup(rng, lux_model)
+ps = ps |> Lux.f64
+preds, _ = lux_model((;u0 = [0.77, 0.060, 0.945], tspan, saveat = tsteps), ps, st)
+Plots.plot(tsteps, preds', title="Initial predictions from hybrid model")
 
 
-sim_res_inf = simulate(hybrid_model, p = res_inf.p_trained, u0=data[:, 1], tspan=(tsteps[1], tsteps[end]))
-ax3 = Plots.plot(sim_res_inf, title="Predictions after training")
-Plots.plot(ax, ax2, ax3)
+dataloader = SegmentedTimeSeries((data_with_noise, tsteps); 
+                            segmentsize, 
+                            shift=segmentsize-2, 
+                            batchsize,
+                            partial_batch = true)
+
+## Testing Lux backend
+res = train(LuxBackend(),
+            InferICs(false);
+            model = lux_model, 
+            rng, 
+            dataloader, 
+            opt = Adam(1e-2), 
+            adtype,
+            n_epochs = 1000)
+
+function plot_segments(dataloader, st_model)
+    plt = plot()
+    colors = [:blue, :red]
+    for (batched_tokens, (batched_segments, batched_tsteps)) in tokenize(dataloader)
+
+        batched_pred = st_model((batched_tokens, batched_tsteps))
+        for (tok, segment_tsteps, segment_data, pred) in zip(batched_tokens, 
+                                                            eachslice(batched_tsteps, dims=ndims(batched_tsteps)), 
+                                                            eachslice(batched_segments, dims=ndims(batched_segments)), 
+                                                            eachslice(batched_pred, dims=ndims(batched_pred)))
+            color = colors[mod1(tok, 2)]
+            plot!(plt, segment_tsteps, segment_data', label=(tok == 1 ? "Data" : ""), color=color, linestyle=:solid)
+            plot!(plt, segment_tsteps, pred', label=(tok == 1 ? "Predicted" : ""), color=color, linestyle=:dash)
+        end
+    end
+
+    display(plt)
+    return plt
+end
+
+plot_segments(dataloader, res.best_model)
+
+
+tsteps_forecast = tspan[end]:4:tspan[end]+200
+last_tok = tokens(tokenize(dataloader))[end]
+segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
+forecasted_data = forecast(LuxBackend(), res.best_model, union(segment_tsteps, tsteps_forecast))
+true_data = lux_true_model((;u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1], tspan = (segment_tsteps[1], tsteps_forecast[end]), saveat = union(segment_tsteps, tsteps_forecast)), ps_true, st)[1]
+ax = Plots.plot(union(segment_tsteps, tsteps_forecast), forecasted_data', label = "forecasted", title="Forecasted vs true data")
+Plots.plot!(ax, union(segment_tsteps, tsteps_forecast), true_data', label = "true", linestyle = :dash, color = palette(:auto)[1:3]')
+Plots.scatter!(ax, segment_tsteps, data_with_noise[:, tsteps .∈ Ref(segment_tsteps)]', label = "training data", color = palette(:auto)[1:3]')

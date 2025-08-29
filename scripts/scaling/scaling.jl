@@ -18,7 +18,7 @@ using DataFrames
 using Distributions
 using Dates
 
-mode = SerialMode()
+mode = ParallelMode()
 const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
 const nits = 5 # number of epochs or iterations depending on the context

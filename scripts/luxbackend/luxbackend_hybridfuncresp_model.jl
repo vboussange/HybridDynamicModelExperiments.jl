@@ -8,7 +8,7 @@ import HybridModellingExperiments: SerialMode, ParallelMode
 import OrdinaryDiffEqTsit5: Tsit5
 import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
 import ADTypes: AutoZygote, AutoForwardDiff
-import Optimisers: Adam
+import Optimisers: AdamW
 import Bijectors
 
 using Random

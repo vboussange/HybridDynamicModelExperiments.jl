@@ -4,7 +4,7 @@ using HybridModelling
 import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs,
                                    run_simulations, LogMSELoss, save_results
 import HybridModellingExperiments: SerialMode, ParallelMode
-import OrdinaryDiffEq: Tsit5
+import OrdinaryDiffEqTsit5
 import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
 import ADTypes: AutoZygote, AutoForwardDiff
 import Optimisers: Adam
@@ -16,12 +16,12 @@ using Random
 using JLD2
 using DataFrames
 using Distributions
+using Dates
 
 mode = SerialMode()
 const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
 const nits = 5 # number of epochs or iterations depending on the context
-callback(l, m, p, s) = l
 loss_fn = LogMSELoss()
 
 fixed_params = (alg = Tsit5(),
@@ -95,7 +95,7 @@ function create_simulation_parameters()
 
     backends = [
         LuxBackend(
-            Adam(1e-2), nits, AutoZygote(), loss_fn; verbose_frequency = Inf, callback),
+            Adam(1e-2), nits, AutoZygote(), loss_fn; verbose_frequency = Inf),
         MCMCBackend(
             HMC(0.05, 4, adtype = AutoForwardDiff()), nits, datadistrib; progress = false)]
     nruns = 2
@@ -133,4 +133,6 @@ run_simulations(mode, mcmc_simulation_parameters; fixed_params...)
 println("Launching simulations for MCMCBackend...")
 mcmc_results = run_simulations(mode, mcmc_simulation_parameters; fixed_params...)
 
-save_results(string(@__FILE__); lux_results, mcmc_results, nits)
+savedir = string(@__DIR__) * "/results/$(Dates.today())"
+jld2fileout = joinpath(savedir, chopsuffix(basename(@__FILE__), ".jl") * ".jld2")
+jldsave(fileout; lux_results, mcmc_results, nits)

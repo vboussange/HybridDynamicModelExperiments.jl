@@ -12,7 +12,7 @@ using Random
 using NNlib
 using Interpolations: linear_interpolation, Flat
 using RollingFunctions: runmean
-DATA_PATH = joinpath(dirnameof(@__FILE__), "../../data/beninca")
+DATA_PATH = joinpath(dirname(@__FILE__), "../../data/beninca")
 
 
 # importing data

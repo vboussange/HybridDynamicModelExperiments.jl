@@ -45,3 +45,5 @@ function intinsic_growth_rate(::HybridGrowthRateModel, components, ps, p, t)
     r1 = components.growth_rate([water_availability(t)], ps.growth_rate)[1]
     return [r1; p.r]
 end
+
+nameof(::HybridGrowthRateModel) = "HybridGrowthRateModel"

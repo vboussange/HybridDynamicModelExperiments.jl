@@ -78,7 +78,6 @@ function simu(
         sensealg,
         forecast_length = 10,
         rng,
-        u0_constraint = NoConstraint(),
         kwargs...
 )
 
@@ -125,7 +124,7 @@ function simu(
     return (;
         med_par_err,
         forecast_err,
-        model = name(model),
+        model = nameof(model),
         loss = info,
         time,
         segmentsize,
@@ -135,7 +134,8 @@ function simu(
         adtype = string(typeof(optim_backend.adtype)),
         sensealg = string(typeof(sensealg)),
         optim_backend = nameof(optim_backend),
-        infer_ics = istrue(experimental_setup)
+        infer_ics = istrue(experimental_setup),
+        kwargs...
     )
 end
 
@@ -250,13 +250,14 @@ function simu(
     return (;
         med_par_err,
         forecast_err,
-        model = name(model),
+        model = nameof(model),
         time,
         segmentsize,
         noise,
         sampler = string(typeof(optim_backend.sampler)),
         optim_backend = nameof(optim_backend),
         sensealg = string(typeof(sensealg)),
-        infer_ics = istrue(experimental_setup)
+        infer_ics = istrue(experimental_setup),
+        kwargs...
     )
 end

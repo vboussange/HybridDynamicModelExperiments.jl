@@ -43,3 +43,5 @@ function feed_pred_gains(m::HybridFuncRespModel, components, u, ps)
     F = feeding(m, components, u, ps)
     return  (F .- F') * u
 end
+
+nameof(::HybridFuncRespModel) = "HybridFuncRespModel"

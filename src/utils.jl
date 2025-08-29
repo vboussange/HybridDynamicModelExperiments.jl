@@ -4,7 +4,7 @@ using JLD2
 
 function save_results(pathfile; results::DataFrame, kwargs...)
     println("saving...")
-    dir = joinpath(dirname(pathfile), "results", string(today()))
+    dir = joinpath(dirnameof(pathfile), "results", string(today()))
     !isdir(dir) && mkpath(dir)
     namefile = split(split(pathfile, "/")[end], ".")[1]
     jldsave(joinpath(dir, namefile*".jld2"); results, kwargs...)

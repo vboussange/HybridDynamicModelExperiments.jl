@@ -15,7 +15,7 @@ using JLD2
 using DataFrames
 import Distributions: Uniform
 
-mode = SerialMode()
+mode = ParallelMode()
 const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
 callback(l, m, p, s) = l
@@ -31,7 +31,7 @@ fixed_params = (alg = Tsit5(),
     sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
     rng = Random.MersenneTwister(1234),
     batchsize = 10,
-    n_epochs = 1,
+    n_epochs = 3000,
     verbose_frequency = Inf,
     loss_fn = LogMSELoss(),
     forecast_length = 10

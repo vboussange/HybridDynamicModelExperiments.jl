@@ -30,7 +30,7 @@ struct Model3SP{II,JJ} <: AbstractModel3SP
     J::JJ
 end
 
-name(::Model3SP) = "Model3SP"
+nameof(::Model3SP) = "Model3SP"
 
 function create_sparse_matrices(m::AbstractModel3SP, p)
     @unpack I, J = m
@@ -47,7 +47,7 @@ struct SimpleEcosystemModelOmniv3SP{II,JJ} <: AbstractModel3SP
     J::JJ
 end
 
-name(::SimpleEcosystemModelOmniv3SP) = "SimpleEcosystemModelOmniv3SP"
+nameof(::SimpleEcosystemModelOmniv3SP) = "SimpleEcosystemModelOmniv3SP"
 
 function SimpleEcosystemModelOmniv3SP()
     foodweb = DiGraph(3)

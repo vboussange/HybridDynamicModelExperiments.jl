@@ -9,7 +9,7 @@ struct Model5SP{II,JJ} <: AbstractEcosystemModel
     J::JJ
 end
 
-name(::Model5SP) = "Model5SP"
+nameof(::Model5SP) = "Model5SP"
 
 function Model5SP()
     ## FOODWEB

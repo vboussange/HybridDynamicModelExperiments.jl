@@ -28,6 +28,8 @@ function train(backend::LuxBackend,
         experimental_setup::InferICs,
         rng = Random.default_rng();
         luxtype = Lux.f64)
+
+    # TODO: maybe that dataloader |> luxtype could work; otherwise, use fmap
     dataloader = SegmentedTimeSeries(
         luxtype(dataloader.data), dataloader.segmentsize, dataloader.shift,
         dataloader.batchsize, dataloader.nsegments, dataloader.shuffle,

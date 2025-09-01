@@ -42,7 +42,8 @@ fixed_params = (alg = Tsit5(),
     verbose_frequency = Inf,
     forecast_length = 10,
     model = HybridFuncRespModel(),
-    rng
+    rng,
+    perturb=1e0
 )
 
 function HybridModellingExperiments.init(

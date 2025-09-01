@@ -41,7 +41,8 @@ fixed_params = (alg = Tsit5(),
     n_epochs = 3000,
     verbose_frequency = Inf,
     loss_fn = LogMSELoss(),
-    forecast_length = 10)
+    forecast_length = 10, 
+    perturb = 1e0)
 
 function generate_data(; alg, abstol, reltol, tspan, tsteps, p_true, rng, kwargs...)
     parameters = ParameterLayer(constraint = NoConstraint(),

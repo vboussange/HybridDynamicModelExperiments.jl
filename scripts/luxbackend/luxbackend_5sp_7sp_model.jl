@@ -34,7 +34,8 @@ fixed_params = (alg = Tsit5(),
     n_epochs = 3000,
     verbose_frequency = Inf,
     loss_fn = LogMSELoss(),
-    forecast_length = 10
+    forecast_length = 10,
+    perturb = 1e0
 )
 
 function generate_data(model::Model5SP; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)

@@ -18,13 +18,13 @@ function init(
         sensealg,
         maxiters,
         p_true,
-        perturb = 1.0f0,
+        perturb = 1e0,
         rng,
         kwargs...
 )
     distrib_param = NamedTuple([dp => Product([Uniform(
-                                                   sort([(1.0f0 - perturb / 2.0f0) * k,
-                                                   (1.0f0 + perturb / 2.0f0) * k])...
+                                                   sort([(1e0 - perturb / 2e0) * k,
+                                                   (1e0 + perturb / 2e0) * k])...
                                                ) for k in p_true[dp]])
                                 for dp in keys(p_true)])
 
@@ -40,23 +40,20 @@ function init(
     return (; lux_model)
 end
 
-function forecast(::LuxBackend, st_model, tsteps_forecast)
-    last_tok = length(keys(st_model.ps.initial_conditions))
-    last_ics_idx = last(keys(st_model.ps.initial_conditions))
-    last_ics_t0 = st_model.st.initial_conditions[last_ics_idx].t0
-    return st_model((;
-        u0 = last_tok,
+function forecast(::LuxBackend, model, ps, st, ics, tsteps_forecast)
+    u0 = ics[end].u0
+    t0 = ics[end].t0
+    return model((;
+        u0 = u0,
         saveat = tsteps_forecast,
-        tspan = (last_ics_t0, last_ics_t0 + tsteps_forecast[end])
-    ))[
+        tspan = (t0, tsteps_forecast[end])
+    ), ps, st)[1][
         :, :, 1
     ]
 end
 
-function get_parameter_error(::LuxBackend, st_model, p_true)
-    ps_tr, _ = st_model.model.layers.model.components.parameters(
-        st_model.ps.model.parameters, (;)
-    )
+function get_parameter_error(::LuxBackend, model, ps, st, p_true)
+    ps_tr, _ = model.components.parameters(ps.parameters, st.parameters)
     med_par_err = median([median(abs.((ps_tr[k] - p_true[k]) ./ p_true[k])) for k in keys(ps_tr)])
     return med_par_err
 end
@@ -85,7 +82,7 @@ function simu(
 
     data_w_noise = generate_noisy_data(data, noise)
     train_idx, test_idx = 1:(size(data, 2) - forecast_length - 1),
-    (size(data, 2) - forecast_length):size(data, 2)
+        (size(data, 2) - forecast_length):size(data, 2)
     dataloader = SegmentedTimeSeries(
         (data_w_noise[:, train_idx], tsteps[train_idx]);
         segmentsize,
@@ -104,6 +101,10 @@ function simu(
     forecast_err = missing
     time = missing
     info = missing
+    ps = missing
+    st = missing
+    ics = missing
+
     try
         stats = @timed train(
             optim_backend, lux_model, dataloader, experimental_setup, rng
@@ -112,9 +113,12 @@ function simu(
         res = stats.value
         info = res.info
 
-        med_par_err = get_parameter_error(optim_backend, res.best_model, p_true)
+        ps = res.ps
+        st = res.st
+        ics = res.ics
+        med_par_err = get_parameter_error(optim_backend, lux_model, ps, st, p_true)
 
-        preds = forecast(optim_backend, res.best_model, tsteps[test_idx])
+        preds = forecast(optim_backend, lux_model, ps, st, ics, tsteps[test_idx])
         forecast_err = optim_backend.loss_fn(preds, data[:, test_idx])
     catch e
         println("Error occurred during training: ", e)
@@ -123,7 +127,11 @@ function simu(
     return (;
         med_par_err,
         forecast_err,
-        model = nameof(model),
+        modelname = nameof(model),
+        lux_model,
+        ps,
+        st,
+        ics,
         loss = info,
         time,
         segmentsize,

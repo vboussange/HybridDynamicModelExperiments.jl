@@ -21,7 +21,8 @@ function LuxBackend(opt, n_epochs, adtype, loss_fn; verbose_frequency = 10,
 end
 
 
-# TODO: separate ics model from main model.
+# TODO: convert dataloader data to luxtype
+# TODO: probably has type instability
 function train(backend::LuxBackend,
         model::AbstractLuxLayer,
         dataloader::SegmentedTimeSeries,
@@ -61,10 +62,11 @@ function train(backend::LuxBackend,
 
     train_state = Training.TrainState(ode_model_with_ics, ps, st, backend.opt)
     best_ps = ps
-    best_loss = Inf
+    best_st = st
+    best_loss = Inf |> luxtype
     info = []
     for epoch in 1:(backend.n_epochs)
-        tot_loss = 0.0
+        tot_loss = 0.0 |> luxtype
         for (batched_tokens, (batched_segments, batched_tsteps)) in dataloader
             _, loss, _, train_state = Training.single_train_step!(
                 backend.adtype,
@@ -78,6 +80,7 @@ function train(backend::LuxBackend,
         end
         if tot_loss < best_loss
             best_ps = get_parameter_values(train_state)
+            best_st = get_state_values(train_state)
             best_loss = tot_loss
         end
         push!(info,
@@ -85,8 +88,9 @@ function train(backend::LuxBackend,
                 tot_loss, ode_model_with_ics, get_parameter_values(train_state),
                 get_state_values(train_state)))
     end
-    best_model = StatefulLuxLayer{true}(ode_model_with_ics, best_ps, st)
-    return (; best_model, info)
+    segment_ics, _ = ics([(;u0 = i) for i in tokens(dataloader)], best_ps.initial_conditions, best_st.initial_conditions)
+
+    return (; ps = best_ps.model, st = best_st.model, ics = segment_ics, info)
 end
 
 get_parameter_values(train_state::Training.TrainState) = train_state.parameters

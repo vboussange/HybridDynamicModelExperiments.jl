@@ -2,14 +2,15 @@
 Utilities for plotting and processing results.
 =#
 
-using PythonCall, PythonPlot
-nx = pyimport("networkx")
-np = pyimport("numpy")
+using PythonCall
 
-# plotting
-using PythonPlot;
+matplotlib = pyimport("matplotlib")
+plt = pyimport("matplotlib.pyplot")
+
+const Line2D = matplotlib.lines.Line2D
+
 function plot_time_series(data, model)
-    fig, ax = subplots()
+    fig, ax = plt.subplots()
     N = size(data, 1)
 
     metadata = get_metadata(model)
@@ -86,7 +87,6 @@ function boxplot_byclass(gdf_results, ax; xname, yname, xlab, ylab, yscale="log"
             color=color_palette[i],
             # linestyle="", 
             label=labels[i]) for i in 1:length(classes)])
-        display(fig)
     end
 end
 

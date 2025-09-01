@@ -20,7 +20,7 @@ import NNlib
 mode = ParallelMode()
 const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
-const HlSize = 16
+const HlSize = 5
 const adtype = AutoZygote()
 const loss_fn = LogMSELoss()
 const verbose_frequency = Inf
@@ -39,11 +39,11 @@ fixed_params = (alg = Tsit5(),
     maxiters = 50_000,
     sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
     batchsize = 10,
-    verbose_frequency = Inf,
     forecast_length = 10,
     model = HybridFuncRespModel(),
     rng,
-    perturb=1e0
+    perturb=1e0,
+    luxtype = Lux.f32
 )
 
 function HybridModellingExperiments.init(

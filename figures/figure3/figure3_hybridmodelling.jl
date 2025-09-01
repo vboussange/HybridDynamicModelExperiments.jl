@@ -20,24 +20,34 @@ include("../format.jl")
 result_name_3sp = "../../scripts/luxbackend/results/2025-08-30/luxbackend_3sp_model.jld2"
 # result_name_5sp = "../../scripts/inference_5sp_model/distributed/results/2023-11-23/5sp_model_sims_only_backdiff.jld2"
 # result_name_7sp = "../../scripts/inference_7sp_model/distributed/results/2023-11-23/7sp_model_sims_only_backdiff.jld2"
+result_name_scaling = "../../scripts/scaling/results/2025-09-01/scaling.jld2"
 
 df_3sp = load(result_name_3sp, "results")
 df_3sp[!, :med_par_err] = abs.(df_3sp[:, :med_par_err])
+# TODO: load other files
+
+df_err = vcat([df_3sp])
+gdf_err = groupby(df_err, :model)
+
+df_scaling_lux, nits = load(result_name_scaling, "lux_results", "nits")
+# df_scaling_mcmc = load(result_name_scaling, "mcmc_results")
+df_scaling_lux[!, :time] ./= nits # per iteration
+gdf_scaling_lux = groupby(df_scaling_lux, :model)
 
 noise = 0.1
 lr = 0.01
 df_3sp_filtered = filter(row -> row.noise == noise && row.lr == lr, df_3sp)
-df_result_arr = [df_3sp_filtered] #TODO: add 5sp and 7sp
 
 
 
 spread = 0.7 #spread of box plots
 
 fig, axs = plt.subplots(3, 3, figsize = (6,6), sharex = "col", sharey = "row")
-for (i,df_results) in enumerate(df_result_arr)
+for (i, model) in ["Model3SP",]
     # averaging by nruns
     i = i-1
-    gdf_results = groupby(df_results, [:segmentsize, :infer_ics])
+    df_err = gdf_err[(;model)]
+    gdf_results = groupby(df_err, [:segmentsize, :infer_ics])
     i == -1 ? legend = true : legend = false
     ax = axs[0, i]
 
@@ -78,19 +88,20 @@ for (i,df_results) in enumerate(df_result_arr)
     display(fig)
 #     ax.set_yscale("log")
 
-
-#     ax = axs[2, i]
-#     gdf = groupby(df_results, :segmentsize)
-#     y = [df.time for df in gdf]
-#     x = sort!(unique(df_results.group_size)) .|> Int64
-#     boxplot(ax; y, positions = 1:length(x), color = "tab:gray")
-#     i == 0 ? ylab = "Simulation time (s)" : ylab = ""
-#     ax.set_ylabel(ylab)
-#     # ax.set_yscale("log")
-#     # ax.set_ylim(-0.05,1.1)
-#     ax.set_xlabel("Segment size")
-#     ax.set_xticks(1:length(x))
-#     ax.set_xticklabels(x, rotation=45)
+#     scaling
+    df_scaling_lux = gdf_scaling_lux[(;model)]
+    ax = axs[2, i]
+    gdf = groupby(df_scaling_lux, :segmentsize)
+    y = [df.time for df in gdf]
+    x = sort!(unique(df_results.group_size)) .|> Int64
+    boxplot(ax; y, positions = 1:length(x), color = "tab:gray")
+    i == 0 ? ylab = "Simulation time (s)" : ylab = ""
+    ax.set_ylabel(ylab)
+    # ax.set_yscale("log")
+    # ax.set_ylim(-0.05,1.1)
+    ax.set_xlabel("Segment size")
+    ax.set_xticks(1:length(x))
+    ax.set_xticklabels(x, rotation=45)
     fig.set_facecolor("none")
     ax.set_facecolor("none")
     fig.tight_layout()

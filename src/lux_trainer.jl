@@ -20,7 +20,6 @@ function LuxBackend(opt, n_epochs, adtype, loss_fn; verbose_frequency = 10,
     return LuxBackend(opt, n_epochs, adtype, loss_fn, verbose_frequency, callback)
 end
 
-
 # TODO: convert dataloader data to luxtype
 # TODO: probably has type instability
 function train(backend::LuxBackend,
@@ -29,6 +28,11 @@ function train(backend::LuxBackend,
         experimental_setup::InferICs,
         rng = Random.default_rng();
         luxtype = Lux.f64)
+    dataloader = SegmentedTimeSeries(
+        luxtype(dataloader.data), dataloader.segmentsize, dataloader.shift,
+        dataloader.batchsize, dataloader.nsegments, dataloader.shuffle,
+        dataloader.partial_segment, dataloader.partial_batch,
+        dataloader.indices, dataloader.imax, dataloader.rng)
     dataloader = tokenize(dataloader)
 
     ic_list = ParameterLayer[]
@@ -88,7 +92,8 @@ function train(backend::LuxBackend,
                 tot_loss, ode_model_with_ics, get_parameter_values(train_state),
                 get_state_values(train_state)))
     end
-    segment_ics, _ = ics([(;u0 = i) for i in tokens(dataloader)], best_ps.initial_conditions, best_st.initial_conditions)
+    segment_ics, _ = ics([(; u0 = i) for i in tokens(dataloader)],
+        best_ps.initial_conditions, best_st.initial_conditions)
 
     return (; ps = best_ps.model, st = best_st.model, ics = segment_ics, info)
 end

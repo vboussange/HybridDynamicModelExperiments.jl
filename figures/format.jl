@@ -17,3 +17,4 @@ rcParams["legend.fontsize"] = 8
 rcParams["figure.titlesize"] = 10
 rcParams["lines.markersize"] = 3
 
+color_palette = ["tab:blue", "tab:red", "tab:green"]

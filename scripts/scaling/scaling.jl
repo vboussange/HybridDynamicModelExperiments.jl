@@ -135,6 +135,6 @@ mcmc_results = run_simulations(mode, mcmc_simulation_parameters; fixed_params...
 
 savedir = string(@__DIR__) * "/results/$(Dates.today())"
 isdir(savedir) || mkpath(savedir)
-jld2fileout = joinpath(savedir, chopsuffix(basenameof(@__FILE__), ".jl") * ".jld2")
+jld2fileout = joinpath(savedir, chopsuffix(basename(@__FILE__), ".jl") * ".jld2")
 println("Saving results to $jld2fileout...")
 jldsave(jld2fileout; lux_results, mcmc_results, nits)

@@ -57,8 +57,7 @@ function get_parameter_error(::LuxBackend, st_model, p_true)
     ps_tr, _ = st_model.model.layers.model.components.parameters(
         st_model.ps.model.parameters, (;)
     )
-    med_par_err = median([median(abs.(ps_tr[k] - p_true[k]) ./ p_true[k])
-                          for k in keys(ps_tr)])
+    med_par_err = median([median(abs.((ps_tr[k] - p_true[k]) ./ p_true[k])) for k in keys(ps_tr)])
     return med_par_err
 end
 

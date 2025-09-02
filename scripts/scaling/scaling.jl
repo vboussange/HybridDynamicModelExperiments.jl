@@ -123,13 +123,13 @@ println("Created $(length(simulation_parameters)) simulations...")
 lux_simulation_parameters = filter(x -> isa(x.optim_backend, LuxBackend), simulation_parameters)
 mcmc_simulation_parameters = filter(x -> isa(x.optim_backend, MCMCBackend), simulation_parameters)
 
-println("Warming up LuxBackend...") # precompilation
-run_simulations(mode, lux_simulation_parameters; fixed_params...)
+# println("Warming up LuxBackend...") # precompilation
+# run_simulations(mode, lux_simulation_parameters; fixed_params...)
 println("Launching simulations for LuxBackend...")
 lux_results = run_simulations(mode, lux_simulation_parameters; fixed_params...)
 
-println("Warming up MCMCBackend...") # precompilation
-run_simulations(mode, mcmc_simulation_parameters; fixed_params...)
+# println("Warming up MCMCBackend...") # precompilation
+# run_simulations(mode, mcmc_simulation_parameters; fixed_params...)
 println("Launching simulations for MCMCBackend...")
 mcmc_results = run_simulations(mode, mcmc_simulation_parameters; fixed_params...)
 

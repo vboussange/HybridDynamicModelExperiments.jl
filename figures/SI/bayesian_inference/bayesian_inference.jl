@@ -6,30 +6,27 @@ cd(@__DIR__)
 using Graphs
 using LinearAlgebra
 using UnPack
-using OrdinaryDiffEq
 using Statistics
-using SparseArrays
-using ComponentArrays
-using SciMLSensitivity
 
 using JLD2
 using Distributions
-using Bijectors
 using DataFrames
 using Dates
 import HybridModellingExperiments: boxplot
 
 include("../../format.jl")
 
-result_name_3sp = "../../../scripts/benchmark/results/2025-08-26/benchmark_test_mcmc.jld2"
+result_name_3sp = "../../../scripts/mcmcbackend/results/2025-08-29/mcmcbackend_3sp_model.jld2"
+result_name_scaling = "../../../scripts/scaling/results/2025-09-01/scaling.jld2"
 df_result = load(result_name_3sp, "results")
-
+df_result_scaling, nits = load(result_name_scaling, "mcmc_results", "nits")
+dropmissing!(df_result_scaling, :time)
+df_result_scaling[!, :time] ./= nits # per iteration
 spread = 0.7 #spread of box plots
 legend = true
 
 # println(df_results)
 fig, axs = plt.subplots(1, 3, figsize = (6,3))
-
 
 gdf_results = groupby(df_result, [:segmentsize], sort=true)
 ax = axs[0]
@@ -57,16 +54,26 @@ boxplot(ax;
 ax.set_facecolor("none")
 ax.set_ylabel(ylab)
 ax.set_yscale("log")
+ax.set_xticklabels(x)
 ax.set_xlabel("Segment size")
 display(fig)
 
 ax = axs[2]
-ylab = "Simulation time (s)"
-y = [df[:, "segmentsize"] for df in gdf_results]
-boxplot(ax; 
-        y,
-        positions, 
-        color = "tab:grey")
+ylab = "Simulation time\nper epoch (s)"
+gdf_results = groupby(df_result_scaling, [:segmentsize, :infer_ics])
+
+boxplot_byclass(gdf_results, ax; 
+        xname = :segmentsize,
+        yname = :time, 
+        xlab = "", 
+        ylab, 
+        yscale = "linear", 
+        classes = [true, false], 
+        classname = :infer_ics, 
+        spread, 
+        color_palette,
+        legend=false)
+
 ax.set_facecolor("none")
 ax.set_ylabel(ylab)
 ax.set_yscale("log")

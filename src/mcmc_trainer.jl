@@ -112,6 +112,7 @@ end
 
 
 # TODO: separate ics model from main model.
+# TODO: similar to lux_trainer, make function barriers to init xs, ys, ic_list
 function train(backend::MCMCBackend,
         model::AbstractLuxLayer,
         dataloader::SegmentedTimeSeries,

@@ -181,7 +181,7 @@ function forecast(::MCMCBackend, st_model, chain, tsteps_forecast, nsamples = 10
             (;
                 u0 = last_tok,
                 saveat = tsteps_forecast,
-                tspan = (last_ics_t0, last_ics_t0 + tsteps_forecast[end])
+                tspan = (last_ics_t0, tsteps_forecast[end])
             ),
             ps
         )

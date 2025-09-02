@@ -86,10 +86,11 @@ for (i, modelname) in enumerate(["Model3SP", "Model5SP", "Model7SP"])
             spread, 
             color_palette,
             legend=false)
-    ax.set_ylim(-1,2.)
+#     ax.set_ylim(-0.2,2.)
     ax.set_facecolor("none")
     display(fig)
-    # ax.set_yscale("log")
+    ax.set_ylim(1e-3,1e2)
+    ax.set_yscale("log")
 
 #     scaling
     ax = axs[2, i]

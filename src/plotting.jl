@@ -1,61 +1,9 @@
 #=
 Utilities for plotting and processing results.
 =#
-
 using PythonCall
-
-matplotlib = pyimport("matplotlib")
-plt = pyimport("matplotlib.pyplot")
-
+const matplotlib = pyimport("matplotlib")
 const Line2D = matplotlib.lines.Line2D
-
-function plot_time_series(data, model)
-    fig, ax = plt.subplots()
-    N = size(data, 1)
-
-    metadata = get_metadata(model)
-
-    for i in 1:N
-        ax.plot(data[i, :], label=metadata.node_labels[i], color=metadata.species_colors[i])
-    end
-    # ax.set_yscale("log")
-    ax.set_ylabel("Species abundance")
-    ax.set_xlabel("Time (days)")
-    fig.set_facecolor("None")
-    ax.set_facecolor("None")
-    fig.legend()
-    display(fig)
-    return fig, ax
-end
-
-function tap_results(result_name)
-    df_results, data, model_true = load(result_name, "results", "data", "model_true")
-
-    TrueParameters = model_true.mp.p
-
-    # Discarding unsuccessful inference results
-    filter!(row -> !isinf(row.loss), df_results)
-
-    # Calculating parameter error
-    df_results[!, "p_trained_fix"] = [ComponentVector(H=res.p_trained["H"], q=res.p_trained["q"], r=res.p_trained["r"], A=res.p_trained["A"]) for res in df_results[:, "res"]]
-    TrueParameters = ComponentVector(H=TrueParameters["H"], q= TrueParameters["q"], r=TrueParameters["r"], A=TrueParameters["A"])
-
-    df_results[!, :par_err_median] = [median(abs.((r.p_trained_fix .- TrueParameters) ./ r.p_trained_fix)) for r in eachrow(df_results)]
-
-    # Calculating forecasting error
-    df_results[!, :val] = zeros(size(df_results, 1))
-    for r in eachrow(df_results)
-        try
-            r.val = validate(r.res, data, model_true; length_horizon=11)
-        catch e
-            println(e)
-            r.val = Inf
-            println(r)
-        end
-    end
-    return df_results
-end
-
 
 
 function boxplot_byclass(gdf_results, ax; xname, yname, xlab, ylab, yscale="log", classes, classname, spread, color_palette, legend)

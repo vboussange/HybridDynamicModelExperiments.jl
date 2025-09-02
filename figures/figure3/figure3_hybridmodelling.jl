@@ -7,7 +7,6 @@ graphical illustration of foodwebs on top of the figure produced by this script.
 cd(@__DIR__)
 using UnPack
 using Statistics
-using SparseArrays
 using JLD2
 using Distributions
 using DataFrames

@@ -2,9 +2,11 @@
 Settings for pyplot
 =#
 using PythonCall
-matplotlib = pyimport("matplotlib")
-plt = pyimport("matplotlib.pyplot")
-Line2D = matplotlib.lines.Line2D #used for legend
+# using PyCall
+
+const matplotlib = pyimport("matplotlib")
+const plt = pyimport("matplotlib.pyplot")
+const Line2D = matplotlib.lines.Line2D
 
 rcParams = plt."rcParams"
 

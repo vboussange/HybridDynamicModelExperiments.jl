@@ -14,15 +14,15 @@ using Dates
 using HybridModelling
 using HybridModellingExperiments: boxplot_byclass
 
-include("../../format.jl")
+include("../../format.jl");
 
 result_name_3sp = "../../../scripts/luxbackend/results/luxbackend_3sp_model_4f148a8.jld2"
 
 df_3sp = load(result_name_3sp, "results")
 df_3sp[!, :med_par_err] = abs.(df_3sp[:, :med_par_err])
 
-noise = 0.1
-infer_ics = true
+noise = 0.2
+infer_ics = false
 df_3sp_filtered = filter(row -> row.noise == noise && row.infer_ics == infer_ics, df_3sp)
 
 classname = :lr

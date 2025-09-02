@@ -109,7 +109,7 @@ function simu(
         stats = @timed train(
             optim_backend, lux_model, dataloader, experimental_setup, rng
         )
-        time = stats.time
+        time = stats.time - stats.compile_time
         res = stats.value
         info = res.info
 

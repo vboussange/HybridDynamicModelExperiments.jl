@@ -16,14 +16,12 @@ using HybridModellingExperiments: boxplot_byclass, boxplot
 
 include("../format.jl")
 
-result_name_3sp = "../../scripts/luxbackend/results/2025-08-30/luxbackend_3sp_model.jld2"
+result_name_3sp = "../../scripts/luxbackend/results/luxbackend_3sp_model_4f148a8.jld2"
 result_name_5sp_7sp = "../../scripts/luxbackend/results/luxbackend_5sp_7sp_model_1c400bd.jld2"
-result_name_scaling = "../../scripts/scaling/results/2025-09-01/scaling.jld2"
+result_name_scaling = "../../scripts/scaling/results/scaling_e19b20d.jld2"
 
 df_3sp = load(result_name_3sp, "results")
 df_3sp[!, :med_par_err] = abs.(df_3sp[:, :med_par_err])
-# TODO: remove, legacy
-rename!(df_3sp, :model => :modelname)
 df_3sp = df_3sp[df_3sp[:, :lr] .== 0.01, :] # lr should be same for both arrays
 
 df_5sp_7sp = load(result_name_5sp_7sp, "results")
@@ -33,8 +31,6 @@ df_err = vcat(select(df_3sp, common_cols), select(df_5sp_7sp, common_cols))
 gdf_err = groupby(df_err, :modelname)
 
 df_scaling_lux, nits = load(result_name_scaling, "lux_results", "nits")
-# TODO: remove, legacy
-rename!(df_scaling_lux, :model => :modelname)
 # df_scaling_mcmc = load(result_name_scaling, "mcmc_results")
 df_scaling_lux[!, :time] ./= nits # per iteration
 gdf_scaling_lux = groupby(df_scaling_lux, :modelname)

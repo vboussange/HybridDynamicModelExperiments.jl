@@ -16,8 +16,6 @@ include("models/hybrid_growth_rate_model.jl")
 
 include("loss_fn.jl")
 
-include("plotting.jl")
-
 include("run_simulations.jl")
 include("simul.jl")
 

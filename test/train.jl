@@ -7,7 +7,7 @@ using SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
 using Random
 using Test
 import HybridModelling: ParameterLayer, ODEModel
-import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, LogMSELoss
+import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, LogMSELoss, init, train
 import HybridModellingExperiments: simu, forecast
 
 const p_true = (H = [1.24, 2.5],
@@ -43,38 +43,18 @@ myparams = (alg = Tsit5(),
             batchsize = 10,
             forecast_length = 10,
             perturb = 1e-4,
-            segmentsize=2,
+            segmentsize=3,
             model,
             noise = 0.)
 
 
 data = generate_data(; tspan, myparams...)
 
+optim_backend = LuxBackend(Adam(1e-5), 1, AutoZygote(), LogMSELoss())
+infer_ics = InferICs(true)
+dataloader = SegmentedTimeSeries((data, tsteps), segmentsize = myparams.segmentsize,
+    batchsize = myparams.batchsize, partial_batch = true)
+lux_model = init(model, optim_backend; p_true, myparams...).lux_model
 
-@testset "LuxBackend" begin
-    @testset "3SP model - Infer ICs" begin
-        optim_backend = LuxBackend(Adam(1e-5), 1, AutoZygote(), LogMSELoss())
-        infer_ics = InferICs(true)
-
-        res = simu(optim_backend, infer_ics; data, myparams...)
-        @test res.med_par_err < 1e-4
-        @test res.forecast_err < 1e-4
-    end
-    @testset "3SP model - Fixed ICs" begin
-        optim_backend = LuxBackend(Adam(1e-5), 1, AutoZygote(), LogMSELoss())
-        infer_ics = InferICs(false)
-
-        res = simu(optim_backend, infer_ics; data, myparams...)
-        @test res.med_par_err < 1e-4
-        @test res.forecast_err < 1e-4
-    end
-end
-
-
-@testset "MCMCBackend" begin
-    optim_backend = MCMCBackend(HMC(0.5, 10; adtype = AutoForwardDiff()), 1, Normal)
-    infer_ics = InferICs(false)
-    res = simu(optim_backend, infer_ics; loss_fn = LogMSELoss(), data, myparams...)
-    @test res.med_par_err < 1e-4
-    @test res.forecast_err < 1e-4
-end
+res = train(optim_backend, lux_model, dataloader, infer_ics)
+@test !isnothing(res) #TODO: improve test

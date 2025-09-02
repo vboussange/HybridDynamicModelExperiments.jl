@@ -241,7 +241,7 @@ function simu(
     time = missing
     try
         stats = @timed train(optim_backend, lux_model, dataloader, experimental_setup, rng)
-        time = stats.time
+        time = stats.time - stats.compile_time
         res = stats.value
 
         med_par_err = get_parameter_error(optim_backend, res.st_model, res.chains, p_true)

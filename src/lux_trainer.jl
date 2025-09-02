@@ -20,59 +20,64 @@ function LuxBackend(opt, n_epochs, adtype, loss_fn; verbose_frequency = 10,
     return LuxBackend(opt, n_epochs, adtype, loss_fn, verbose_frequency, callback)
 end
 
-# TODO: convert dataloader data to luxtype
-# TODO: probably has type instability
+function _feature_wrapper((token, tsteps_batch))
+    return [(; u0 = token[i],
+                saveat = tsteps_batch[:, i],
+                tspan = (tsteps_batch[1, i], tsteps_batch[end, i])
+            )
+            for i in eachindex(token)]
+end
+
+function _get_ics(dataloader, ::InferICs{false})
+    function _fun(tok)
+        segment_data, segment_tsteps = dataloader[tok]
+        u0 = segment_data[:, 1]
+        t0 = segment_tsteps[1]
+        ParameterLayer(init_value = (;), init_state_value = (; t0, u0))
+    end
+    ics_list = [ _fun(tok) for tok in tokens(dataloader)]
+    return InitialConditions(ics_list)
+end
+
+function _get_ics(dataloader, infer_ics::InferICs{true})
+    function _fun(tok)
+        segment_data, segment_tsteps = dataloader[tok]
+        u0 = segment_data[:, 1]
+        t0 = segment_tsteps[1]
+        ParameterLayer(constraint = infer_ics.u0_constraint,
+                    init_value = (; u0), init_state_value = (; t0))
+    end
+    ics_list = [ _fun(tok) for tok in tokens(dataloader)]
+    return InitialConditions(ics_list)
+end
+
+# TODO: this function is type unstable
 function train(backend::LuxBackend,
         model::AbstractLuxLayer,
         dataloader::SegmentedTimeSeries,
         experimental_setup::InferICs,
-        rng = Random.default_rng();
+        rng = Random.default_rng(),
         luxtype = Lux.f64)
 
-    # TODO: maybe that dataloader |> luxtype could work; otherwise, use fmap
-    dataloader = SegmentedTimeSeries(
-        luxtype(dataloader.data), dataloader.segmentsize, dataloader.shift,
-        dataloader.batchsize, dataloader.nsegments, dataloader.shuffle,
-        dataloader.partial_segment, dataloader.partial_batch,
-        dataloader.indices, dataloader.imax, dataloader.rng)
+    dataloader = luxtype(dataloader)
     dataloader = tokenize(dataloader)
 
-    ic_list = ParameterLayer[]
-    for tok in tokens(dataloader)
-        segment_data, segment_tsteps = dataloader[tok]
-        u0 = segment_data[:, 1]
-        t0 = segment_tsteps[1]
-        if istrue(experimental_setup)
-            push!(ic_list,
-                ParameterLayer(constraint = experimental_setup.u0_constraint,
-                    init_value = (; u0), init_state_value = (; t0)))
-        else
-            push!(ic_list, ParameterLayer(init_value = (;), init_state_value = (; t0, u0)))
-        end
-    end
-    ics = InitialConditions(ic_list)
+    ics = _get_ics(dataloader, experimental_setup)
 
-    function feature_wrapper((token, tsteps_batch))
-        return [(; u0 = token[i],
-                    saveat = tsteps_batch[:, i],
-                    tspan = (tsteps_batch[1, i], tsteps_batch[end, i])
-                )
-                for i in eachindex(token)]
-    end
-
-    ode_model_with_ics = Chain(wrapper = Lux.WrappedFunction(feature_wrapper),
+    ode_model_with_ics = Chain(wrapper = Lux.WrappedFunction(_feature_wrapper),
         initial_conditions = ics, model = model)
 
     ps, st = Lux.setup(rng, ode_model_with_ics)
-    ps = ps |> luxtype |> ComponentArray # We transforms ps to support all sensealg from SciMLSensitivity
+    ps = ComponentArray(luxtype(ps)) # We transforms ps to support all sensealg from SciMLSensitivity
 
     train_state = Training.TrainState(ode_model_with_ics, ps, st, backend.opt)
     best_ps = ps
     best_st = st
-    best_loss = Inf |> luxtype
-    info = []
+    best_loss = luxtype(Inf)
+
+    info = Vector{Any}(undef, backend.n_epochs)
     for epoch in 1:(backend.n_epochs)
-        tot_loss = 0.0 |> luxtype
+        tot_loss = luxtype(0.0) 
         for (batched_tokens, (batched_segments, batched_tsteps)) in dataloader
             _, loss, _, train_state = Training.single_train_step!(
                 backend.adtype,
@@ -89,10 +94,9 @@ function train(backend::LuxBackend,
             best_st = get_state_values(train_state)
             best_loss = tot_loss
         end
-        push!(info,
-            backend.callback(
-                tot_loss, ode_model_with_ics, get_parameter_values(train_state),
-                get_state_values(train_state)))
+        info[epoch] = backend.callback(
+            tot_loss, ode_model_with_ics, get_parameter_values(train_state),
+            get_state_values(train_state))
     end
     segment_ics, _ = ics([(; u0 = i) for i in tokens(dataloader)],
         best_ps.initial_conditions, best_st.initial_conditions)

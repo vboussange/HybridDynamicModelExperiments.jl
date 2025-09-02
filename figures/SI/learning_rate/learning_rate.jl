@@ -17,7 +17,7 @@ using HybridModellingExperiments: boxplot_byclass
 
 include("../../format.jl")
 
-result_name_3sp = "../../../scripts/luxbackend/results/2025-08-30/luxbackend_3sp_model.jld2"
+result_name_3sp = "../../../scripts/luxbackend/results/luxbackend_3sp_model_4f148a8.jld2"
 
 df_3sp = load(result_name_3sp, "results")
 df_3sp[!, :med_par_err] = abs.(df_3sp[:, :med_par_err])

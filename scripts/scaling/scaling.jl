@@ -1,40 +1,133 @@
-using Lux
-using HybridModellingExperiments
-using HybridModelling
-import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs,
-                                   run_simulations, LogMSELoss, save_results
-import HybridModellingExperiments: SerialMode, ParallelMode
-import OrdinaryDiffEqTsit5: Tsit5
-import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
-import ADTypes: AutoZygote, AutoForwardDiff
-import Optimisers: Adam
-import Turing: HMC
+import Distributed: @everywhere
+import HybridModellingExperiments: setup_distributed_environment
+setup_distributed_environment(4)
 
-using Dates
-using Random
-using JLD2
-using DataFrames
-using Distributions
-using Dates
+@everywhere begin 
+    using Lux
+    using HybridModellingExperiments
+    using HybridModelling
+    import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs,
+                                    run_simulations, LogMSELoss, save_results
+    import HybridModellingExperiments: SerialMode, ParallelMode, DistributedMode
+    import OrdinaryDiffEqTsit5: Tsit5
+    import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
+    import ADTypes: AutoZygote, AutoForwardDiff
+    import Optimisers: Adam
+    import Turing: HMC
 
-import BenchmarkTools: @benchmark
+    using Dates
+    using Random
+    using JLD2
+    using DataFrames
+    using Distributions
+    using Dates
+    using BenchmarkTools
 
-mode = ParallelMode()
-const tsteps = range(500e0, step = 4, length = 111)
-const tspan = (0e0, tsteps[end])
-const nits = 5 # number of epochs or iterations depending on the context
-loss_fn = LogMSELoss()
+    function HybridModellingExperiments.simu(
+            optim_backend::LuxBackend,
+            experimental_setup::InferICs;
+            model,
+            p_true,
+            segmentsize,
+            batchsize,
+            shift = nothing,
+            noise,
+            data,
+            tsteps,
+            sensealg,
+            forecast_length = 10,
+            rng,
+            kwargs...
+    )
 
-fixed_params = (alg = Tsit5(),
-    abstol = 1e-4,
-    reltol = 1e-4,
-    tsteps,
-    maxiters = 50_000,
-    sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
-    rng = Random.MersenneTwister(1234),
-    batchsize = 10,
-    forecast_length = 10, # not used but we keep it for consistency
-    noise = 0.2)
+        data_w_noise = HybridModellingExperiments.generate_noisy_data(data, noise)
+        train_idx, test_idx = HybridModellingExperiments.split_data(data, forecast_length)
+        dataloader = SegmentedTimeSeries(
+            (data_w_noise[:, train_idx], tsteps[train_idx]);
+            segmentsize,
+            batchsize,
+            shift,
+            partial_batch = true
+        )
+
+        # Lux model initialization with biased parameters
+        lux_model = HybridModellingExperiments.init(model, optim_backend; p_true, sensealg, rng, kwargs...)
+        println(
+            "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridModellingExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+        )
+
+        time = missing
+
+        try
+            stats = eval(:(@benchmark train(
+                $optim_backend, $lux_model, $dataloader, $experimental_setup, $rng
+            )))
+            time = stats.times
+        catch e
+            println("Error occurred during training: ", e)
+        end
+
+        return (;
+            modelname = HybridModellingExperiments.nameof(model),
+            time,
+            segmentsize,
+            sensealg = string(typeof(sensealg)),
+            optim_backend = HybridModellingExperiments.nameof(optim_backend),
+            infer_ics = HybridModellingExperiments.istrue(experimental_setup),
+        )
+    end
+
+
+    function HybridModellingExperiments.simu(
+            optim_backend::MCMCBackend,
+            experimental_setup;
+            model,
+            p_true,
+            segmentsize,
+            shift = nothing,
+            noise,
+            data,
+            tsteps,
+            sensealg,
+            forecast_length = 10,
+            rng,
+            kwargs...
+    )
+
+        data_w_noise = HybridModellingExperiments.generate_noisy_data(data, noise)
+        train_idx, test_idx = HybridModellingExperiments.split_data(data, forecast_length)
+        dataloader = SegmentedTimeSeries(
+            (data_w_noise[:, train_idx], tsteps[train_idx]);
+            segmentsize,
+            shift,
+            partial_batch = true
+        )
+
+        # Lux model initialization with biased parameters
+        lux_model = HybridModellingExperiments.init(model, optim_backend; p_true, sensealg, kwargs...)
+        println(
+            "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridModellingExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+        )
+
+        time = missing
+        try
+            stats = eval(:(@benchmark train($optim_backend, $lux_model, $dataloader, $experimental_setup, $rng)))
+            time = stats.times
+
+        catch e
+            println("Error occurred during training: $e")
+        end
+
+        return (;
+            modelname = HybridModellingExperiments.nameof(model),
+            time,
+            segmentsize,
+            sensealg = string(typeof(sensealg)),
+            optim_backend = HybridModellingExperiments.nameof(optim_backend),
+            infer_ics = HybridModellingExperiments.istrue(experimental_setup),
+        )
+    end
+end
 
 function generate_data(model::Model3SP; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
     p_true = (; H = [1.24, 2.5],
@@ -115,111 +208,24 @@ function create_simulation_parameters()
     return shuffle!(fixed_params.rng, pars_arr)
 end
 
-function HybridModellingExperiments.simu(
-        optim_backend::LuxBackend,
-        experimental_setup::InferICs;
-        model,
-        p_true,
-        segmentsize,
-        batchsize,
-        shift = nothing,
-        noise,
-        data,
-        tsteps,
-        sensealg,
-        forecast_length = 10,
-        rng,
-        kwargs...
-)
+mode = DistributedMode()
 
-    data_w_noise = HybridModellingExperiments.generate_noisy_data(data, noise)
-    train_idx, test_idx = HybridModellingExperiments.split_data(data, forecast_length)
-    dataloader = SegmentedTimeSeries(
-        (data_w_noise[:, train_idx], tsteps[train_idx]);
-        segmentsize,
-        batchsize,
-        shift,
-        partial_batch = true
-    )
+const tsteps = range(500e0, step = 4, length = 111)
+const tspan = (0e0, tsteps[end])
+const nits = 5 # number of epochs or iterations depending on the context
+loss_fn = LogMSELoss()
 
-    # Lux model initialization with biased parameters
-    lux_model = HybridModellingExperiments.init(model, optim_backend; p_true, sensealg, rng, kwargs...).lux_model
-    println(
-        "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridModellingExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
-    )
+fixed_params = (alg = Tsit5(),
+    abstol = 1e-4,
+    reltol = 1e-4,
+    tsteps,
+    maxiters = 50_000,
+    sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+    rng = Random.MersenneTwister(1234),
+    batchsize = 10,
+    forecast_length = 10, # not used but we keep it for consistency
+    noise = 0.2)
 
-    time = missing
-
-    # try
-        stats = @benchmark train(
-            $optim_backend, $lux_model, $dataloader, $experimental_setup, $rng
-        )
-        time = stats.times
-    # catch e
-    #     println("Error occurred during training: ", e)
-    # end
-
-    return (;
-        modelname = HybridModellingExperiments.nameof(model),
-        time,
-        segmentsize,
-        sensealg = string(typeof(sensealg)),
-        optim_backend = HybridModellingExperiments.nameof(optim_backend),
-        infer_ics = HybridModellingExperiments.istrue(experimental_setup),
-    )
-end
-
-
-function HybridModellingExperiments.simu(
-        optim_backend::MCMCBackend,
-        experimental_setup;
-        model,
-        p_true,
-        segmentsize,
-        shift = nothing,
-        noise,
-        data,
-        tsteps,
-        sensealg,
-        loss_fn = nothing,
-        forecast_length = 10,
-        rng,
-        kwargs...
-)
-
-    data_w_noise = HybridModellingExperiments.generate_noisy_data(data, noise)
-    train_idx, test_idx = HybridModellingExperiments.split_data(data, forecast_length)
-    dataloader = SegmentedTimeSeries(
-        (data_w_noise[:, train_idx], tsteps[train_idx]);
-        segmentsize,
-        shift,
-        partial_batch = true
-    )
-
-    # Lux model initialization with biased parameters
-    lux_model = HybridModellingExperiments.init(model, optim_backend; p_true, sensealg, kwargs...)
-    println(
-        "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridModellingExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
-    )
-
-    time = missing
-    try
-        stats = @benchmark train($optim_backend, $lux_model, $dataloader, $experimental_setup, $rng)
-        time = stats.times
-
-    catch e
-        println("Error occurred during training: $e")
-    end
-
-    return (;
-        modelname = HybridModellingExperiments.nameof(model),
-        time,
-        segmentsize,
-        sensealg = string(typeof(sensealg)),
-        optim_backend = HybridModellingExperiments.nameof(optim_backend),
-        infer_ics = HybridModellingExperiments.istrue(experimental_setup),
-    )
-end
 
 simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
@@ -228,4 +234,3 @@ println("Launching simulations...")
 results = run_simulations(mode, simulation_parameters; fixed_params...)
 
 save_results(string(@__FILE__); results)
-

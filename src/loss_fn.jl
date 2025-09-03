@@ -3,8 +3,8 @@
 # See https://github.com/LuxDL/Lux.jl/blob/13045f78bb98c57081494a1fb8ed8e6dbf151bb8/src/helpers/losses.jl#L763
 # this function checks for size and throws an error if size differing; we do not want this behaviour.
 # We lose the efficiency of `Lux.GenericLossFunction`, but benefits should be minor over computational time of the ODEModels
-
-@concrete struct LogMSELoss
+import Lux: AbstractLossFunction
+@concrete struct LogMSELoss <: AbstractLossFunction
     epsilon
 end
 

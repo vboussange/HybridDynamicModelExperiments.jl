@@ -83,7 +83,7 @@ function HybridModellingExperiments.init(
     lux_model = ODEModel(
         (; parameters, functional_response), model; alg, abstol, reltol, sensealg, maxiters)
 
-    return (; lux_model)
+    return lux_model
 end
 
 function generate_data(

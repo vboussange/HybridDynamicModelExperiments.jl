@@ -26,7 +26,7 @@ spread = 0.7 #spread of box plots
 legend = true
 
 # println(df_results)
-fig, axs = plt.subplots(1, 3, figsize = (6,3))
+fig, axs = plt.subplots(1, 3, figsize = (8,3))
 
 gdf_results = groupby(df_result, [:segmentsize], sort=true)
 ax = axs[0]
@@ -78,6 +78,17 @@ ax.set_facecolor("none")
 ax.set_ylabel(ylab)
 ax.set_yscale("log")
 display(fig)
+
+labels = ["ICs inferred", "ICs not inferred"]
+fig.legend(loc="upper center",
+        handles=[Line2D([0], 
+                        [0], 
+                        color=color_palette[i],
+                        # linestyle="", 
+                        label=labels[i]) for i in 1:2],
+        bbox_to_anchor=(0.55, 1.1),
+        ncol=3,
+        fancybox=true,)
 
 fig.set_facecolor("none")
 fig.tight_layout()

@@ -1,88 +1,75 @@
-using HybridModellingExperiments
-HybridModellingExperiments.setup_distributed_environment()
+import Distributed: @everywhere
+import HybridModellingExperiments: setup_distributed_environment
+setup_distributed_environment(4)
 
-using Lux
-using HybridModelling
-import HybridModellingExperiments: Model3SP, HybridFuncRespModel, LuxBackend, MCMCBackend,
-                                   InferICs, run_simulations, LogMSELoss, save_results,
-                                   InferICs
-import HybridModellingExperiments: SerialMode, ParallelMode, HybridModellingExperiments
-import OrdinaryDiffEqTsit5: Tsit5
-import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
-import ADTypes: AutoZygote, AutoForwardDiff
-import Optimisers: AdamW
-import Bijectors
+@everywhere begin 
+    using Lux
+    using HybridModelling
+    using HybridModellingExperiments
+    import HybridModellingExperiments: Model3SP, HybridFuncRespModel, LuxBackend, MCMCBackend,
+                                    InferICs, run_simulations, LogMSELoss, save_results,
+                                    InferICs
+    import HybridModellingExperiments: SerialMode, ParallelMode, DistributedMode
+    import OrdinaryDiffEqTsit5: Tsit5
+    import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
+    import ADTypes: AutoZygote, AutoForwardDiff
+    import Optimisers: AdamW
+    import Bijectors
 
-using Random
-using JLD2
-using DataFrames
-import Distributions: Uniform, product_distribution
-import NNlib
+    using Random
+    using JLD2
+    using DataFrames
+    import Distributions: Uniform, product_distribution
+    import NNlib
 
-mode = HybridModellingExperiments.DistributedMode()
-const tsteps = range(500e0, step = 4, length = 111)
-const tspan = (0e0, tsteps[end])
-const HlSize = 5
-const adtype = AutoZygote()
-const loss_fn = LogMSELoss()
-const verbose_frequency = 10
-const n_epochs = 3000
-const rng = Random.MersenneTwister(1234)
+    const tsteps = range(500e0, step = 4, length = 111)
+    const tspan = (0e0, tsteps[end])
+    const HlSize = 5
+    const adtype = AutoZygote()
+    const loss_fn = LogMSELoss()
+    const verbose_frequency = 10
+    const n_epochs = 1
+    const rng = Random.MersenneTwister(1234)
 
-fixed_params = (alg = Tsit5(),
-    abstol = 1e-4,
-    reltol = 1e-4,
-    tsteps,
-    lr = 1e-2,
-    verbose = false,
-    maxiters = 50_000,
-    sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
-    batchsize = 10,
-    forecast_length = 10,
-    model = HybridFuncRespModel(),
-    rng,
-    perturb=1e0,
-    luxtype = Lux.f32
-)
-
-function HybridModellingExperiments.init(
-        model::HybridFuncRespModel,
-        ::LuxBackend;
-        alg,
-        abstol,
-        reltol,
-        sensealg,
-        maxiters,
-        p_true,
-        perturb = 1e0,
-        rng,
-        kwargs...
-)
-    distrib_param = NamedTuple([dp => product_distribution([Uniform(
-                                                                sort([
-                                                                (1e0 - perturb / 2e0) *
-                                                                k,
-                                                                (1e0 + perturb / 2e0) *
-                                                                k])...
-                                                            ) for k in p_true[dp]])
-                                for dp in keys(p_true)])
-
-    p_transform = Bijectors.NamedTransform(
-        NamedTuple([dp => Bijectors.bijector(distrib_param[dp])
-                    for dp in keys(distrib_param)])
+    function HybridModellingExperiments.init(
+            model::HybridModellingExperiments.HybridFuncRespModel,
+            ::LuxBackend;
+            alg,
+            abstol,
+            reltol,
+            sensealg,
+            maxiters,
+            p_true,
+            perturb = 1e0,
+            rng,
+            kwargs...
     )
+        distrib_param = NamedTuple([dp => product_distribution([Uniform(
+                                                                    sort([
+                                                                    (1e0 - perturb / 2e0) *
+                                                                    k,
+                                                                    (1e0 + perturb / 2e0) *
+                                                                    k])...
+                                                                ) for k in p_true[dp]])
+                                    for dp in keys(p_true)])
 
-    p_init = NamedTuple([k => rand(rng, distrib_param[k]) for k in keys(distrib_param)])
+        p_transform = Bijectors.NamedTransform(
+            NamedTuple([dp => Bijectors.bijector(distrib_param[dp])
+                        for dp in keys(distrib_param)])
+        )
 
-    parameters = ParameterLayer(; constraint = Constraint(p_transform), init_value = p_init)
-    functional_response = Lux.Chain(Lux.Dense(2, HlSize, NNlib.tanh),
-        Lux.Dense(HlSize, HlSize, NNlib.tanh),
-        Lux.Dense(HlSize, HlSize, NNlib.tanh),
-        Lux.Dense(HlSize, 2))
-    lux_model = ODEModel(
-        (; parameters, functional_response), model; alg, abstol, reltol, sensealg, maxiters)
+        p_init = NamedTuple([k => rand(rng, distrib_param[k]) for k in keys(distrib_param)])
 
-    return lux_model
+        parameters = ParameterLayer(; constraint = Constraint(p_transform), init_value = p_init)
+        functional_response = Lux.Chain(Lux.Dense(2, HlSize, NNlib.tanh),
+            Lux.Dense(HlSize, HlSize, NNlib.tanh),
+            Lux.Dense(HlSize, HlSize, NNlib.tanh),
+            Lux.Dense(HlSize, 2))
+        lux_model = ODEModel(
+            (; parameters, functional_response), model; alg, abstol, reltol, sensealg, maxiters)
+
+        return lux_model
+    end
 end
 
 function generate_data(
@@ -138,9 +125,27 @@ function create_simulation_parameters()
     return shuffle!(rng, pars_arr)
 end
 
+mode = DistributedMode()
+
+fixed_params = (alg = Tsit5(),
+    abstol = 1e-4,
+    reltol = 1e-4,
+    tsteps,
+    lr = 1e-2,
+    verbose = false,
+    maxiters = 50_000,
+    sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+    batchsize = 10,
+    forecast_length = 10,
+    model = HybridFuncRespModel(),
+    rng,
+    perturb=1e0,
+    luxtype = Lux.f32
+)
+
 simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 println("Starting simulations...")
-results = run_simulations(mode, simulation_parameters; fixed_params...)
+results = run_simulations(mode, simulation_parameters[1:4]; fixed_params...)
 
 save_results(string(@__FILE__); results)

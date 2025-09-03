@@ -18,11 +18,11 @@ include("../format.jl")
 
 result_name_3sp = "../../scripts/luxbackend/results/luxbackend_3sp_model_4f148a8.jld2"
 result_name_5sp_7sp = "../../scripts/luxbackend/results/luxbackend_5sp_7sp_model_1c400bd.jld2"
-result_name_scaling = "../../scripts/scaling/results/scaling_e19b20d.jld2"
+result_name_scaling = "../../scripts/scaling/results/scaling_faf406b.jld2"
 
 df_3sp = load(result_name_3sp, "results")
 df_3sp[!, :med_par_err] = abs.(df_3sp[:, :med_par_err])
-df_3sp = df_3sp[df_3sp[:, :lr] .== 0.01, :] # lr should be same for both arrays
+df_3sp = df_3sp[df_3sp[:, :lr] .== 0.01, :] # lr should be same for both 3sp and 5p-7sp
 
 df_5sp_7sp = load(result_name_5sp_7sp, "results")
 
@@ -121,14 +121,14 @@ end
 # model_names = [L"\mathcal{M}_3", L"\mathcal{M}_5", L"\mathcal{M}_7"]
 # @assert all([df.res[1].infprob.m isa M for (df,M) in zip(df_result_arr, Ms)])
 
-labels = ["ICs inference", "No ICs inference"]
+labels = ["ICs inferred", "ICs not inferred"]
 fig.legend(loc="upper center",
         handles=[Line2D([0], 
                         [0], 
                         color=color_palette[i],
                         # linestyle="", 
                         label=labels[i]) for i in 1:2],
-        bbox_to_anchor=(0.55, 1.2),
+        bbox_to_anchor=(0.55, 1.05),
         ncol=3,
         fancybox=true,)
 # [axs[0,i-1].set_title(model_names[i], fontsize=20) for i in 1:length(df_result_arr)]

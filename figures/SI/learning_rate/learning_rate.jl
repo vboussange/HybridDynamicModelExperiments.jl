@@ -22,7 +22,7 @@ df_3sp = load(result_name_3sp, "results")
 df_3sp[!, :med_par_err] = abs.(df_3sp[:, :med_par_err])
 
 noise = 0.2
-infer_ics = false
+infer_ics = true
 df_3sp_filtered = filter(row -> row.noise == noise && row.infer_ics == infer_ics, df_3sp)
 
 classname = :lr
@@ -30,7 +30,7 @@ classes = sort!(unique(df_3sp_filtered[:, classname]))
 
 spread = 0.7 #spread of box plots
 
-fig, axs = plt.subplots(2, 1, figsize = (6,6), sharex = "col", sharey = "row")
+fig, axs = plt.subplots(1, 2, figsize = (6, 3))
 # averaging by nruns
 gdf_results = groupby(df_3sp_filtered, [:segmentsize, classname])
 ax = axs[0]
@@ -45,7 +45,7 @@ boxplot_byclass(gdf_results, ax;
         classname, 
         spread, 
         color_palette,
-        legend=true)
+        legend=false)
 fig.set_facecolor("none")
 ax.set_facecolor("none")
 fig.tight_layout()
@@ -64,7 +64,7 @@ boxplot_byclass(gdf_results, ax;
         classname = :lr, 
         spread, 
         color_palette, 
-        legend=false)
+        legend=true)
 ax.set_yscale("log")
 ax.set_facecolor("none")
 display(fig)

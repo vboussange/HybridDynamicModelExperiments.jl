@@ -56,10 +56,8 @@ function setup_distributed_environment(procs_to_add=nothing)
     if nprocs() == 1
         isnothing(procs_to_add) && (procs_to_add = isempty(ARGS) ? 0 : parse(Int, ARGS[1]))
         addprocs(procs_to_add, exeflags="--project=$(Base.active_project())")
-        @everywhere @eval using HybridModellingExperiments
         println("Running script with ", nprocs(), " process(es)")
     else
         println("Running script with ", nprocs(), " process(es)\nNot adding more processes.")
-        @everywhere @eval using HybridModellingExperiments
     end
 end

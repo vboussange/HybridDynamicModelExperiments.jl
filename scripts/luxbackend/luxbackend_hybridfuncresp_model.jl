@@ -28,7 +28,7 @@ setup_distributed_environment()
     const adtype = AutoZygote()
     const loss_fn = LogMSELoss()
     const verbose_frequency = Inf
-    const n_epochs = 3000
+    const n_epochs = 5000
     const rng = Random.MersenneTwister(1234)
 
     function HybridModellingExperiments.init(
@@ -98,14 +98,16 @@ function create_simulation_parameters()
             Constraint(Bijectors.NamedTransform((;
                 u0 = Bijectors.bijector(Uniform(1e-3, 5e0)))))),
         InferICs(false)]
-    noises = [0.2]
-    weight_decays = [1e-5, 1e-3, 1e-1]
+    noises = [0.1, 0.2, 0.3]
+    weight_decays = [1e-7, 1e-5, 1e-3, 1e-2]
+    perturbs = [0.5, 1.0]
+    lrs = [1e-3, 1e-2, 1e-1]
 
     pars_arr = []
     for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims,
-        noise in noises, weight_decay in weight_decays
+        noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs
 
-        optim_backend = LuxBackend(AdamW(eta = fixed_params.lr, lambda = weight_decay),
+        optim_backend = LuxBackend(AdamW(eta = lr, lambda = weight_decay),
             n_epochs,
             adtype,
             loss_fn;
@@ -119,7 +121,8 @@ function create_simulation_parameters()
             noise,
             data,
             p_true,
-            weight_decay)
+            weight_decay,
+            perturb)
         push!(pars_arr, varying_params)
     end
     return shuffle!(rng, pars_arr)
@@ -131,7 +134,6 @@ fixed_params = (alg = Tsit5(),
     abstol = 1e-4,
     reltol = 1e-4,
     tsteps,
-    lr = 1e-2,
     verbose = false,
     maxiters = 50_000,
     sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
@@ -139,7 +141,6 @@ fixed_params = (alg = Tsit5(),
     forecast_length = 10,
     model = HybridFuncRespModel(),
     rng,
-    perturb=1e0,
     luxtype = Lux.f32
 )
 

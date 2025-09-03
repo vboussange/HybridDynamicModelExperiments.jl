@@ -16,17 +16,16 @@ using HybridModellingExperiments: boxplot_byclass
 
 include("../../format.jl");
 
-result_name = "../../../scripts/luxbackend/results/luxbackend_hybridfuncresp_model_9dbea59.jld2"
+result_name = "../../../scripts/luxbackend/results/luxbackend_hybridfuncresp_model_07d2781.jld2"
 
 df = load(result_name, "results")
 dropmissing!(df, :med_par_err)
 
-noise = 0.2
-infer_ics = false
-df_filtered = filter(row -> row.noise == noise && row.infer_ics == infer_ics, df)
+weight_decay = 1e-5
+df_filtered = filter(row -> row.weight_decay == weight_decay, df)
 
-classname = :lr
-classes = sort!(unique(df_filtered[:, classname]))
+classname = :infer_ics
+classes = [true, false]
 
 spread = 0.7 #spread of box plots
 
@@ -45,13 +44,11 @@ boxplot_byclass(gdf_results, ax;
         classname, 
         spread, 
         color_palette,
-        legend=true)
+        legend=false)
 fig.set_facecolor("none")
 ax.set_facecolor("none")
 fig.tight_layout()
 display(fig)
-
-
 
 ax = axs[1]
 boxplot_byclass(gdf_results, ax; 
@@ -61,7 +58,7 @@ boxplot_byclass(gdf_results, ax;
         ylab = "Forecast error", 
         yscale = "linear", 
         classes = classes, 
-        classname = :lr, 
+        classname, 
         spread, 
         color_palette, 
         legend=false)

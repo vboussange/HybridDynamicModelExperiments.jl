@@ -104,13 +104,12 @@ function simu(
 
     med_par_err = missing
     forecast_err = missing
-    time = missing
     info = missing
     ps = missing
     st = missing
     ics = missing
 
-    try
+    # try
         res = train(
             optim_backend, lux_model, dataloader, experimental_setup, rng
         )
@@ -123,9 +122,9 @@ function simu(
 
         preds = forecast(optim_backend, lux_model, ps, st, ics, tsteps[test_idx])
         forecast_err = optim_backend.loss_fn(preds, data[:, test_idx])
-    catch e
-        println("Error occurred during training: ", e)
-    end
+    # catch e
+    #     println("Error occurred during training: ", e)
+    # end
 
     return (;
         med_par_err,
@@ -136,7 +135,6 @@ function simu(
         st,
         ics,
         loss = info,
-        time,
         segmentsize,
         batchsize,
         noise,
@@ -241,7 +239,6 @@ function simu(
 
     med_par_err = missing
     forecast_err = missing
-    time = missing
     try
         res = train(optim_backend, lux_model, dataloader, experimental_setup, rng)
 
@@ -259,7 +256,6 @@ function simu(
         med_par_err,
         forecast_err,
         model = nameof(model),
-        time,
         segmentsize,
         noise,
         sampler = string(typeof(optim_backend.sampler)),

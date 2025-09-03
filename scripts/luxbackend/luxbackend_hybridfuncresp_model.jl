@@ -1,10 +1,12 @@
-using Lux
 using HybridModellingExperiments
+HybridModellingExperiments.setup_distributed_environment()
+
+using Lux
 using HybridModelling
 import HybridModellingExperiments: Model3SP, HybridFuncRespModel, LuxBackend, MCMCBackend,
                                    InferICs, run_simulations, LogMSELoss, save_results,
                                    InferICs
-import HybridModellingExperiments: SerialMode, ParallelMode
+import HybridModellingExperiments: SerialMode, ParallelMode, HybridModellingExperiments
 import OrdinaryDiffEqTsit5: Tsit5
 import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
 import ADTypes: AutoZygote, AutoForwardDiff
@@ -17,24 +19,21 @@ using DataFrames
 import Distributions: Uniform, product_distribution
 import NNlib
 
-mode = ParallelMode()
+mode = HybridModellingExperiments.DistributedMode()
 const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
 const HlSize = 5
 const adtype = AutoZygote()
 const loss_fn = LogMSELoss()
-const verbose_frequency = Inf
+const verbose_frequency = 10
 const n_epochs = 3000
 const rng = Random.MersenneTwister(1234)
-
-
-callback(l, m, p, s) = l
 
 fixed_params = (alg = Tsit5(),
     abstol = 1e-4,
     reltol = 1e-4,
     tsteps,
-    lr = 5e-3,
+    lr = 1e-2,
     verbose = false,
     maxiters = 50_000,
     sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
@@ -123,8 +122,7 @@ function create_simulation_parameters()
             n_epochs,
             adtype,
             loss_fn;
-            verbose_frequency,
-            callback)
+            verbose_frequency)
 
         data, p_true = generate_data(fixed_params.model; tspan, fixed_params...)
 

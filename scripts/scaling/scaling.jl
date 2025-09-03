@@ -225,7 +225,7 @@ simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 
 println("Launching simulations...")
-mcmc_results = run_simulations(mode, simulation_parameters; fixed_params...)
+results = run_simulations(mode, simulation_parameters; fixed_params...)
 
 save_results(string(@__FILE__); results)
 

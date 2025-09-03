@@ -60,5 +60,6 @@ function setup_distributed_environment(procs_to_add=nothing)
         println("Running script with ", nprocs(), " process(es)")
     else
         println("Running script with ", nprocs(), " process(es)\nNot adding more processes.")
+        @everywhere @eval using HybridModellingExperiments
     end
 end

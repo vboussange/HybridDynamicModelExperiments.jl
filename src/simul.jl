@@ -43,7 +43,7 @@ function init(
     parameters = ParameterLayer(; constraint = Constraint(p_transform), init_value = p_init)
     lux_model = ODEModel((; parameters), model; alg, abstol, reltol, sensealg, maxiters)
 
-    return (; lux_model)
+    return lux_model
 end
 
 function forecast(::LuxBackend, model, ps, st, ics, tsteps_forecast)
@@ -97,7 +97,7 @@ function simu(
     )
 
     # Lux model initialization with biased parameters
-    @unpack lux_model = init(model, optim_backend; p_true, sensealg, rng, kwargs...)
+    lux_model = init(model, optim_backend; p_true, sensealg, rng, kwargs...)
     println(
         "Launching simulations for segmentsize = $segmentsize, noise = $noise, backend = $(nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
     )
@@ -111,11 +111,9 @@ function simu(
     ics = missing
 
     try
-        stats = @timed train(
+        res = train(
             optim_backend, lux_model, dataloader, experimental_setup, rng
         )
-        time = stats.time - stats.compile_time
-        res = stats.value
         info = res.info
 
         ps = res.ps
@@ -245,9 +243,7 @@ function simu(
     forecast_err = missing
     time = missing
     try
-        stats = @timed train(optim_backend, lux_model, dataloader, experimental_setup, rng)
-        time = stats.time - stats.compile_time
-        res = stats.value
+        res = train(optim_backend, lux_model, dataloader, experimental_setup, rng)
 
         med_par_err = get_parameter_error(optim_backend, res.st_model, res.chains, p_true)
 

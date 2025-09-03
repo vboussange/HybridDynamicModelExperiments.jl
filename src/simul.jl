@@ -80,6 +80,7 @@ function simu(
         sensealg,
         forecast_length = 10,
         rng,
+        luxtype,
         kwargs...
 )
 
@@ -111,7 +112,7 @@ function simu(
 
     try
         res = train(
-            optim_backend, lux_model, dataloader, experimental_setup, rng
+            optim_backend, lux_model, dataloader, experimental_setup, rng, luxtype
         )
         info = res.info
 

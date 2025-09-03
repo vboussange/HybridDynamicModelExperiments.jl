@@ -68,7 +68,7 @@ function train(backend::LuxBackend,
         initial_conditions = ics, model = model)
 
     ps, st = Lux.setup(rng, ode_model_with_ics)
-    ps = ComponentArray(luxtype(ps)) # We transforms ps to support all sensealg from SciMLSensitivity
+    ps = luxtype(ComponentArray(ps)) # We transforms ps to support all sensealg from SciMLSensitivity
 
     train_state = Training.TrainState(ode_model_with_ics, ps, st, backend.opt)
     best_ps = ps

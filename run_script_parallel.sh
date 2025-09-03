@@ -3,6 +3,7 @@
 
 file=$1
 nthreads=$2  # Optional prefix argument
+args=$3
 
 namesim_with_ext=$(basename ${file})
 namesim="${namesim_with_ext%.*}"
@@ -12,5 +13,5 @@ mkdir -p stdout
 echo "Launching script for $namesim"
 chmod +x $file
 
-nohup julia --thread $nthreads --project=. $file > "stdout/${namesim}.out" 2>&1 &
+nohup julia --thread $nthreads --project=. $file $args > "stdout/${namesim}.out" 2>&1 &
 echo $! > "stdout/${namesim}_save_pid.txt"

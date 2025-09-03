@@ -1,6 +1,6 @@
 import Distributed: @everywhere
 import HybridModellingExperiments: setup_distributed_environment
-setup_distributed_environment(4)
+setup_distributed_environment()
 
 @everywhere begin 
     using Lux
@@ -27,8 +27,8 @@ setup_distributed_environment(4)
     const HlSize = 5
     const adtype = AutoZygote()
     const loss_fn = LogMSELoss()
-    const verbose_frequency = 10
-    const n_epochs = 1
+    const verbose_frequency = Inf
+    const n_epochs = 3000
     const rng = Random.MersenneTwister(1234)
 
     function HybridModellingExperiments.init(
@@ -146,6 +146,6 @@ fixed_params = (alg = Tsit5(),
 simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 println("Starting simulations...")
-results = run_simulations(mode, simulation_parameters[1:4]; fixed_params...)
+results = run_simulations(mode, simulation_parameters; fixed_params...)
 
 save_results(string(@__FILE__); results)

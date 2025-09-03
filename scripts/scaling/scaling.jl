@@ -10,13 +10,14 @@ import ADTypes: AutoZygote, AutoForwardDiff
 import Optimisers: Adam
 import Turing: HMC
 
-using ProgressMeter
 using Dates
 using Random
 using JLD2
 using DataFrames
 using Distributions
 using Dates
+
+import BenchmarkTools: @benchmark
 
 mode = ParallelMode()
 const tsteps = range(500e0, step = 4, length = 111)
@@ -98,11 +99,9 @@ function create_simulation_parameters()
             Adam(1e-2), nits, AutoZygote(), loss_fn; verbose_frequency = Inf),
         MCMCBackend(
             HMC(0.05, 4, adtype = AutoForwardDiff()), nits, datadistrib; progress = false)]
-    nruns = 2
 
     pars_arr = []
-    for segmentsize in segmentsizes, infer_ic in ic_estims, model in models,
-        optim_backend in backends, _ in 1:nruns
+    for segmentsize in segmentsizes, infer_ic in ic_estims, model in models, optim_backend in backends
 
         data, p_true = generate_data(model; tspan, fixed_params...)
         varying_params = (; segmentsize,
@@ -116,25 +115,117 @@ function create_simulation_parameters()
     return shuffle!(fixed_params.rng, pars_arr)
 end
 
+function HybridModellingExperiments.simu(
+        optim_backend::LuxBackend,
+        experimental_setup::InferICs;
+        model,
+        p_true,
+        segmentsize,
+        batchsize,
+        shift = nothing,
+        noise,
+        data,
+        tsteps,
+        sensealg,
+        forecast_length = 10,
+        rng,
+        kwargs...
+)
+
+    data_w_noise = HybridModellingExperiments.generate_noisy_data(data, noise)
+    train_idx, test_idx = HybridModellingExperiments.split_data(data, forecast_length)
+    dataloader = SegmentedTimeSeries(
+        (data_w_noise[:, train_idx], tsteps[train_idx]);
+        segmentsize,
+        batchsize,
+        shift,
+        partial_batch = true
+    )
+
+    # Lux model initialization with biased parameters
+    lux_model = HybridModellingExperiments.init(model, optim_backend; p_true, sensealg, rng, kwargs...).lux_model
+    println(
+        "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridModellingExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+    )
+
+    time = missing
+
+    # try
+        stats = @benchmark train(
+            $optim_backend, $lux_model, $dataloader, $experimental_setup, $rng
+        )
+        time = stats.times
+    # catch e
+    #     println("Error occurred during training: ", e)
+    # end
+
+    return (;
+        modelname = HybridModellingExperiments.nameof(model),
+        time,
+        segmentsize,
+        sensealg = string(typeof(sensealg)),
+        optim_backend = HybridModellingExperiments.nameof(optim_backend),
+        infer_ics = HybridModellingExperiments.istrue(experimental_setup),
+    )
+end
+
+
+function HybridModellingExperiments.simu(
+        optim_backend::MCMCBackend,
+        experimental_setup;
+        model,
+        p_true,
+        segmentsize,
+        shift = nothing,
+        noise,
+        data,
+        tsteps,
+        sensealg,
+        loss_fn = nothing,
+        forecast_length = 10,
+        rng,
+        kwargs...
+)
+
+    data_w_noise = HybridModellingExperiments.generate_noisy_data(data, noise)
+    train_idx, test_idx = HybridModellingExperiments.split_data(data, forecast_length)
+    dataloader = SegmentedTimeSeries(
+        (data_w_noise[:, train_idx], tsteps[train_idx]);
+        segmentsize,
+        shift,
+        partial_batch = true
+    )
+
+    # Lux model initialization with biased parameters
+    lux_model = HybridModellingExperiments.init(model, optim_backend; p_true, sensealg, kwargs...)
+    println(
+        "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridModellingExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+    )
+
+    time = missing
+    try
+        stats = @benchmark train($optim_backend, $lux_model, $dataloader, $experimental_setup, $rng)
+        time = stats.times
+
+    catch e
+        println("Error occurred during training: $e")
+    end
+
+    return (;
+        modelname = HybridModellingExperiments.nameof(model),
+        time,
+        segmentsize,
+        sensealg = string(typeof(sensealg)),
+        optim_backend = HybridModellingExperiments.nameof(optim_backend),
+        infer_ics = HybridModellingExperiments.istrue(experimental_setup),
+    )
+end
+
 simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 
-# We separate the parameters for each backend as the simulation function return different named tuples
-lux_simulation_parameters = filter(x -> isa(x.optim_backend, LuxBackend), simulation_parameters)
-mcmc_simulation_parameters = filter(x -> isa(x.optim_backend, MCMCBackend), simulation_parameters)
+println("Launching simulations...")
+mcmc_results = run_simulations(mode, simulation_parameters; fixed_params...)
 
-# println("Warming up LuxBackend...") # precompilation
-# run_simulations(mode, lux_simulation_parameters; fixed_params...)
-println("Launching simulations for LuxBackend...")
-lux_results = run_simulations(mode, lux_simulation_parameters; fixed_params...)
+save_results(string(@__FILE__); results)
 
-# println("Warming up MCMCBackend...") # precompilation
-# run_simulations(mode, mcmc_simulation_parameters; fixed_params...)
-println("Launching simulations for MCMCBackend...")
-mcmc_results = run_simulations(mode, mcmc_simulation_parameters; fixed_params...)
-
-savedir = string(@__DIR__) * "/results/$(Dates.today())"
-isdir(savedir) || mkpath(savedir)
-jld2fileout = joinpath(savedir, chopsuffix(basename(@__FILE__), ".jl") * ".jld2")
-println("Saving results to $jld2fileout...")
-jldsave(jld2fileout; lux_results, mcmc_results, nits)

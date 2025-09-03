@@ -7,6 +7,12 @@ using Distributions
 using Bijectors
 using Optimisers: Optimisers
 
+function split_data(data, forecast_length)
+    train_idx = 1:(size(data, 2) - forecast_length - 1)
+    test_idx = (size(data, 2) - forecast_length):size(data, 2)
+    return train_idx, test_idx
+end
+
 get_lr(opt::Optimisers.AbstractRule) = opt.eta
 
 function init(
@@ -81,8 +87,7 @@ function simu(
     GC.gc()
 
     data_w_noise = generate_noisy_data(data, noise)
-    train_idx, test_idx = 1:(size(data, 2) - forecast_length - 1),
-        (size(data, 2) - forecast_length):size(data, 2)
+    train_idx, test_idx = split_data(data, forecast_length)
     dataloader = SegmentedTimeSeries(
         (data_w_noise[:, train_idx], tsteps[train_idx]);
         segmentsize,

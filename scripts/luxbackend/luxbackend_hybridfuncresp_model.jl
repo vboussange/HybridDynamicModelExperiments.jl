@@ -27,9 +27,9 @@ setup_distributed_environment()
     const HlSize = 5
     const adtype = AutoZygote()
     const loss_fn = LogMSELoss()
-    const verbose_frequency = Inf
-    const n_epochs = 5000
+    const n_epochs = 3000
     const rng = Random.MersenneTwister(1234)
+    const callback(l, epoch, ts) = nothing
 
     function HybridModellingExperiments.init(
             model::HybridModellingExperiments.HybridFuncRespModel,
@@ -41,6 +41,7 @@ setup_distributed_environment()
             maxiters,
             p_true,
             perturb = 1e0,
+            verbose,
             rng,
             kwargs...
     )
@@ -66,7 +67,7 @@ setup_distributed_environment()
             Lux.Dense(HlSize, HlSize, NNlib.tanh),
             Lux.Dense(HlSize, 2))
         lux_model = ODEModel(
-            (; parameters, functional_response), model; alg, abstol, reltol, sensealg, maxiters)
+            (; parameters, functional_response), model; alg, abstol, reltol, sensealg, maxiters, verbose)
 
         return lux_model
     end
@@ -92,26 +93,27 @@ end
 
 function create_simulation_parameters()
     segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
-    nruns = 10
+    nruns = 5
     ic_estims = [
         InferICs(true,
             Constraint(Bijectors.NamedTransform((;
                 u0 = Bijectors.bijector(Uniform(1e-3, 5e0)))))),
         InferICs(false)]
-    noises = [0.1, 0.2, 0.3]
-    weight_decays = [1e-7, 1e-5, 1e-3, 1e-2]
-    perturbs = [0.5, 1.0]
+    noises = [0.2, 0.4]
+    weight_decays = [1e-9, 1e-5, 1e-1]
+    perturbs = [1.0]
     lrs = [1e-3, 1e-2, 1e-1]
+    batchsizes = [10]
 
     pars_arr = []
     for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims,
-        noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs
+        noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs, batchsize in batchsizes
 
-        optim_backend = LuxBackend(AdamW(eta = lr, lambda = weight_decay),
+        optim_backend = LuxBackend(AdamW(;eta = lr, lambda = weight_decay),
             n_epochs,
             adtype,
-            loss_fn;
-            verbose_frequency)
+            loss_fn,
+            callback)
 
         data, p_true = generate_data(fixed_params.model; tspan, fixed_params...)
 
@@ -122,7 +124,8 @@ function create_simulation_parameters()
             data,
             p_true,
             weight_decay,
-            perturb)
+            perturb,
+            batchsize)
         push!(pars_arr, varying_params)
     end
     return shuffle!(rng, pars_arr)
@@ -148,5 +151,5 @@ simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 println("Starting simulations...")
 results = run_simulations(mode, simulation_parameters; fixed_params...)
-
+select!(results, Not(:lux_model))
 save_results(string(@__FILE__); results)

@@ -22,7 +22,7 @@ end
 function competition(::AbstractModel3SP, u, p)
     @unpack A = p
     T = eltype(u)
-    return [A[1] * u[1]; zeros(T, 2)]
+    return [A; zeros(T, 2)] .* u
 end
 
 struct Model3SP{II,JJ} <: AbstractModel3SP

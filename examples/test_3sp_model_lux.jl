@@ -17,6 +17,7 @@ import Lux
 using Random
 import Flux
 using ParameterSchedulers
+using BenchmarkTools
 
 function init_parameters(rng, p_true, perturb=1e0)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
@@ -34,8 +35,8 @@ rng = MersenneTwister(2)
 alg = Tsit5()
 # sensealg = ForwardDiffSensitivity()
 # adtype = AutoForwardDiff()
-sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
-# sensealg = GaussAdjoint()
+# sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+sensealg = GaussAdjoint(autojacvec=ZygoteVJP(true))
 adtype = AutoZygote()
 abstol = 1e-4
 reltol = 1e-4

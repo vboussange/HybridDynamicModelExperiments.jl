@@ -4,21 +4,24 @@ using ADTypes
 using ConcreteStructs: @concrete
 import HybridModelling: SegmentedTimeSeries
 
+function _default_callback(l, epoch, ts)
+    if epoch % 10 == 0
+        @info "Epoch $epoch: Loss = $l"
+    end
+end
+
 @concrete struct LuxBackend <: AbstractOptimBackend
     opt::Optimisers.AbstractRule
     n_epochs::Int
     adtype::ADTypes.AbstractADType
     loss_fn::Any
-    verbose_frequency::Any
     callback::Any
 end
 
+LuxBackend(opt, n_epochs, adtype, loss_fn) = LuxBackend(opt, n_epochs, adtype, loss_fn, _default_callback)
+
 nameof(::LuxBackend) = "LuxBackend"
 
-function LuxBackend(opt, n_epochs, adtype, loss_fn; verbose_frequency = 10,
-        callback = (l, m, p, s) -> nothing)
-    return LuxBackend(opt, n_epochs, adtype, loss_fn, verbose_frequency, callback)
-end
 
 function _feature_wrapper((token, tsteps_batch))
     return [(; u0 = token[i],
@@ -86,17 +89,12 @@ function train(backend::LuxBackend,
                 train_state)
             tot_loss += loss
         end
-        if epoch % backend.verbose_frequency == 0
-            println("Epoch $epoch: Total Loss = ", tot_loss)
-        end
         if tot_loss < best_loss
             best_ps = get_parameter_values(train_state)
             best_st = get_state_values(train_state)
             best_loss = tot_loss
         end
-        info[epoch] = backend.callback(
-            tot_loss, ode_model_with_ics, get_parameter_values(train_state),
-            get_state_values(train_state))
+        backend.callback(tot_loss, epoch, train_state)
     end
     segment_ics, _ = ics([(; u0 = i) for i in tokens(dataloader)],
         best_ps.initial_conditions, best_st.initial_conditions)

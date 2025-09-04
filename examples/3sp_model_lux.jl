@@ -1,5 +1,5 @@
 #=
-Short exampling showcasing the fit of a 3 species model.
+Short exampling showcasing the fit of a 3 species model. Showcases the use of a scheduler.
 =#
 cd(@__DIR__)
 import OrdinaryDiffEqTsit5: Tsit5
@@ -15,6 +15,8 @@ using HybridModelling
 import HybridModellingExperiments: Model3SP, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
+import Flux
+using ParameterSchedulers
 
 function init_parameters(rng, p_true, perturb=1e0)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
@@ -44,7 +46,26 @@ p_true = (;H = [1.24, 2.5],
             q = [4.98, 0.8],
             r = [1.0, -0.4, -0.08],
             A = [1.0])
-backend = LuxBackend(Adam(1e-2), 2000, adtype, LogMSELoss())
+
+
+lr_init = 1e-2
+
+function callback(l, epoch, ts)
+    if epoch % 10 == 0
+        @info "Epoch $epoch: Loss = $l"
+    end
+end
+
+# s = Step(lr_init, 0.8, 300)
+# function callback(l, epoch, ts)
+#     if epoch % 10 == 0
+#         @info "Epoch $epoch: Loss = $l"
+#     end
+#     lr = s(epoch)
+#     Optimisers.adjust!(ts.optimizer_state, lr)
+# end
+
+backend = LuxBackend(Adam(lr_init), 1000, adtype, loss_fn, callback)
 dudt = Model3SP()
 p_init, p_transform = init_parameters(rng, p_true)
 u0_constraint = Constraint(Bijectors.NamedTransform((;u0 = bijector(Uniform(1e-3, 5e0)))))  # For initial conditions
@@ -82,44 +103,41 @@ res = train(backend,
             lux_model,
             dataloader,
             InferICs(true),
-            rng; 
+            rng,
             # u0_constraint
             )
 
-function plot_segments(dataloader, st_model)
+function plot_segments(dataloader, res)
     plt = plot()
     colors = [:blue, :red]
-    for (batched_tokens, (batched_segments, batched_tsteps)) in tokenize(dataloader)
-
-        batched_pred = st_model((batched_tokens, batched_tsteps))
-        for (tok, segment_tsteps, segment_data, pred) in zip(batched_tokens, 
-                                                            eachslice(batched_tsteps, dims=ndims(batched_tsteps)), 
-                                                            eachslice(batched_segments, dims=ndims(batched_segments)), 
-                                                            eachslice(batched_pred, dims=ndims(batched_pred)))
-            color = colors[mod1(tok, 2)]
-            plot!(plt, segment_tsteps, segment_data', label=(tok == 1 ? "Data" : ""), color=color, linestyle=:solid)
-            plot!(plt, segment_tsteps, pred', label=(tok == 1 ? "Predicted" : ""), color=color, linestyle=:dash)
-        end
+    dataloader = tokenize(dataloader)
+    for tok in tokens(dataloader)
+        segment_data, segment_tsteps = dataloader[tok]
+        _ics = res.ics[tok].u0
+        pred = lux_model((;u0 = _ics, saveat = segment_tsteps, tspan = (segment_tsteps[1], segment_tsteps[end])), res.ps, res.st)[1]
+        color = colors[mod1(tok, 2)]
+        # @show segment_data
+        plot!(plt, segment_tsteps, segment_data', label=(tok == 1 ? "Data" : ""), color=color, linestyle=:solid)
+        plot!(plt, segment_tsteps, pred', label=(tok == 1 ? "Predicted" : ""), color=color, linestyle=:dash)
     end
 
-    display(plt)
     return plt
 end
 
-plot_segments(dataloader, res.best_model)
-
+plt = plot_segments(dataloader, res)
+display(plt)
 
 tsteps_forecast = tspan[end]:4:tspan[end]+200
 last_tok = tokens(tokenize(dataloader))[end]
 segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
-forecasted_data = forecast(backend, res.best_model, union(segment_tsteps, tsteps_forecast))
+forecasted_data = forecast(backend, lux_model, res.ps, res.st, res.ics, union(segment_tsteps, tsteps_forecast))
 true_data = lux_true_model((;u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1], tspan = (segment_tsteps[1], tsteps_forecast[end]), saveat = union(segment_tsteps, tsteps_forecast)), ps_true, st)[1]
 ax = Plots.plot(union(segment_tsteps, tsteps_forecast), forecasted_data', label = "forecasted", title="Forecasted vs true data")
 Plots.plot!(ax, union(segment_tsteps, tsteps_forecast), true_data', label = "true", linestyle = :dash, color = palette(:auto)[1:3]')
 Plots.scatter!(ax, segment_tsteps, data_with_noise[:, tsteps .∈ Ref(segment_tsteps)]', label = "training data", color = palette(:auto)[1:3]')
 
-get_parameter_error(backend, res.best_model, p_true)
-
+get_parameter_error(backend, lux_model, res.ps, res.st, p_true)
+loss_fn(forecasted_data, true_data)
 # @code_warntype train(LuxBackend(),
 #                     InferICs(true);
 #                     model = lux_model, 

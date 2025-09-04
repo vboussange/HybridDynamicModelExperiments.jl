@@ -13,6 +13,7 @@ using DataFrames
 using Dates
 using HybridModelling
 using HybridModellingExperiments: boxplot_byclass
+using Printf
 
 include("../../format.jl");
 
@@ -20,6 +21,62 @@ result_name = "../../../scripts/luxbackend/results/luxbackend_hybridfuncresp_mod
 
 df = load(result_name, "results")
 dropmissing!(df, :med_par_err)
+
+
+function format_column(val)
+        if isa(val, Bool)
+            return val ? "Yes" : "No"
+        elseif isa(val, Float64)
+            # Use scientific notation for very small values
+            if val != 0.0 && abs(val) < 1e-3
+                return Printf.@sprintf("%.3e", val)
+            else
+                return Printf.@sprintf("%.3f", val)
+            end
+        else
+            return string(val)
+        end
+end
+
+# only selecting min
+# for each (segmentsize, weight_decay, infer_ics) combo, keep row with min forecast_err
+# keys = [:segmentsize, :weight_decay, :infer_ics]
+# df_filtered = combine(groupby(df, keys)) do sdf
+#         sdf[argmin(sdf.forecast_err), :]
+# end
+# sort!(df_filtered, keys)
+
+# selecting median
+df_filtered = combine(groupby(df, keys),
+        :forecast_err => (x -> median(skipmissing(x))) => :forecast_err,
+        :forecast_err => (x -> std(skipmissing(x))) => :forecast_err_std,
+        :med_par_err  => (x -> median(skipmissing(x))) => :med_par_err,
+        :med_par_err  => (x -> std(skipmissing(x))) => :med_par_err_std,
+)
+
+# exporting tex table
+select!(df_filtered, [:forecast_err, :forecast_err_std, :segmentsize, :weight_decay, :infer_ics])
+sort!(df_filtered, keys)
+display(df_filtered[df_filtered.forecast_err .== minimum(df_filtered.forecast_err),:])
+
+df_pd = pytable(df_filtered)
+min_error_idx = df_pd["forecast_err"].idxmin()
+latex_code = df_pd.style.hide(
+    axis="index"
+).highlight_min(
+    subset="forecast_err", 
+    color="lightgreen", 
+    axis=0
+).format(format_column).to_latex(
+    hrules=true,
+    caption="Model performance comparison",
+    label="tab:model_results"
+) |> string
+        
+open("gridsearch_results.txt", "w") do io
+        print(io, latex_code)
+end
+
 
 weight_decay = 1e-5
 df_filtered = filter(row -> row.weight_decay == weight_decay, df)

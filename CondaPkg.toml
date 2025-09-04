@@ -1,4 +1,5 @@
 [deps]
+jinja2 = ""
 pandas = ""
 matplotlib = ""
 networkx = ""

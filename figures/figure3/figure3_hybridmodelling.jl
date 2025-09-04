@@ -16,9 +16,12 @@ using HybridModellingExperiments: boxplot_byclass, boxplot
 
 include("../format.jl")
 
+tsteps = range(500e0, step = 4, length = 100)
+segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
+nsegments = [length(tokens(tokenize(SegmentedTimeSeries(tsteps, segmentsize = s)))) for s in segmentsizes]
+
 result_name_3sp = "../../scripts/luxbackend/results/luxbackend_3sp_model_4f148a8.jld2"
 result_name_5sp_7sp = "../../scripts/luxbackend/results/luxbackend_5sp_7sp_model_1c400bd.jld2"
-result_name_scaling = "../../scripts/scaling/results/scaling_7cb2a4a.jld2"
 
 df_3sp = load(result_name_3sp, "results")
 df_3sp[!, :med_par_err] = abs.(df_3sp[:, :med_par_err])
@@ -30,17 +33,12 @@ common_cols = names(df_3sp)
 df_err = vcat(select(df_3sp, common_cols), select(df_5sp_7sp, common_cols))
 gdf_err = groupby(df_err, :modelname)
 
-df_scaling_lux, nits = load(result_name_scaling, "lux_results", "nits")
-# df_scaling_mcmc = load(result_name_scaling, "mcmc_results")
-df_scaling_lux[!, :time] ./= nits # per iteration
-gdf_scaling_lux = groupby(df_scaling_lux, :modelname)
-
-noise = 0.2
+noise = 0.1
 df_err_filtered = filter(row -> row.noise == noise, df_err) # TODO: filter by lr too
 
 spread = 0.7 #spread of box plots
 
-fig, axs = plt.subplots(3, 3, figsize = (6,6), sharex = "col", sharey = "row")
+fig, axs = plt.subplots(2, 3, figsize = (6,4), sharex = "col", sharey = "row")
 for (i, modelname) in enumerate(["Model3SP", "Model5SP", "Model7SP"])
     # averaging by nruns
     i = i-1
@@ -61,7 +59,6 @@ for (i, modelname) in enumerate(["Model3SP", "Model5SP", "Model7SP"])
             spread, 
             color_palette,
             legend)
-    fig.set_facecolor("none")
     ax.set_facecolor("none")
     fig.tight_layout()
     display(fig)
@@ -83,43 +80,13 @@ for (i, modelname) in enumerate(["Model3SP", "Model5SP", "Model7SP"])
             legend=false)
 #     ax.set_ylim(-0.2,2.)
     ax.set_facecolor("none")
-    display(fig)
-    ax.set_ylim(1e-3,1e2)
-    ax.set_yscale("log")
+    ax.set_ylim(-0.1,2e0)
+#     ax.set_yscale("log")
 
-#     scaling
-    ax = axs[2, i]
-    i == 0 ? ylab = "Simulation time\nper epoch (s)" : ylab = ""
-    df_scaling_lux = gdf_scaling_lux[(;modelname)]
-    gdf_results = groupby(df_scaling_lux, [:segmentsize, :infer_ics])
-    # y = [df.time for df in gdf]
-    boxplot_byclass(gdf_results, ax; 
-            xname = :segmentsize,
-            yname = :time, 
-            xlab = "", 
-            ylab, 
-            yscale = "linear", 
-            classes = [true, false], 
-            classname = :infer_ics, 
-            spread, 
-            color_palette,
-            legend=false)
-    ax.set_ylabel(ylab)
-    # ax.set_yscale("log")
-    # ax.set_ylim(-0.05,1.1)
-    ax.set_xlabel("Segment size")
-    x = sort!(unique(df_scaling_lux.segmentsize)) .|> Int64
-    ax.set_xticks(1:length(x))
-    ax.set_xticklabels(x, rotation=45)
     fig.set_facecolor("none")
-    ax.set_facecolor("none")
     fig.tight_layout()
     display(fig)
 end
-
-# Ms = [Model3SP, Model5SP, Model7SP]
-# model_names = [L"\mathcal{M}_3", L"\mathcal{M}_5", L"\mathcal{M}_7"]
-# @assert all([df.res[1].infprob.m isa M for (df,M) in zip(df_result_arr, Ms)])
 
 labels = ["ICs inferred", "ICs not inferred"]
 fig.legend(loc="upper center",

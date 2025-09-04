@@ -17,11 +17,16 @@ import HybridModellingExperiments: boxplot
 include("../../format.jl")
 
 result_name_3sp = "../../../scripts/mcmcbackend/results/2025-08-29/mcmcbackend_3sp_model.jld2"
-result_name_scaling = "../../../scripts/scaling/results/2025-09-01/scaling.jld2"
+result_name_scaling = "../../../scripts/scaling/results/scaling_7cb2a4a.jld2"
 df_result = load(result_name_3sp, "results")
-df_result_scaling, nits = load(result_name_scaling, "mcmc_results", "nits")
-dropmissing!(df_result_scaling, :time)
-df_result_scaling[!, :time] ./= nits # per iteration
+
+df_scaling_lux = load(result_name_scaling, "results")
+nits = 5
+df_scaling_lux[!, :time] ./= nits * 1e9 # per iteration, in seconds (originally in ns)
+dropmissing!(df_scaling_lux)
+df_scaling_lux = flatten(df_scaling_lux, :time)
+df_scaling_lux = df_scaling_lux[df_scaling_lux.optim_backend .== "MCMCBackend", :]
+
 spread = 0.7 #spread of box plots
 legend = true
 
@@ -60,7 +65,7 @@ display(fig)
 
 ax = axs[2]
 ylab = "Simulation time\nper epoch (s)"
-gdf_results = groupby(df_result_scaling, [:segmentsize, :infer_ics])
+gdf_results = groupby(df_scaling_lux, [:segmentsize, :infer_ics])
 
 boxplot_byclass(gdf_results, ax; 
         xname = :segmentsize,

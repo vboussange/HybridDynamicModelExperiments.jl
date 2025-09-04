@@ -119,7 +119,6 @@ function plot_segments(dataloader, res)
         plot!(plt, segment_tsteps, segment_data', label=(tok == 1 ? "Data" : ""), color=color, linestyle=:solid)
         plot!(plt, segment_tsteps, pred', label=(tok == 1 ? "Predicted" : ""), color=color, linestyle=:dash)
     end
-
     return plt
 end
 

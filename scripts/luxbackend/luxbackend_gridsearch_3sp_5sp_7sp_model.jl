@@ -1,6 +1,6 @@
 import Distributed: @everywhere
 import HybridModellingExperiments: setup_distributed_environment, DistributedMode
-setup_distributed_environment(4)
+setup_distributed_environment()
 
 @everywhere begin 
     using Lux
@@ -128,7 +128,7 @@ fixed_params = (alg = Tsit5(),
     sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
     rng = Random.MersenneTwister(1234),
     batchsize = 10,
-    n_epochs = 1,
+    n_epochs = 3000,
     loss_fn = LogMSELoss(),
     forecast_length = 10,
     luxtype = Lux.f32

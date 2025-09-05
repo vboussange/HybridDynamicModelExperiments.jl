@@ -22,11 +22,6 @@ setup_distributed_environment()
     import Distributions: Uniform, product_distribution
     import NNlib
 
-    const tsteps = range(500e0, step = 4, length = 111)
-    const tspan = (0e0, tsteps[end])
-    const adtype = AutoZygote()
-    const loss_fn = LogMSELoss()
-    const n_epochs = 3000
     const rng = Random.MersenneTwister(1234)
     const callback(l, epoch, ts) = nothing
 
@@ -132,6 +127,12 @@ function create_simulation_parameters()
     end
     return shuffle!(rng, pars_arr)
 end
+
+const tsteps = range(500e0, step = 4, length = 111)
+const tspan = (0e0, tsteps[end])
+const adtype = AutoZygote()
+const loss_fn = LogMSELoss()
+const n_epochs = 3000
 
 mode = DistributedMode()
 

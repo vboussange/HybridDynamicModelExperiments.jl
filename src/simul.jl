@@ -114,7 +114,6 @@ function simu(
         res = train(
             optim_backend, lux_model, dataloader, experimental_setup, rng, luxtype
         )
-        info = res.info
 
         ps = res.ps
         st = res.st
@@ -135,7 +134,6 @@ function simu(
         ps,
         st,
         ics,
-        loss = info,
         segmentsize,
         batchsize,
         noise,

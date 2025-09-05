@@ -1,42 +1,27 @@
-using Lux
-using HybridModellingExperiments
-using HybridModelling
-import HybridModellingExperiments: Model3SP, Model5SP, Model7SP, LuxBackend, MCMCBackend, InferICs,
-                                   run_simulations, LogMSELoss, save_results
-import HybridModellingExperiments: SerialMode, ParallelMode
-import OrdinaryDiffEqTsit5: Tsit5
-import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
-import ADTypes: AutoZygote, AutoForwardDiff
-import Optimisers: Adam
-import Bijectors
+import Distributed: @everywhere
+import HybridModellingExperiments: setup_distributed_environment, DistributedMode
+setup_distributed_environment(4)
 
-using Random
-using JLD2
-using DataFrames
-import Distributions: Uniform
+@everywhere begin 
+    using Lux
+    using HybridModellingExperiments
+    using HybridModelling
+    import HybridModellingExperiments: Model3SP, Model5SP, Model7SP, LuxBackend, MCMCBackend, InferICs,
+                                    run_simulations, LogMSELoss, save_results
+    import HybridModellingExperiments: SerialMode, ParallelMode
+    import OrdinaryDiffEqTsit5: Tsit5
+    import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
+    import ADTypes: AutoZygote, AutoForwardDiff
+    import Optimisers: Adam
+    import Bijectors
 
-mode = ParallelMode()
-const tsteps = range(500e0, step = 4, length = 111)
-const tspan = (0e0, tsteps[end])
-callback(l, m, p, s) = l
+    using Random
+    using JLD2
+    using DataFrames
+    import Distributions: Uniform
 
-fixed_params = (alg = Tsit5(),
-    adtype = AutoZygote(),
-    abstol = 1e-4,
-    reltol = 1e-4,
-    tsteps,
-    lr = 5e-3,
-    verbose = false,
-    maxiters = 50_000,
-    sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
-    rng = Random.MersenneTwister(1234),
-    batchsize = 10,
-    n_epochs = 3000,
-    verbose_frequency = Inf,
-    loss_fn = LogMSELoss(),
-    forecast_length = 10,
-    perturb = 1e0
-)
+    const callback(l, epoch, ts) = nothing
+end
 
 function generate_data(model::Model3SP; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
     p_true = (H = [1.24, 2.5],
@@ -106,13 +91,12 @@ function create_simulation_parameters()
 
     pars_arr = []
     for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims, model in models,
-        noise in noises, perturb in perturbs, shift in shifts
+        noise in noises, perturb in perturbs, lr in lrs
 
-        optim_backend = LuxBackend(Adam(fixed_params.lr),
+        optim_backend = LuxBackend(Adam(lr),
             fixed_params.n_epochs,
             fixed_params.adtype,
-            fixed_params.loss_fn;
-            fixed_params.verbose_frequency,
+            fixed_params.loss_fn,
             callback)
 
         data, p_true = generate_data(model; tspan, fixed_params...)
@@ -123,15 +107,36 @@ function create_simulation_parameters()
             model,
             noise,
             data,
-            p_true)
+            p_true, 
+            perturb)
         push!(pars_arr, varying_params)
     end
     return shuffle!(fixed_params.rng, pars_arr)
 end
 
+mode = DistributedMode()
+const tsteps = range(500e0, step = 4, length = 111)
+const tspan = (0e0, tsteps[end])
+
+fixed_params = (alg = Tsit5(),
+    adtype = AutoZygote(),
+    abstol = 1e-4,
+    reltol = 1e-4,
+    tsteps,
+    verbose = false,
+    maxiters = 50_000,
+    sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
+    rng = Random.MersenneTwister(1234),
+    batchsize = 10,
+    n_epochs = 1,
+    loss_fn = LogMSELoss(),
+    forecast_length = 10,
+    luxtype = Lux.f32
+)
+
 simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 println("Starting simulations...")
-results = run_simulations(mode, simulation_parameters; fixed_params...)
+results = run_simulations(mode, simulation_parameters[1:10]; fixed_params...)
 
 save_results(string(@__FILE__); results)

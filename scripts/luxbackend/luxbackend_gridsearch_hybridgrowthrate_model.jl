@@ -1,5 +1,5 @@
 import Distributed: @everywhere
-import HybridModellingExperiments: setup_distributed_environment
+import HybridModellingExperiments: setup_distributed_environment, HybridGrowthRateModel
 setup_distributed_environment()
 
 @everywhere begin 
@@ -22,10 +22,12 @@ setup_distributed_environment()
     import Distributions: Uniform, product_distribution
     import NNlib
 
+    const model = HybridGrowthRateModel()
+    const rng = Random.MersenneTwister(1234)
     const callback(l, epoch, ts) = nothing
 
     function HybridModellingExperiments.init(
-            model::HybridGrowthRateModel,
+            model::HybridModellingExperiments.HybridGrowthRateModel,
             ::LuxBackend;
             alg,
             abstol,
@@ -68,7 +70,7 @@ setup_distributed_environment()
 end
 
 function generate_data(
-        ::HybridFuncRespModel; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
+        ::HybridGrowthRateModel; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
     p_true = (;H = [1.24, 2.5],
             q = [4.98, 0.8],
             r = [1.0, -0.4, -0.08],
@@ -83,7 +85,7 @@ function generate_data(
 
     ps, st = Lux.setup(rng, lux_true_model)
     synthetic_data, _ = lux_true_model((; u0 = u0_true), ps, st)
-    return synthetic_data, (;H = p_true.H, q = p_true.q, r = p_true.r,  A = p_true.A,)  # only estimating A and r in hybrid model
+    return synthetic_data, (;H = p_true.H, q = p_true.q, r = p_true.r[2:end],  A = p_true.A,)  # only estimating A and r in hybrid model
 end
 
 function create_simulation_parameters()
@@ -111,7 +113,7 @@ function create_simulation_parameters()
             loss_fn,
             callback)
 
-        data, p_true = generate_data(fixed_params.model; tspan, fixed_params...)
+        data, p_true = generate_data(model; tspan, fixed_params...)
 
         varying_params = (; segmentsize,
             optim_backend,
@@ -134,7 +136,6 @@ const tspan = (0e0, tsteps[end])
 const adtype = AutoZygote()
 const loss_fn = LogMSELoss()
 const n_epochs = 3000
-const rng = Random.MersenneTwister(1234)
 
 mode = DistributedMode()
 
@@ -147,14 +148,13 @@ fixed_params = (alg = Tsit5(),
     sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
     batchsize = 10,
     forecast_length = 10,
-    model = HybridFuncRespModel(),
     rng,
-    luxtype = Lux.f32
+    luxtype = Lux.f32,
+    model
 )
 
 simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 println("Starting simulations...")
 results = run_simulations(mode, simulation_parameters; fixed_params...)
-select!(results, Not(:lux_model))
 save_results(string(@__FILE__); results)

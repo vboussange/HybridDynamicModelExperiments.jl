@@ -1,5 +1,5 @@
 import Distributed: @everywhere
-import HybridModellingExperiments: setup_distributed_environment
+import HybridModellingExperiments: setup_distributed_environment, HybridFuncRespModel
 setup_distributed_environment()
 
 @everywhere begin 
@@ -22,6 +22,7 @@ setup_distributed_environment()
     import Distributions: Uniform, product_distribution
     import NNlib
 
+    const model = HybridFuncRespModel(),
     const rng = Random.MersenneTwister(1234)
     const callback(l, epoch, ts) = nothing
 
@@ -111,7 +112,7 @@ function create_simulation_parameters()
             loss_fn,
             callback)
 
-        data, p_true = generate_data(fixed_params.model; tspan, fixed_params...)
+        data, p_true = generate_data(model; tspan, fixed_params...)
 
         varying_params = (; segmentsize,
             optim_backend,
@@ -145,14 +146,13 @@ fixed_params = (alg = Tsit5(),
     sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true)),
     batchsize = 10,
     forecast_length = 10,
-    model = HybridFuncRespModel(),
     rng,
-    luxtype = Lux.f32
+    luxtype = Lux.f32,
+    model
 )
 
 simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 println("Starting simulations...")
 results = run_simulations(mode, simulation_parameters; fixed_params...)
-select!(results, Not(:lux_model))
 save_results(string(@__FILE__); results)

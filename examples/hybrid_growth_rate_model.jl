@@ -96,15 +96,14 @@ dataloader = SegmentedTimeSeries((data_with_noise, tsteps);
                             batchsize,
                             partial_batch = true)
 
+optim_backend = LuxBackend(Adam(1e-2), 1000, adtype, LogMSELoss())
+
 ## Testing Lux backend
-res = train(LuxBackend(),
-            InferICs(false);
-            model = lux_model, 
-            rng, 
+res = train(optim_backend,
+            lux_model, 
             dataloader, 
-            opt = Adam(1e-2), 
-            adtype,
-            n_epochs = 1000)
+            InferICs(true, Constraint(u0_transform)),
+            rng)
 
 function plot_segments(dataloader, st_model)
     plt = plot()

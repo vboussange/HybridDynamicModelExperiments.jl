@@ -114,7 +114,6 @@ function simu(
         res = train(
             optim_backend, lux_model, dataloader, experimental_setup, rng, luxtype
         )
-        info = res.info
 
         ps = res.ps
         st = res.st
@@ -127,15 +126,13 @@ function simu(
         println("Error occurred during training: ", e)
     end
 
+    # saving states fails with JLD2
     return (;
         med_par_err,
         forecast_err,
         modelname = nameof(model),
-        lux_model,
         ps,
-        st,
         ics,
-        loss = info,
         segmentsize,
         batchsize,
         noise,

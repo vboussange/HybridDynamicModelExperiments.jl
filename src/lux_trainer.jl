@@ -78,7 +78,6 @@ function train(backend::LuxBackend,
     best_st = st
     best_loss = luxtype(Inf)
 
-    info = Vector{Any}(undef, backend.n_epochs)
     for epoch in 1:(backend.n_epochs)
         tot_loss = luxtype(0.0) 
         for (batched_tokens, (batched_segments, batched_tsteps)) in dataloader
@@ -99,7 +98,7 @@ function train(backend::LuxBackend,
     segment_ics, _ = ics([(; u0 = i) for i in tokens(dataloader)],
         best_ps.initial_conditions, best_st.initial_conditions)
 
-    return (; ps = best_ps.model, st = best_st.model, ics = segment_ics, info)
+    return (; ps = best_ps.model, st = best_st.model, ics = segment_ics)
 end
 
 get_parameter_values(train_state::Training.TrainState) = train_state.parameters

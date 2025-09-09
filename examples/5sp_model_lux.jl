@@ -84,7 +84,7 @@ backend = LuxBackend(Adam(1e-3), 1000, adtype, LogMSELoss())
 res = train(backend,
             lux_model, 
             dataloader,
-            InferICs(true),
+            InferICs(false),
             rng)
 
 function plot_segments(dataloader, st_model)

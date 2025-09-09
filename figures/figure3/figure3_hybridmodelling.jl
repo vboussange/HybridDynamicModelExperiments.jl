@@ -12,7 +12,6 @@ using Distributions
 using DataFrames
 using Dates
 using HybridModelling
-using HybridModellingExperiments: boxplot_byclass, boxplot
 
 include("../format.jl")
 
@@ -20,21 +19,14 @@ tsteps = range(500e0, step = 4, length = 100)
 segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
 nsegments = [length(tokens(tokenize(SegmentedTimeSeries(tsteps, segmentsize = s)))) for s in segmentsizes]
 
-result_name_3sp = "../../scripts/luxbackend/results/luxbackend_3sp_model_4f148a8.jld2"
-result_name_5sp_7sp = "../../scripts/luxbackend/results/luxbackend_5sp_7sp_model_1c400bd.jld2"
+result_name = "../../scripts/luxbackend/results/luxbackend_gridsearch_3sp_5sp_7sp_model_2a6f3f1.jld2"
 
-df_3sp = load(result_name_3sp, "results")
-df_3sp[!, :med_par_err] = abs.(df_3sp[:, :med_par_err])
-df_3sp = df_3sp[df_3sp[:, :lr] .== 0.01, :] # lr should be same for both 3sp and 5p-7sp
+df_err = load(result_name, "results") # size : (2160, 21)
+dropmissing!(df_err, :med_par_err) # size : (1441, 21)
 
-df_5sp_7sp = load(result_name_5sp_7sp, "results")
+df_err_filtered = df_err[(df_err.noise .== 0.4) .&& (df_err.lr .== 1e-2) .&& (df_err.perturb .== 1e0), :]
 
-common_cols = names(df_3sp)
-df_err = vcat(select(df_3sp, common_cols), select(df_5sp_7sp, common_cols))
-gdf_err = groupby(df_err, :modelname)
-
-noise = 0.1
-df_err_filtered = filter(row -> row.noise == noise, df_err) # TODO: filter by lr too
+gdf_err = groupby(df_err_filtered, :modelname)
 
 spread = 0.7 #spread of box plots
 

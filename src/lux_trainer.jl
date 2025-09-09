@@ -31,24 +31,12 @@ function _feature_wrapper((token, tsteps_batch))
             for i in eachindex(token)]
 end
 
-function _get_ics(dataloader, ::InferICs{false})
+function _get_ics(dataloader, infer_ics::InferICs)
     function _fun(tok)
         segment_data, segment_tsteps = dataloader[tok]
         u0 = segment_data[:, 1]
-        t0 = segment_tsteps[1]
-        ParameterLayer(init_value = (;), init_state_value = (; t0, u0))
-    end
-    ics_list = [ _fun(tok) for tok in tokens(dataloader)]
-    return InitialConditions(ics_list)
-end
-
-function _get_ics(dataloader, infer_ics::InferICs{true})
-    function _fun(tok)
-        segment_data, segment_tsteps = dataloader[tok]
-        u0 = segment_data[:, 1]
-        t0 = segment_tsteps[1]
-        ParameterLayer(constraint = infer_ics.u0_constraint,
-                    init_value = (; u0), init_state_value = (; t0))
+        ParameterLayer(;constraint = infer_ics.u0_constraint,
+                    init_value = (; u0))
     end
     ics_list = [ _fun(tok) for tok in tokens(dataloader)]
     return InitialConditions(ics_list)
@@ -66,6 +54,10 @@ function train(backend::LuxBackend,
     dataloader = tokenize(dataloader)
 
     ics = _get_ics(dataloader, experimental_setup)
+
+    if !istrue(experimental_setup)
+        ics = Lux.Experimental.FrozenLayer(ics)
+    end
 
     ode_model_with_ics = Chain(wrapper = Lux.WrappedFunction(_feature_wrapper),
         initial_conditions = ics, model = model)
@@ -95,8 +87,13 @@ function train(backend::LuxBackend,
         end
         backend.callback(tot_loss, epoch, train_state)
     end
-    segment_ics, _ = ics([(; u0 = i) for i in tokens(dataloader)],
-        best_ps.initial_conditions, best_st.initial_conditions)
+    segment_ics = []
+    for i in tokens(dataloader)
+        _, segment_tsteps = dataloader[i]
+        t0 = segment_tsteps[1]
+        push!(segment_ics, merge(ics((; u0 = i), best_ps.initial_conditions, best_st.initial_conditions)[1], (; t0)))
+    end
+    segment_ics = vcat(segment_ics...)
 
     return (; ps = best_ps.model, st = best_st.model, ics = segment_ics)
 end

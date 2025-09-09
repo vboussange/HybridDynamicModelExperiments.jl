@@ -27,7 +27,7 @@ end
 # Model metaparameters
 alg = Tsit5()
 sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
-sampler = HMC(0.05, 4; adtype=AutoZygote()) # fastest, by far
+sampler = HMC(0.05, 4; adtype=AutoForwardDiff()) # fastest, by far
 datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 # sensealg = GaussAdjoint()
 # adtype = AutoZygote()
@@ -78,7 +78,7 @@ plot(res.chains)
 tsteps_forecast = tspan[end]:4:tspan[end]+200
 last_tok = tokens(tokenize(dataloader))[end]
 segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
-forecasted_data = forecast(backend, res.st_model, res.chains, union(segment_tsteps, tsteps_forecast))
+forecasted_data = forecast(backend, res.st_model, res.ics, res.chains, union(segment_tsteps, tsteps_forecast))
 true_data = lux_true_model((;u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1], tspan = (segment_tsteps[1], tsteps_forecast[end]), saveat = union(segment_tsteps, tsteps_forecast)), ps_true, st)[1]
 ax = Plots.plot(union(segment_tsteps, tsteps_forecast), true_data', label = "true", title="Forecasted vs true data", linestyle = :dash, color = palette(:auto)[1:3]')
 for pred in forecasted_data

@@ -128,23 +128,19 @@ function train(backend::MCMCBackend,
     for tok in tokens(dataloader)
         segment_data, segment_tsteps = dataloader[tok]
         u0 = segment_data[:, 1]
-        t0 = segment_tsteps[1]
         push!(xs,
             (; u0 = tok, saveat = segment_tsteps,
                 tspan = (segment_tsteps[1], segment_tsteps[end])))
         push!(ys, segment_data)
-        if isa(experimental_setup, InferICs{true})
-            push!(ic_list,
-                BayesianLayer(
-                    ParameterLayer(init_value = (; u0), init_state_value = (; t0)),
-                    (; u0 = arraydist(backend.datadistrib.(u0)))))
-        elseif isa(experimental_setup, InferICs{false})
-            push!(
-                ic_list, BayesianLayer(ParameterLayer(init_state_value = (; t0, u0)),
-                    (;)))
-        end
+        push!(ic_list,
+            BayesianLayer(
+                ParameterLayer(init_value = (; u0)),
+                (; u0 = arraydist(backend.datadistrib.(u0)))))
     end
     ics = InitialConditions(ic_list)
+    if !istrue(experimental_setup)
+        ics = Lux.Experimental.FrozenLayer(ics)
+    end
 
     ode_model_with_ics = Chain(initial_conditions = ics, model = model)
     priors = getpriors(ode_model_with_ics)
@@ -156,6 +152,14 @@ function train(backend::MCMCBackend,
 
     chains = sample(
         rng, turing_fit(xs, ys), backend.sampler, backend.n_iterations; backend.kwargs...)
+    segment_ics = []
+    for i in tokens(dataloader)
+        _, segment_tsteps = dataloader[i]
+        t0 = segment_tsteps[1]
+        push!(segment_ics, (; t0))
+    end
+    segment_ics = vcat(segment_ics...)
 
-    return (; chains, st_model)
+
+    return (; chains, st_model, ics=segment_ics)
 end

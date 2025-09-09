@@ -167,11 +167,10 @@ function init(
     return lux_model
 end
 
-function forecast(::MCMCBackend, st_model, chain, tsteps_forecast, nsamples = 100)
+function forecast(::MCMCBackend, st_model, ics, chain, tsteps_forecast, nsamples = 100)
     nsamples = min(nsamples, size(chain, 1))
-    last_tok = length(keys(st_model.ps.initial_conditions))
-    last_ics_idx = last(keys(st_model.ps.initial_conditions))
-    last_ics_t0 = st_model.st.initial_conditions[last_ics_idx].t0
+    last_tok = length(ics)
+    last_ics_t0 = ics[last_tok].t0
 
     posterior_samples = sample(st_model, chain, nsamples; replace = false)
     preds = []
@@ -243,7 +242,7 @@ function simu(
         med_par_err = get_parameter_error(optim_backend, res.st_model, res.chains, p_true)
 
         if !isnothing(loss_fn)
-            preds = forecast(optim_backend, res.st_model, res.chains, tsteps[test_idx])
+            preds = forecast(optim_backend, res.st_model, res.ics, res.chains, tsteps[test_idx])
             forecast_err = median(loss_fn(p, data[:, test_idx]) for p in preds)
         end
     catch e

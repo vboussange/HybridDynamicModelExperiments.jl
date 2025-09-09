@@ -19,13 +19,14 @@ import Flux
 using ParameterSchedulers
 
 function init_parameters(rng, p_true, perturb=1e0)
-    distrib_param = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
+    bounds = NamedTuple([dp => cat([sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k]) for k in p_true[dp]]..., dims=2)' for dp in keys(p_true)])
+    distrib_param = NamedTuple([dp => Product([Uniform(bounds[dp][i, 1], bounds[dp][i, 2]) for i in axes(bounds[dp], 1)]) for dp in keys(p_true)])
 
-    p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
+    constraints = NamedTupleConstraint(NamedTuple([dp => BoxConstraint(bounds[dp][:, 1], bounds[dp][:, 2]) for dp in keys(p_true)]))
     
     p_init = NamedTuple([k => rand(rng, distrib_param[k]) for k in keys(distrib_param)])
 
-    return p_init, p_transform
+    return p_init, constraints
 end
 
 rng = MersenneTwister(2)
@@ -48,7 +49,7 @@ p_true = (;H = [1.24, 2.5],
             A = [1.0])
 
 
-lr_init = 1e-2
+lr_init = 5e-3
 
 function callback(l, epoch, ts)
     if epoch % 10 == 0
@@ -67,12 +68,12 @@ end
 loss_fn = LogMSELoss()
 backend = LuxBackend(Adam(lr_init), 1000, adtype, loss_fn, callback)
 dudt = Model3SP()
-p_init, p_transform = init_parameters(rng, p_true)
-u0_constraint = Constraint(Bijectors.NamedTransform((;u0 = bijector(Uniform(1e-3, 5e0)))))  # For initial conditions
+p_init, constraint = init_parameters(rng, p_true)
+u0_constraint = NamedTupleConstraint((;u0 = BoxConstraint(1e-3, 5e0))) # For initial conditions
 
 
 # Lux model initialization with biased parameters
-parameters = ParameterLayer(constraint = Constraint(p_transform), 
+parameters = ParameterLayer(;constraint, 
                             init_value = p_init)
 lux_model = ODEModel((;parameters), dudt; alg, abstol, reltol, sensealg)
 
@@ -90,7 +91,7 @@ ax = Plots.scatter(tsteps, data_with_noise', title = "Data")
 
 # Defining inference problem
 # Model initialized with perturbed parameters
-segmentsize = 2
+segmentsize = 8
 dataloader = SegmentedTimeSeries((data_with_noise, tsteps); 
                                 segmentsize, 
                                 partial_batch = true,

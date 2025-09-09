@@ -137,6 +137,6 @@ fixed_params = (alg = Tsit5(),
 simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 println("Starting simulations...")
-results = run_simulations(mode, simulation_parameters[1:10]; fixed_params...)
+results = run_simulations(mode, simulation_parameters; fixed_params...)
 
 save_results(string(@__FILE__); results)

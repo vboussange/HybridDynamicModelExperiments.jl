@@ -42,7 +42,7 @@ p_true = (;H = [1.24, 2.5],
             q = [4.98, 0.8],
             r = [1.0, -0.4, -0.08],
             A = [1.0])
-backend = MCMCBackend(sampler, 10, datadistrib)
+backend = MCMCBackend(sampler, 1000, datadistrib)
 model = Model3SP()
 
 # Lux model initialization with biased uniform priors
@@ -69,7 +69,7 @@ dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = 
 res = train(backend,
             lux_model,
             dataloader,
-            InferICs(true),
+            InferICs(false),
             rng)
 
 using StatsPlots
@@ -84,6 +84,6 @@ ax = Plots.plot(union(segment_tsteps, tsteps_forecast), true_data', label = "tru
 for pred in forecasted_data
     Plots.plot!(ax, union(segment_tsteps, tsteps_forecast), pred', label = "", color=Plots.palette(:auto)[1:3]', alpha=0.1)
 end
-ax
+display(ax)
 
 get_parameter_error(backend, res.st_model, res.chains, p_true)

@@ -110,9 +110,6 @@ function create_turing_model(ps_priors, data_distrib, st_model)
     return (xs, ys) -> DynamicPPL.Model(generated_model, (; xs, ys))
 end
 
-
-# TODO: separate ics model from main model.
-# TODO: similar to lux_trainer, make function barriers to init xs, ys, ic_list
 function train(backend::MCMCBackend,
         model::AbstractLuxLayer,
         dataloader::SegmentedTimeSeries,
@@ -123,7 +120,7 @@ function train(backend::MCMCBackend,
 
     xs = []
     ys = []
-    ic_list = BayesianLayer[]
+    ic_list = []
 
     for tok in tokens(dataloader)
         segment_data, segment_tsteps = dataloader[tok]
@@ -132,14 +129,20 @@ function train(backend::MCMCBackend,
             (; u0 = tok, saveat = segment_tsteps,
                 tspan = (segment_tsteps[1], segment_tsteps[end])))
         push!(ys, segment_data)
-        push!(ic_list,
-            BayesianLayer(
-                ParameterLayer(init_value = (; u0)),
-                (; u0 = arraydist(backend.datadistrib.(u0)))))
+        push!(ic_list, ParameterLayer(init_value = (; u0)))
     end
-    ics = InitialConditions(ic_list)
-    if !istrue(experimental_setup)
-        ics = Lux.Experimental.FrozenLayer(ics)
+    if istrue(experimental_setup)
+        bics = []
+        for ic in ic_list
+            ps, st = Lux.setup(rng, ic)
+            u0, _ = ic(ps, st)
+            push!(bics, BayesianLayer(ic, (;u0 = arraydist(backend.datadistrib.(u0.u0)))))
+        end
+        ics = InitialConditions(vcat(bics...))
+    else
+        # TODO: it seems that Lux.Experimental.FrozenLayer(InitialConditions(vcat(ic_list...))) does not work
+        # i.e., the chain gets stuck. 
+        ics = InitialConditions(Lux.Experimental.FrozenLayer.(ic_list))
     end
 
     ode_model_with_ics = Chain(initial_conditions = ics, model = model)

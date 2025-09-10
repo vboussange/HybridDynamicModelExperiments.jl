@@ -108,7 +108,6 @@ function simu(
 
     med_par_err = missing
     forecast_err = missing
-    info = missing
     ps = missing
     st = missing
     ics = missing
@@ -138,6 +137,7 @@ function simu(
         ics,
         segmentsize,
         batchsize,
+        shift,
         noise,
         lr = get_lr(optim_backend.opt),
         adtype = string(typeof(optim_backend.adtype)),

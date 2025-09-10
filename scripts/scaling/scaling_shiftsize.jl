@@ -68,17 +68,17 @@ lux_true_model = ODEModel((; parameters), dudt; alg, abstol, reltol, tspan, save
 ps_true, st = Lux.setup(rng, lux_true_model)
 data, _ = lux_true_model((; u0 = u0_true), ps_true, st)
 
-segmentsize = 4
-max_batch = length(tokens(tokenize(SegmentedTimeSeries(
-    data; segmentsize, partial_batch = true))))
+segmentsize = 8
+batchsize = 10
+shifts = [2, 4, 6, 8]
 results = []
-batchsizes = floor.(Int, exp.(range(log(1), log(max_batch), length = 5)))
-for batchsize in batchsizes, infer_ics in (true, false)
-    @info "Benchmarking batch size: $batchsize"
+for shift in shifts, infer_ics in (true, false)
+    @info "Benchmarking shift: $shift, infer_ics: $infer_ics"
     dataloader = SegmentedTimeSeries((data, tsteps);
         segmentsize,
         partial_batch = true,
-        batchsize
+        batchsize,
+        shift,
     )
     optim_backend = LuxBackend(Adam(lr_init), 1, adtype, loss_fn, callback)
     stats = @benchmark train($optim_backend,

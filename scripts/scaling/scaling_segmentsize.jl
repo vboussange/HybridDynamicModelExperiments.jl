@@ -57,12 +57,15 @@ setup_distributed_environment(4)
         )
 
         time = missing
-
+        memory = missing
+        allocs = missing
         try
             stats = eval(:(@benchmark train(
                 $optim_backend, $lux_model, $dataloader, $experimental_setup, $rng
             )))
             time = stats.times
+            allocs = stats.allocs
+            memory = stats.memory
         catch e
             println("Error occurred during training: ", e)
         end
@@ -70,6 +73,8 @@ setup_distributed_environment(4)
         return (;
             modelname = HybridModellingExperiments.nameof(model),
             time,
+            memory,
+            allocs,
             segmentsize,
             sensealg = string(typeof(sensealg)),
             optim_backend = HybridModellingExperiments.nameof(optim_backend),
@@ -212,7 +217,7 @@ mode = DistributedMode()
 
 const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
-const nits = 5 # number of epochs or iterations depending on the context
+const nits = 1 # number of epochs or iterations depending on the context
 loss_fn = LogMSELoss()
 
 fixed_params = (alg = Tsit5(),

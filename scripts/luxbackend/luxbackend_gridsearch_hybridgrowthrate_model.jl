@@ -6,10 +6,7 @@ setup_distributed_environment()
     using Lux
     using HybridModelling
     using HybridModellingExperiments
-    import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel,
-                                       LuxBackend, MCMCBackend,
-                                       InferICs, run_simulations, LogMSELoss, save_results,
-                                       InferICs
+    import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel, LuxBackend, InferICs, run_simulations, LogMSELoss, save_results
     import HybridModellingExperiments: SerialMode, ParallelMode, DistributedMode
     import OrdinaryDiffEqTsit5: Tsit5
     import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP

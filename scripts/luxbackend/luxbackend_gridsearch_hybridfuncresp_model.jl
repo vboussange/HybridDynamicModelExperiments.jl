@@ -2,13 +2,11 @@ import Distributed: @everywhere
 import HybridModellingExperiments: setup_distributed_environment, HybridFuncRespModel
 setup_distributed_environment()
 
-@everywhere begin 
+@everywhere begin
     using Lux
     using HybridModelling
     using HybridModellingExperiments
-    import HybridModellingExperiments: Model3SP, HybridFuncRespModel, LuxBackend, MCMCBackend,
-                                    InferICs, run_simulations, LogMSELoss, save_results,
-                                    InferICs
+    import HybridModellingExperiments: Model3SP, HybridFuncRespModel, LuxBackend, InferICs, run_simulations, LogMSELoss, save_results
     import HybridModellingExperiments: SerialMode, ParallelMode, DistributedMode
     import OrdinaryDiffEqTsit5: Tsit5
     import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
@@ -22,7 +20,7 @@ setup_distributed_environment()
     import Distributions: Uniform, product_distribution
     import NNlib
 
-    const model = HybridFuncRespModel(),
+    const model = HybridFuncRespModel()
     const rng = Random.MersenneTwister(1234)
     const callback(l, epoch, ts) = nothing
 
@@ -41,23 +39,23 @@ setup_distributed_environment()
             HlSize,
             kwargs...
     )
+        bounds = NamedTuple([dp => cat(
+                                 [sort([(1e0 - perturb / 2e0) * k,
+                                      (1e0 + perturb / 2e0) * k])
+                                  for k in p_true[dp]]...,
+                                 dims = 2)' for dp in keys(p_true)])
         distrib_param = NamedTuple([dp => product_distribution([Uniform(
-                                                                    sort([
-                                                                    (1e0 - perturb / 2e0) *
-                                                                    k,
-                                                                    (1e0 + perturb / 2e0) *
-                                                                    k])...
-                                                                ) for k in p_true[dp]])
+                                                       bounds[dp][i, 1], bounds[dp][i, 2])
+                                                   for i in axes(bounds[dp], 1)])
                                     for dp in keys(p_true)])
-
-        p_transform = Bijectors.NamedTransform(
-            NamedTuple([dp => Bijectors.bijector(distrib_param[dp])
-                        for dp in keys(distrib_param)])
-        )
-
+        constraint = NamedTupleConstraint(NamedTuple([dp => BoxConstraint(
+                                                          bounds[dp][:, 1], bounds[dp][
+                                                              :, 2])
+                                                      for dp in keys(p_true)]))
         p_init = NamedTuple([k => rand(rng, distrib_param[k]) for k in keys(distrib_param)])
 
-        parameters = ParameterLayer(; constraint = Constraint(p_transform), init_value = p_init)
+        parameters = ParameterLayer(; constraint, init_value = p_init)
+
         functional_response = Lux.Chain(Lux.Dense(2, HlSize, NNlib.tanh),
             Lux.Dense(HlSize, HlSize, NNlib.tanh),
             Lux.Dense(HlSize, HlSize, NNlib.tanh),
@@ -92,8 +90,8 @@ function create_simulation_parameters()
     nruns = 5
     ic_estims = [
         InferICs(true,
-            Constraint(Bijectors.NamedTransform((;
-                u0 = Bijectors.bijector(Uniform(1e-3, 5e0)))))),
+            NamedTupleConstraint((;
+                u0 = BoxConstraint([1e-3], [5e0])))),
         InferICs(false)]
     noises = [0.2, 0.4]
     weight_decays = [1e-9, 1e-5, 1e-1]
@@ -104,9 +102,10 @@ function create_simulation_parameters()
 
     pars_arr = []
     for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims,
-        noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs, batchsize in batchsizes, HlSize in HlSizes
+        noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs,
+        batchsize in batchsizes, HlSize in HlSizes
 
-        optim_backend = LuxBackend(AdamW(;eta = lr, lambda = weight_decay),
+        optim_backend = LuxBackend(AdamW(; eta = lr, lambda = weight_decay),
             n_epochs,
             adtype,
             loss_fn,
@@ -133,9 +132,9 @@ const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
 const adtype = AutoZygote()
 const loss_fn = LogMSELoss()
-const n_epochs = 3000
+const n_epochs = 2
 
-mode = DistributedMode()
+mode = SerialMode()
 
 fixed_params = (alg = Tsit5(),
     abstol = 1e-4,
@@ -147,7 +146,7 @@ fixed_params = (alg = Tsit5(),
     batchsize = 10,
     forecast_length = 10,
     rng,
-    luxtype = Lux.f32,
+    luxtype = Lux.f64,
     model
 )
 

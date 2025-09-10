@@ -21,24 +21,12 @@ import NNlib
 
 rng = MersenneTwister(1)
 
-function init(::LuxBackend, p_true, perturb=1e0)
-    distrib_param = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
-
-    p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
-    u0_transform = bijector(Uniform(1e-3, 5e0))  # For initial conditions
-    
-    # TODO: problem with rand(Uniform), casts to Float64
-    p_init = NamedTuple([k => rand(distrib_param[k])  .|> FloatType for k in keys(distrib_param)])
-
-    return p_init, p_transform, u0_transform
-end
-
 # ODE solver
 alg = Tsit5()
 abstol = 1e-4
 reltol = 1e-4
-tspan = (0e0, 800e0)
-tsteps = 550.:4.:800.
+tspan = [0e0, 800e0]
+tsteps = collect(550.:4.:800.)
 
 
 # Data generation
@@ -70,10 +58,12 @@ segmentsize = 9
 batchsize = 10
 
 # model definition
-p_transform = Bijectors.NamedTransform((r = bijector(Uniform(-1.0, 1.0)),
-                                        A = bijector(Uniform(0.0, 2.0))))
-u0_transform = bijector(Uniform(1e-3, 5e0))
-parameters = ParameterLayer(constraint = Constraint(p_transform), 
+p_constraint = NamedTupleConstraint((r = BoxConstraint([-1.0], [1.0]),
+                                    A = BoxConstraint([0.0], [2.0])))
+
+u0_constraint = NamedTupleConstraint((; u0 = BoxConstraint([1e-3], [5e0])))
+
+parameters = ParameterLayer(constraint = p_constraint, 
                             init_value = p_init)
 growth_rate =  Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
                                 Lux.Dense(HlSize, HlSize, NNlib.tanh), 
@@ -84,9 +74,10 @@ dudt = HybridGrowthRateModel()
 lux_model = ODEModel((;parameters, growth_rate), dudt; alg, abstol, reltol, sensealg)
 
 # testing lux model
-ps, st = Lux.setup(rng, lux_model)
-ps = ps |> Lux.f64
-preds, _ = lux_model((;u0 = [0.77, 0.060, 0.945], tspan, saveat = tsteps), ps, st)
+ftype = Lux.f32
+ps, st = ftype(Lux.setup(rng, lux_model))
+
+preds, _ = lux_model((;u0 = [0.77, 0.060, 0.945] |> ftype, tspan = tspan |> ftype, saveat = tsteps |> ftype), ps, st)
 Plots.plot(tsteps, preds', title="Initial predictions from hybrid model")
 
 
@@ -94,16 +85,18 @@ dataloader = SegmentedTimeSeries((data_with_noise, tsteps);
                             segmentsize, 
                             shift=segmentsize-2, 
                             batchsize,
-                            partial_batch = true)
+                            partial_batch = true) |> ftype
 
-optim_backend = LuxBackend(Adam(1e-2), 1000, adtype, LogMSELoss())
+loss_fn = LogMSELoss()
+optim_backend = LuxBackend(Adam(1e-2), 1000, adtype, loss_fn)
+loss_fn(preds, preds)
 
 ## Testing Lux backend
 res = train(optim_backend,
             lux_model, 
             dataloader, 
-            InferICs(true, Constraint(u0_transform)),
-            rng)
+            InferICs(true, u0_constraint),
+            rng, Lux.f64)
 
 function plot_segments(dataloader, st_model)
     plt = plot()

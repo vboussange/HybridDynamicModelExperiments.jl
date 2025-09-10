@@ -94,7 +94,6 @@ function create_turing_model(ps_priors, data_distrib, st_model)
 
         # Update varinfo after sampling all parameters
         varinfo = varinfo_ref[]
-
         # Observe data points
         for i in eachindex(xs)
             preds = st_model(xs[i], ps)
@@ -140,9 +139,9 @@ function train(backend::MCMCBackend,
         end
         ics = InitialConditions(vcat(bics...))
     else
-        # TODO: it seems that Lux.Experimental.FrozenLayer(InitialConditions(vcat(ic_list...))) does not work
-        # i.e., the chain gets stuck. 
-        ics = InitialConditions(Lux.Experimental.FrozenLayer.(ic_list))
+        # Both work:
+        # ics = InitialConditions(Lux.Experimental.FrozenLayer.(ic_list))
+        ics = Lux.Experimental.FrozenLayer(InitialConditions(vcat(ic_list...)))
     end
 
     ode_model_with_ics = Chain(initial_conditions = ics, model = model)

@@ -47,8 +47,6 @@ p_true = (;H = [1.24, 2.5],
             q = [4.98, 0.8],
             r = [1.0, -0.4, -0.08],
             A = [1.0])
-
-
 lr_init = 5e-3
 
 function callback(l, epoch, ts)
@@ -69,7 +67,7 @@ loss_fn = LogMSELoss()
 backend = LuxBackend(Adam(lr_init), 1000, adtype, loss_fn, callback)
 dudt = Model3SP()
 p_init, constraint = init_parameters(rng, p_true)
-u0_constraint = NamedTupleConstraint((;u0 = BoxConstraint(1e-3, 5e0))) # For initial conditions
+u0_constraint = NamedTupleConstraint((;u0 = BoxConstraint([1e-3], [5e0]))) # For initial conditions
 
 
 # Lux model initialization with biased parameters

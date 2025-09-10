@@ -82,8 +82,8 @@ function create_simulation_parameters()
     models = [Model3SP(), Model5SP(), Model7SP()]
     ic_estims = [
         InferICs(true,
-            Constraint(Bijectors.NamedTransform((;
-                u0 = Bijectors.bijector(Uniform(1e-3, 5e0)))))),
+            NamedTupleConstraint((;
+                u0 = BoxConstraint([1e-3], [5e0])))),
         InferICs(false)]
     noises = [0.2, 0.4]
     perturbs = [0.5, 1.0]
@@ -131,7 +131,7 @@ fixed_params = (alg = Tsit5(),
     n_epochs = 3000,
     loss_fn = LogMSELoss(),
     forecast_length = 10,
-    luxtype = Lux.f32
+    luxtype = Lux.f64
 )
 
 simulation_parameters = create_simulation_parameters()

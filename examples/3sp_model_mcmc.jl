@@ -55,7 +55,7 @@ lux_model = ODEModel((;parameters), Model3SP(); alg, abstol, reltol, sensealg)
 parameters = ParameterLayer(init_value = p_true)
 lux_true_model = ODEModel((;parameters), Model3SP(); alg, abstol, reltol, tspan, saveat = tsteps)
 
-rng = MersenneTwister(1)
+rng = MersenneTwister(2)
 
 # Data generation
 ps_true, st = Lux.setup(rng, lux_true_model)
@@ -69,8 +69,8 @@ dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = 
 res = train(backend,
             lux_model,
             dataloader,
-            InferICs(false),
-            rng)
+            InferICs(true),
+            rng);
 
 using StatsPlots
 plot(res.chains)

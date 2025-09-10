@@ -33,7 +33,7 @@ end
 
 function _get_ics(dataloader, infer_ics::InferICs)
     function _fun(tok)
-        segment_data, segment_tsteps = dataloader[tok]
+        segment_data, _ = dataloader[tok]
         u0 = segment_data[:, 1]
         ParameterLayer(;constraint = infer_ics.u0_constraint,
                     init_value = (; u0))
@@ -62,14 +62,13 @@ function train(backend::LuxBackend,
     ode_model_with_ics = Chain(wrapper = Lux.WrappedFunction(_feature_wrapper),
         initial_conditions = ics, model = model)
 
-    ps, st = Lux.setup(rng, ode_model_with_ics)
-    ps = luxtype(ComponentArray(ps)) # We transforms ps to support all sensealg from SciMLSensitivity
+    ps, st = luxtype(Lux.setup(rng, ode_model_with_ics))
+    ps = ComponentArray(ps) # We transforms ps to support all sensealg from SciMLSensitivity
 
     train_state = Training.TrainState(ode_model_with_ics, ps, st, backend.opt)
     best_ps = ps
     best_st = st
     best_loss = luxtype(Inf)
-
     for epoch in 1:(backend.n_epochs)
         tot_loss = luxtype(0.0) 
         for (batched_tokens, (batched_segments, batched_tsteps)) in dataloader

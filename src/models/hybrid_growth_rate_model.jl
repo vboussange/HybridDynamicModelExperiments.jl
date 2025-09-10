@@ -14,24 +14,13 @@ struct VaryingGrowthRateModel{II} <: AbstractModel3SP
     J::II
 end
 water_availability(t::T) where T = sin.(convert(T, Period) * t)
-growth_rate_resource(p, water) = p.r[1] * exp(-0.5*(water)^2 / p.s[1]^2)
+growth_rate_resource(p, water::T) where T = p.r[1] * exp(-T(0.5)*(water)^2 / p.s[1]^2)
 intinsic_growth_rate(::VaryingGrowthRateModel, p, t) = [growth_rate_resource(p, water_availability(t)); p.r[2:end]]
 
 
 struct HybridGrowthRateModel{II} <: AbstractModel3SP
     I::II # foodweb row index
     J::II # foodweb col index
-end
-
-function HybridGrowthRateModel(mp; HlSize=5, seed=0)
-    # foodweb
-    foodweb = DiGraph(3)
-    add_edge!(foodweb, 2 => 1)  # Consumer to Resource
-    add_edge!(foodweb, 3 => 2)  # Predator to Consumer
-
-    I, J, _ = findnz(adjacency_matrix(foodweb))
-
-    HybridGrowthRateModel(I, J)
 end
 
 function (model::HybridGrowthRateModel)(components, u, ps, t)

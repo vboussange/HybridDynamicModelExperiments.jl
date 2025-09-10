@@ -26,22 +26,23 @@ function init(
         p_true,
         perturb = 1e0,
         rng,
+        verbose,
         kwargs...
 )
-    distrib_param = NamedTuple([dp => Product([Uniform(
-                                                   sort([(1e0 - perturb / 2e0) * k,
-                                                   (1e0 + perturb / 2e0) * k])...
-                                               ) for k in p_true[dp]])
+    bounds = NamedTuple([dp => cat(
+                             [sort([(1e0 - perturb / 2e0) * k, (1e0 + perturb / 2e0) * k])
+                              for k in p_true[dp]]...,
+                             dims = 2)' for dp in keys(p_true)])
+    distrib_param = NamedTuple([dp => Product([Uniform(bounds[dp][i, 1], bounds[dp][i, 2])
+                                               for i in axes(bounds[dp], 1)])
                                 for dp in keys(p_true)])
-
-    p_transform = Bijectors.NamedTransform(
-        NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)])
-    )
-
+    constraint = NamedTupleConstraint(NamedTuple([dp => BoxConstraint(
+                                                       bounds[dp][:, 1], bounds[dp][:, 2])
+                                                   for dp in keys(p_true)]))
     p_init = NamedTuple([k => rand(rng, distrib_param[k]) for k in keys(distrib_param)])
 
-    parameters = ParameterLayer(; constraint = Constraint(p_transform), init_value = p_init)
-    lux_model = ODEModel((; parameters), model; alg, abstol, reltol, sensealg, maxiters)
+    parameters = ParameterLayer(; constraint, init_value = p_init)
+    lux_model = ODEModel((; parameters), model; alg, abstol, reltol, sensealg, maxiters, verbose)
 
     return lux_model
 end
@@ -49,18 +50,20 @@ end
 function forecast(::LuxBackend, model, ps, st, ics, tsteps_forecast)
     u0 = ics[end].u0
     t0 = ics[end].t0
-    return model((;
-        u0 = u0,
-        saveat = tsteps_forecast,
-        tspan = (t0, tsteps_forecast[end])
-    ), ps, st)[1][
+    return model(
+        (;
+            u0 = u0,
+            saveat = tsteps_forecast,
+            tspan = (t0, tsteps_forecast[end])
+        ), ps, st)[1][
         :, :, 1
     ]
 end
 
 function get_parameter_error(::LuxBackend, model, ps, st, p_true)
     ps_tr, _ = model.components.parameters(ps.parameters, st.parameters)
-    med_par_err = median([median(abs.((ps_tr[k] - p_true[k]) ./ p_true[k])) for k in keys(ps_tr)])
+    med_par_err = median([median(abs.((ps_tr[k] - p_true[k]) ./ p_true[k]))
+                          for k in keys(ps_tr)])
     return med_par_err
 end
 
@@ -242,7 +245,8 @@ function simu(
         med_par_err = get_parameter_error(optim_backend, res.st_model, res.chains, p_true)
 
         if !isnothing(loss_fn)
-            preds = forecast(optim_backend, res.st_model, res.ics, res.chains, tsteps[test_idx])
+            preds = forecast(
+                optim_backend, res.st_model, res.ics, res.chains, tsteps[test_idx])
             forecast_err = median(loss_fn(p, data[:, test_idx]) for p in preds)
         end
     catch e

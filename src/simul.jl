@@ -33,7 +33,7 @@ function init(
                              [sort([(1e0 - perturb / 2e0) * k, (1e0 + perturb / 2e0) * k])
                               for k in p_true[dp]]...,
                              dims = 2)' for dp in keys(p_true)])
-    distrib_param = NamedTuple([dp => Product([Uniform(bounds[dp][i, 1], bounds[dp][i, 2])
+    distrib_param = NamedTuple([dp => product_distribution([Uniform(bounds[dp][i, 1], bounds[dp][i, 2])
                                                for i in axes(bounds[dp], 1)])
                                 for dp in keys(p_true)])
     constraint = NamedTupleConstraint(NamedTuple([dp => BoxConstraint(
@@ -160,7 +160,7 @@ function init(
         perturb = 1.0f0,
         kwargs...
 )
-    parameter_priors = NamedTuple([dp => Product([Uniform(sort([(1e0 - perturb / 2e0) * k,
+    parameter_priors = NamedTuple([dp => product_distribution([Uniform(sort([(1e0 - perturb / 2e0) * k,
                                                       (1e0 + perturb / 2e0) * k])...)
                                                   for
                                                   k in p_true[dp]]) for dp in keys(p_true)])

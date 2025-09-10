@@ -2,13 +2,14 @@ import Distributed: @everywhere
 import HybridModellingExperiments: setup_distributed_environment, HybridGrowthRateModel
 setup_distributed_environment()
 
-@everywhere begin 
+@everywhere begin
     using Lux
     using HybridModelling
     using HybridModellingExperiments
-    import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel, LuxBackend, MCMCBackend,
-                                    InferICs, run_simulations, LogMSELoss, save_results,
-                                    InferICs
+    import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel,
+                                       LuxBackend, MCMCBackend,
+                                       InferICs, run_simulations, LogMSELoss, save_results,
+                                       InferICs
     import HybridModellingExperiments: SerialMode, ParallelMode, DistributedMode
     import OrdinaryDiffEqTsit5: Tsit5
     import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
@@ -41,27 +42,27 @@ setup_distributed_environment()
             HlSize,
             kwargs...
     )
+        bounds = NamedTuple([dp => cat(
+                                 [sort([(1e0 - perturb / 2e0) * k,
+                                      (1e0 + perturb / 2e0) * k])
+                                  for k in p_true[dp]]...,
+                                 dims = 2)' for dp in keys(p_true)])
         distrib_param = NamedTuple([dp => product_distribution([Uniform(
-                                                                    sort([
-                                                                    (1e0 - perturb / 2e0) *
-                                                                    k,
-                                                                    (1e0 + perturb / 2e0) *
-                                                                    k])...
-                                                                ) for k in p_true[dp]])
+                                                       bounds[dp][i, 1], bounds[dp][i, 2])
+                                                   for i in axes(bounds[dp], 1)])
                                     for dp in keys(p_true)])
-
-        p_transform = Bijectors.NamedTransform(
-            NamedTuple([dp => Bijectors.bijector(distrib_param[dp])
-                        for dp in keys(distrib_param)])
-        )
-
+        constraint = NamedTupleConstraint(NamedTuple([dp => BoxConstraint(
+                                                          bounds[dp][:, 1], bounds[dp][
+                                                              :, 2])
+                                                      for dp in keys(p_true)]))
         p_init = NamedTuple([k => rand(rng, distrib_param[k]) for k in keys(distrib_param)])
 
-        parameters = ParameterLayer(; constraint = Constraint(p_transform), init_value = p_init)
-        growth_rate =  Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
-                                        Lux.Dense(HlSize, HlSize, NNlib.tanh), 
-                                        Lux.Dense(HlSize, HlSize, NNlib.tanh), 
-                                        Lux.Dense(HlSize, 1, NNlib.tanh))
+        parameters = ParameterLayer(; constraint, init_value = p_init)
+
+        growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
+            Lux.Dense(HlSize, HlSize, NNlib.tanh),
+            Lux.Dense(HlSize, HlSize, NNlib.tanh),
+            Lux.Dense(HlSize, 1, NNlib.tanh))
         lux_model = ODEModel(
             (; parameters, growth_rate), model; alg, abstol, reltol, sensealg, maxiters, verbose)
 
@@ -71,13 +72,13 @@ end
 
 function generate_data(
         ::HybridGrowthRateModel; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
-    p_true = (;H = [1.24, 2.5],
-            q = [4.98, 0.8],
-            r = [1.0, -0.4, -0.08],
-            A = [1.0],
-            s = [1.0])
+    p_true = (; H = [1.24, 2.5],
+        q = [4.98, 0.8],
+        r = [1.0, -0.4, -0.08],
+        A = [1.0],
+        s = [1.0])
 
-    u0_true = [0.5,0.8,0.5]
+    u0_true = [0.5, 0.8, 0.5]
     parameters = ParameterLayer(init_value = p_true)
 
     lux_true_model = ODEModel(
@@ -85,7 +86,7 @@ function generate_data(
 
     ps, st = Lux.setup(rng, lux_true_model)
     synthetic_data, _ = lux_true_model((; u0 = u0_true), ps, st)
-    return synthetic_data, (;H = p_true.H, q = p_true.q, r = p_true.r[2:end],  A = p_true.A,)  # only estimating A and r in hybrid model
+    return synthetic_data, (; H = p_true.H, q = p_true.q, r = p_true.r[2:end], A = p_true.A)  # only estimating A and r in hybrid model
 end
 
 function create_simulation_parameters()
@@ -93,8 +94,8 @@ function create_simulation_parameters()
     nruns = 5
     ic_estims = [
         InferICs(true,
-            Constraint(Bijectors.NamedTransform((;
-                u0 = Bijectors.bijector(Uniform(1e-3, 5e0)))))),
+            NamedTupleConstraint((;
+                u0 = BoxConstraint([1e-3], [5e0])))),
         InferICs(false)]
     noises = [0.2, 0.4]
     weight_decays = [1e-9, 1e-5, 1e-1]
@@ -105,9 +106,10 @@ function create_simulation_parameters()
 
     pars_arr = []
     for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims,
-        noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs, batchsize in batchsizes, HlSize in HlSizes
+        noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs,
+        batchsize in batchsizes, HlSize in HlSizes
 
-        optim_backend = LuxBackend(AdamW(;eta = lr, lambda = weight_decay),
+        optim_backend = LuxBackend(AdamW(; eta = lr, lambda = weight_decay),
             n_epochs,
             adtype,
             loss_fn,
@@ -130,7 +132,6 @@ function create_simulation_parameters()
     return shuffle!(rng, pars_arr)
 end
 
-
 const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
 const adtype = AutoZygote()
@@ -149,7 +150,7 @@ fixed_params = (alg = Tsit5(),
     batchsize = 10,
     forecast_length = 10,
     rng,
-    luxtype = Lux.f32,
+    luxtype = Lux.f64,
     model
 )
 

@@ -7,6 +7,7 @@ using PythonCall
 const matplotlib = pyimport("matplotlib")
 const plt = pyimport("matplotlib.pyplot")
 const Line2D = matplotlib.lines.Line2D
+const LinearSegmentedColormap = matplotlib.colors.LinearSegmentedColormap
 
 rcParams = plt."rcParams"
 
@@ -20,7 +21,9 @@ rcParams["figure.titlesize"] = 10
 rcParams["lines.markersize"] = 3
 
 color_palette = ["tab:blue", "tab:red", "tab:green"]
-
+COLORS_BR = ["#4cc9f0","#4895ef","#4361ee","#3f37c9","#3a0ca3","#480ca8","#560bad","#7209b7","#b5179e","#f72585"]
+# check https://coolors.co/palettes/popular/gradient
+CMAP_BR = LinearSegmentedColormap.from_list("species_richness", COLORS_BR)
 
 function boxplot_byclass(gdf_results, ax; xname, yname, xlab, ylab, yscale="log", classes, classname, spread, color_palette, legend)
     for (j, c) in enumerate(classes)

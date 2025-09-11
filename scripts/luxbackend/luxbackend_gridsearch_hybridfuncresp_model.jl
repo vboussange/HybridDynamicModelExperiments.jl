@@ -132,9 +132,9 @@ const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
 const adtype = AutoZygote()
 const loss_fn = LogMSELoss()
-const n_epochs = 2
+const n_epochs = 3000
 
-mode = SerialMode()
+mode = DistributedMode()
 
 fixed_params = (alg = Tsit5(),
     abstol = 1e-4,

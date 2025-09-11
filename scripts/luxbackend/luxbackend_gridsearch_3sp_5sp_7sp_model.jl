@@ -131,7 +131,8 @@ fixed_params = (alg = Tsit5(),
     n_epochs = 3000,
     loss_fn = LogMSELoss(),
     forecast_length = 10,
-    luxtype = Lux.f64
+    luxtype = Lux.f64, 
+    shift = 1
 )
 
 simulation_parameters = create_simulation_parameters()

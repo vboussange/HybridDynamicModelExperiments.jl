@@ -82,10 +82,10 @@ for batchsize in batchsizes, infer_ics in (true, false)
     )
     optim_backend = LuxBackend(Adam(lr_init), 1, adtype, loss_fn, callback)
     stats = @benchmark train($optim_backend,
-        lux_model,
+        $lux_model,
         $dataloader,
         $(InferICs(infer_ics)),
-        rng
+        $rng
     ) setup=(rng = MersenneTwister(2))
     push!(results, (; times = stats.times, batchsize, memory = stats.memory, allocs = stats.allocs, infer_ics))
 end

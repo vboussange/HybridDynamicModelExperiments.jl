@@ -1,6 +1,7 @@
 #=
 Settings for pyplot
 =#
+using LaTeXStrings
 using PythonCall
 # using PyCall
 

@@ -5,142 +5,127 @@ To get full figure, you need to compile `fig_3_tex/figure_3.tex`, which overlays
 graphical illustration of foodwebs on top of the figure produced by this script.
 =#
 cd(@__DIR__)
-using Graphs
-using LinearAlgebra
 using UnPack
-using OrdinaryDiffEq
 using Statistics
-using SparseArrays
-using ComponentArrays
-using SciMLSensitivity
-using PiecewiseInference
 using JLD2
 using Distributions
-using Bijectors
 using DataFrames
 using Dates
-using PiecewiseInference
-import PiecewiseInference: AbstractODEModel
+using HybridModelling
+using HybridModellingExperiments: boxplot_byclass, boxplot
 
 include("../format.jl")
-include("../../src/loss_fn.jl")
-include("../../src/3sp_model.jl")
-include("../../src/5sp_model.jl")
-include("../../src/7sp_model.jl")
-include("../../src/utils.jl")
-include("../../src/plotting.jl")
 
-result_name_3sp = "../../scripts/inference_3sp_model/distributed/results/2023-11-23/3sp_model_sims_only_backdiff.jld2"
-result_name_5sp = "../../scripts/inference_5sp_model/distributed/results/2023-11-23/5sp_model_sims_only_backdiff.jld2"
-result_name_7sp = "../../scripts/inference_7sp_model/distributed/results/2023-11-23/7sp_model_sims_only_backdiff.jld2"
+tsteps = range(500e0, step = 4, length = 100)
+segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
+nsegments = [length(tokens(tokenize(SegmentedTimeSeries(tsteps, segmentsize = s)))) for s in segmentsizes]
 
-color_palette = ["tab:blue", "tab:red", "tab:green"]
+result_name_scaling_segmentsize = "../../scripts/scaling/results/scaling_segmentsize_e75afd6.jld2"
+result_name_scaling_batchsize = "../../scripts/scaling/results/scaling_batchsize_6284b1e.jld2"
 
-# redefining validate so that we do not get inf values
-# if forecasted data is negative, we set it to an arbitrarily low value
-import PiecewiseInference.validate
-function validate(infres::InferenceResult, ode_data, true_model::AbstractODEModel; length_horizon = nothing)
-        loss_likelihood = infres.infprob.loss_likelihood
-        tsteps = true_model.mp.kwargs[:saveat]
-        mystep = tsteps[2]-tsteps[1]
-        ranges = infres.ranges
-        isnothing(length_horizon) && (length_horizon = length(ranges[1]))
-        tsteps_forecast = range(start = tsteps[end]+mystep, step = mystep, length=length_horizon)
-    
-        forcasted_data = forecast(infres, tsteps_forecast) |> Array
-        true_forecasted_data = simulate(true_model; 
-                                        u0 = ode_data[:,ranges[end][1]],
-                                        tspan = (tsteps[ranges[end][1]], tsteps_forecast[end]), 
-                                        saveat = tsteps_forecast) |> Array
-    
-        forcasted_data[forcasted_data .<= 0.] .= 1e-3
-        loss_likelihood(forcasted_data, true_forecasted_data, nothing)
-end
+df_scaling_segmentsize_nparams = load(result_name_scaling_segmentsize, "results")
+df_scaling_segmentsize_nparams[!, :time] ./= 1e9 # per iteration, in seconds (originally in ns)
+dropmissing!(df_scaling_segmentsize_nparams)
+df_scaling_segmentsize_nparams = flatten(df_scaling_segmentsize_nparams, :time)
+df_scaling_segmentsize_nparams = df_scaling_segmentsize_nparams[df_scaling_segmentsize_nparams.optim_backend .== "LuxBackend", :]
+df_scaling_segmentsize = df_scaling_segmentsize_nparams[df_scaling_segmentsize_nparams.modelname .== "Model3SP", :]
+df_scaling_paramsize = df_scaling_segmentsize_nparams[df_scaling_segmentsize_nparams.segmentsize .== 9, :]
 
-# Stacking up parameter error, forecast error and inference time for all models
-df_result_arr = [tap_results(rn) for rn in [result_name_3sp, result_name_5sp, result_name_7sp]]
-noises = [0.1, 0.2, 0.3]
-spread = 0.7 #spread of box plots
+df_scaling_batchsize = load(result_name_scaling_batchsize, "results")
+df_scaling_batchsize[!, :times] ./= 1e9 # per iteration, in seconds (originally in ns)
+dropmissing!(df_scaling_batchsize)
+df_scaling_batchsize = flatten(df_scaling_batchsize, :times)
 
-fig, axs = subplots(3, 3, figsize = (6,6), sharex = "col", sharey = "row")
-for (i,df_results) in enumerate(df_result_arr)
-    # averaging by nruns
-    i = i-1
-    gdf_results = groupby(df_results, [:group_size, :noise])
-    i == -1 ? legend = true : legend = false
-    ax = axs[0, i]
+df_scaling_paramsize[!, "modelname"] = replace(df_scaling_paramsize.modelname, "Model3SP" => L"\mathcal{M}_3", "Model5SP" => L"\mathcal{M}_5", "Model7SP" => L"\mathcal{M}_7")
 
-    i == 0 ? ylab = "Parameter error" : ylab = ""
-    boxplot_byclass(gdf_results, ax; 
-            xname = :group_size,
-            yname = :par_err_median, 
-            xlab = "", 
-            ylab, 
-            yscale = "linear", 
-            classes = noises, 
-            classname = :noise, 
-            spread, 
-            color_palette,
-            legend)
-    fig.set_facecolor("none")
-    ax.set_facecolor("none")
-    fig.tight_layout()
-    display(fig)
+fig, axs = plt.subplots(1, 3, figsize = (8,3))
 
+ax = axs[0]
+ax.set_title("Batch size = 10, segment length S = 9")
+gdf_results = groupby(df_scaling_paramsize, [:modelname, :infer_ics])
+# y = [df.time for df in gdf]
+boxplot_byclass(gdf_results, ax; 
+        xname = :modelname,
+        yname = :time, 
+        xlab = "", 
+        ylab, 
+        yscale = "linear", 
+        classes = [true, false], 
+        classname = :infer_ics, 
+        spread, 
+        color_palette= COLORS_BR[[1, length(COLORS_BR)]],
+        legend=false,
+        link=true)
+ax.set_facecolor("none")
+ax.set_ylabel(ylab)
+# ax.set_yscale("log")
+# ax.set_ylim(-0.05,1.1)
+x = sort!(unique(df_scaling_paramsize.modelname))
+ax.set_xticks(1:length(x))
+ax.set_xticklabels(x)
+#     ax.set_yscale("log")
 
+# scaling
+spread = 0.7
+ax = axs[1]
+ax.set_title("Batch size = 10, "*L"\mathcal{M}_3")
+ylab = "Simulation time\nper epoch (s)"
+gdf_results = groupby(df_scaling_segmentsize, [:segmentsize, :infer_ics])
+# y = [df.time for df in gdf]
+boxplot_byclass(gdf_results, ax; 
+        xname = :segmentsize,
+        yname = :time, 
+        xlab = "Segment size", 
+        ylab = "", 
+        yscale = "linear", 
+        classes = [true, false], 
+        classname = :infer_ics, 
+        spread, 
+        color_palette = COLORS_BR[[1, length(COLORS_BR)]],
+        legend=false,
+        link=true)
+ax.set_facecolor("none")
+ax.set_yscale("log")
 
-    ax = axs[1, i]
-    i == 0 ? ylab = "Forecast error" : ylab = ""
-    boxplot_byclass(gdf_results, ax; 
-            xname = :group_size,
-            yname = :val, 
-            xlab = "", 
-            ylab, 
-            yscale = "linear", 
-            classes = noises, 
-            classname = :noise, 
-            spread, 
-            color_palette,
-            legend=false)
-    ax.set_ylim(-10,100)
-    ax.set_facecolor("none")
-    display(fig)
+ax = axs[2]
+ax.set_title("Segment length S = 4, "*L"\mathcal{M}_3")
+gdf_results = groupby(df_scaling_batchsize, [:batchsize, :infer_ics])
+# y = [df.time for df in gdf]
+boxplot_byclass(gdf_results, ax; 
+        xname = :batchsize,
+        yname = :times, 
+        xlab = "Batch size", 
+        ylab = "", 
+        yscale = "linear", 
+        classes = [true, false], 
+        classname = :infer_ics, 
+        spread, 
+        color_palette = COLORS_BR[[1, length(COLORS_BR)]],
+        legend=false,
+        link=true)
+# ax.set_yscale("log")
+# ax.set_ylim(-0.05,1.1)
+x = sort!(unique(df_scaling_batchsize.batchsize)) .|> Int64
+ax.set_xticks(1:length(x))
+ax.set_xticklabels(x, rotation=45)
+ax.set_facecolor("none")
+fig.set_facecolor("none")
 
-
-    ax = axs[2, i]
-    gdf = groupby(df_results, :group_size)
-    y = [df.time for df in gdf]
-    x = sort!(unique(df_results.group_size)) .|> Int64
-    boxplot(ax; y, positions = 1:length(x), color = "tab:gray")
-    i == 0 ? ylab = "Simulation time (s)" : ylab = ""
-    ax.set_ylabel(ylab)
-    # ax.set_yscale("log")
-    # ax.set_ylim(-0.05,1.1)
-    ax.set_xlabel("Segment size")
-    ax.set_xticks(1:length(x))
-    ax.set_xticklabels(x, rotation=45)
-    fig.set_facecolor("none")
-    ax.set_facecolor("none")
-    fig.tight_layout()
-    display(fig)
-
-end
-
-Ms = [Model3SP, Model5SP, Model7SP]
-model_names = [L"\mathcal{M}_3", L"\mathcal{M}_5", L"\mathcal{M}_7"]
-@assert all([df.res[1].infprob.m isa M for (df,M) in zip(df_result_arr, Ms)])
-
-labels = ["noise r = $n" for n in noises]
+labels = ["ICs estimated", "ICs not estimated"]
 fig.legend(loc="upper center",
         handles=[Line2D([0], 
                         [0], 
-                        color=color_palette[i],
+                        color=COLORS_BR[[1, length(COLORS_BR)]][i],
                         # linestyle="", 
-                        label=labels[i]) for i in 1:length(noises)],
-        bbox_to_anchor=(0.55, 1.2),
+                        label=labels[i]) for i in 1:2],
+        bbox_to_anchor=(0.55, 1.1),
         ncol=3,
         fancybox=true,)
 # [axs[0,i-1].set_title(model_names[i], fontsize=20) for i in 1:length(df_result_arr)]
 display(fig)
 
-fig.savefig("figure3_temp.pdf", dpi = 300, bbox_inches="tight")
+
+fig.tight_layout()
+display(fig)
+
+fig.savefig("figure3.pdf", dpi = 300, bbox_inches="tight")

@@ -25,7 +25,7 @@ COLORS_BR = ["#4cc9f0","#4895ef","#4361ee","#3f37c9","#3a0ca3","#480ca8","#560ba
 # check https://coolors.co/palettes/popular/gradient
 CMAP_BR = LinearSegmentedColormap.from_list("species_richness", COLORS_BR)
 
-function boxplot_byclass(gdf_results, ax; xname, yname, xlab, ylab, yscale="log", classes, classname, spread, color_palette, legend)
+function boxplot_byclass(gdf_results, ax; xname, yname, xlab, ylab, yscale="log", classes, classname, spread, color_palette, legend, link=false)
     for (j, c) in enumerate(classes)
         df = subset(gdf_results, classname => x -> first(x) == c)
         gdf = groupby(df, xname, sort=true)
@@ -37,6 +37,31 @@ function boxplot_byclass(gdf_results, ax; xname, yname, xlab, ylab, yscale="log"
 
         boxplot(ax; y, positions=xx, color=color_palette[j])
 
+    end
+
+    if link
+        N = length(classes)
+        for (j, c) in enumerate(classes)
+            df = subset(gdf_results, classname => x -> first(x) == c)
+            gdf = groupby(df, xname, sort=true)
+            y = [df[:, yname] for df in gdf]
+            M = length(gdf)
+            xx = (1:M) .+ (j .- (N + 1) / 2) * spread / N
+
+            valid_idx = findall(v -> length(v) > 0, y)
+            if !isempty(valid_idx)
+                xx_valid = xx[valid_idx]
+                meds = [median(y[i]) for i in valid_idx]
+                ax.plot(xx_valid, meds;
+                    color = color_palette[j],
+                    marker = "o",
+                    markerfacecolor = color_palette[j],
+                    markeredgecolor = color_palette[j],
+                    linewidth = 1,
+                    zorder = 3
+                )
+            end
+        end
     end
 
     # %%

@@ -19,12 +19,12 @@ tsteps = range(500e0, step = 4, length = 100)
 segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
 nsegments = [length(tokens(tokenize(SegmentedTimeSeries(tsteps, segmentsize = s)))) for s in segmentsizes]
 
-result_name = "../../scripts/luxbackend/results/luxbackend_gridsearch_3sp_5sp_7sp_model_2a6f3f1.jld2"
+result_name = "../../scripts/luxbackend/results/luxbackend_gridsearch_3sp_5sp_7sp_model_31bde13.jld2"
 
 df_err = load(result_name, "results") # size : (2160, 21)
 dropmissing!(df_err, :med_par_err) # size : (1441, 21)
 
-df_err_filtered = df_err[(df_err.noise .== 0.4) .&& (df_err.lr .== 1e-2) .&& (df_err.perturb .== 1e0), :]
+df_err_filtered = df_err[(df_err.noise .== 0.2) .&& (df_err.lr .== 1e-3) .&& (df_err.perturb .== 1e0), :]
 
 gdf_err = groupby(df_err_filtered, :modelname)
 
@@ -34,8 +34,8 @@ fig, axs = plt.subplots(2, 3, figsize = (6,4), sharex = "col", sharey = "row")
 for (i, modelname) in enumerate(["Model3SP", "Model5SP", "Model7SP"])
     # averaging by nruns
     i = i-1
-    df_err = gdf_err[(;modelname)]
-    gdf_results = groupby(df_err, [:segmentsize, :infer_ics])
+    _df_err = gdf_err[(;modelname)]
+    gdf_results = groupby(_df_err, [:segmentsize, :infer_ics])
     i == -1 ? legend = true : legend = false
     ax = axs[0, i]
 
@@ -50,7 +50,9 @@ for (i, modelname) in enumerate(["Model3SP", "Model5SP", "Model7SP"])
             classname = :infer_ics, 
             spread, 
             color_palette,
-            legend)
+            legend, 
+            link=true)
+    
     ax.set_facecolor("none")
     fig.tight_layout()
     display(fig)
@@ -69,11 +71,12 @@ for (i, modelname) in enumerate(["Model3SP", "Model5SP", "Model7SP"])
             classname = :infer_ics, 
             spread, 
             color_palette,
-            legend=false)
+            legend=false,
+            link=true)
 #     ax.set_ylim(-0.2,2.)
     ax.set_facecolor("none")
-    ax.set_ylim(-0.1,2e0)
-#     ax.set_yscale("log")
+    # ax.set_ylim(-0.1,2e0)
+    ax.set_yscale("log")
 
     fig.set_facecolor("none")
     fig.tight_layout()

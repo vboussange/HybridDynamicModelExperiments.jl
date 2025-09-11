@@ -22,6 +22,7 @@ setup_distributed_environment(4)
     using Distributions
     using Dates
     using BenchmarkTools
+    callback(l, epoch, ts) = nothing
 
     function HybridModellingExperiments.simu(
             optim_backend::LuxBackend,
@@ -57,12 +58,15 @@ setup_distributed_environment(4)
         )
 
         time = missing
-
+        memory = missing
+        allocs = missing
         try
             stats = eval(:(@benchmark train(
                 $optim_backend, $lux_model, $dataloader, $experimental_setup, $rng
             )))
             time = stats.times
+            memory = stats.memory
+            allocs = stats.allocs
         catch e
             println("Error occurred during training: ", e)
         end
@@ -70,6 +74,8 @@ setup_distributed_environment(4)
         return (;
             modelname = HybridModellingExperiments.nameof(model),
             time,
+            memory,
+            allocs,
             segmentsize,
             sensealg = string(typeof(sensealg)),
             optim_backend = HybridModellingExperiments.nameof(optim_backend),
@@ -110,9 +116,13 @@ setup_distributed_environment(4)
         )
 
         time = missing
+        memory = missing
+        allocs = missing
         try
             stats = eval(:(@benchmark train($optim_backend, $lux_model, $dataloader, $experimental_setup, $rng)))
             time = stats.times
+            memory = stats.memory
+            allocs = stats.allocs
 
         catch e
             println("Error occurred during training: $e")
@@ -121,6 +131,8 @@ setup_distributed_environment(4)
         return (;
             modelname = HybridModellingExperiments.nameof(model),
             time,
+            memory,
+            allocs,
             segmentsize,
             sensealg = string(typeof(sensealg)),
             optim_backend = HybridModellingExperiments.nameof(optim_backend),
@@ -189,7 +201,7 @@ function create_simulation_parameters()
 
     backends = [
         LuxBackend(
-            Adam(1e-2), nits, AutoZygote(), loss_fn; verbose_frequency = Inf),
+            Adam(1e-2), nits, AutoZygote(), loss_fn, callback),
         MCMCBackend(
             HMC(0.05, 4, adtype = AutoForwardDiff()), nits, datadistrib; progress = false)]
 
@@ -212,7 +224,7 @@ mode = DistributedMode()
 
 const tsteps = range(500e0, step = 4, length = 111)
 const tspan = (0e0, tsteps[end])
-const nits = 5 # number of epochs or iterations depending on the context
+const nits = 1 # number of epochs or iterations depending on the context
 loss_fn = LogMSELoss()
 
 fixed_params = (alg = Tsit5(),
@@ -224,13 +236,14 @@ fixed_params = (alg = Tsit5(),
     rng = Random.MersenneTwister(1234),
     batchsize = 10,
     forecast_length = 10, # not used but we keep it for consistency
-    noise = 0.2)
+    noise = 0.2,
+    verbose = false,)
 
 
 simulation_parameters = create_simulation_parameters()
 println("Created $(length(simulation_parameters)) simulations...")
 
 println("Launching simulations...")
-results = run_simulations(mode, simulation_parameters; fixed_params...)
+results = run_simulations(mode, simulation_parameters[1:1]; fixed_params...)
 
 save_results(string(@__FILE__); results)

@@ -21,7 +21,7 @@ segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
 nsegments = [length(tokens(tokenize(SegmentedTimeSeries(tsteps, segmentsize = s)))) for s in segmentsizes]
 
 result_name_scaling_segmentsize = "../../scripts/scaling/results/scaling_7cb2a4a.jld2"
-result_name_scaling_batchsize = "../../scripts/scaling/results/scaling_batch_87efebc.jld2"
+result_name_scaling_batchsize = "../../scripts/scaling/results/scaling_batchsize_31bde13.jld2"
 
 df_scaling_segmentsize_nparams = load(result_name_scaling_segmentsize, "results")
 nits = 5
@@ -92,7 +92,7 @@ gdf_results = groupby(df_scaling_batchsize, [:batchsize, :infer_ics])
 # y = [df.time for df in gdf]
 boxplot_byclass(gdf_results, ax; 
         xname = :batchsize,
-        yname = :batchsize, 
+        yname = :times, 
         xlab = "Batch size", 
         ylab = "", 
         yscale = "linear", 
@@ -101,7 +101,7 @@ boxplot_byclass(gdf_results, ax;
         spread, 
         color_palette,
         legend=false)
-ax.set_yscale("log")
+# ax.set_yscale("log")
 # ax.set_ylim(-0.05,1.1)
 x = sort!(unique(df_scaling_batchsize.batchsize)) .|> Int64
 ax.set_xticks(1:length(x))
@@ -127,3 +127,31 @@ fig.tight_layout()
 display(fig)
 
 fig.savefig("figure3bis_scaling.pdf", dpi = 300, bbox_inches="tight")
+
+
+fig, ax = plt.subplots(1, 1, figsize = (3,3))
+ax.set_title("Segment size = 4, Model3SP")
+gdf_results = groupby(df_scaling_batchsize, [:batchsize, :infer_ics])
+# y = [df.time for df in gdf]
+boxplot_byclass(gdf_results, ax; 
+        xname = :batchsize,
+        yname = :memory, 
+        xlab = "Batch size", 
+        ylab = "Memory (bytes)", 
+        yscale = "linear", 
+        classes = [true, false], 
+        classname = :infer_ics, 
+        spread, 
+        color_palette,
+        legend=false)
+fig.legend(loc="upper center",
+        handles=[Line2D([0], 
+                        [0], 
+                        color=color_palette[i],
+                        # linestyle="", 
+                        label=labels[i]) for i in 1:2],
+        bbox_to_anchor=(0.55, 1.1),
+        ncol=3,
+        fancybox=true,)
+display(fig)
+fig.savefig("memoryfootprint.pdf", dpi = 300, bbox_inches="tight")

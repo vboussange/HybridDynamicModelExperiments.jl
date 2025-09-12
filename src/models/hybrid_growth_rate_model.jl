@@ -16,7 +16,7 @@ end
 water_availability(t::T) where T = sin.(convert(T, Period) * t)
 growth_rate_resource(p, water::T) where T = p.r[1] * exp(-T(0.5)*(water)^2 / p.s[1]^2)
 intinsic_growth_rate(::VaryingGrowthRateModel, p, t) = [growth_rate_resource(p, water_availability(t)); p.r[2:end]]
-
+nameof(::VaryingGrowthRateModel) = "VaryingGrowthRateModel"
 
 struct HybridGrowthRateModel{II} <: AbstractModel3SP
     I::II # foodweb row index

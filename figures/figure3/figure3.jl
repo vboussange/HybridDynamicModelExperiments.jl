@@ -39,16 +39,17 @@ df_scaling_batchsize = flatten(df_scaling_batchsize, :times)
 df_scaling_paramsize[!, "modelname"] = replace(df_scaling_paramsize.modelname, "Model3SP" => L"\mathcal{M}_3", "Model5SP" => L"\mathcal{M}_5", "Model7SP" => L"\mathcal{M}_7")
 
 fig, axs = plt.subplots(1, 3, figsize = (8,3))
+ylab = "Simulation time\nper epoch (s)"
 
-ax = axs[0]
+ax = axs[2]
 ax.set_title("Batch size = 10, segment length S = 9")
 gdf_results = groupby(df_scaling_paramsize, [:modelname, :infer_ics])
 # y = [df.time for df in gdf]
 boxplot_byclass(gdf_results, ax; 
         xname = :modelname,
         yname = :time, 
-        xlab = "", 
-        ylab, 
+        xlab = "Model", 
+        ylab = "", 
         yscale = "linear", 
         classes = [true, false], 
         classname = :infer_ics, 
@@ -67,16 +68,15 @@ ax.set_xticklabels(x)
 
 # scaling
 spread = 0.7
-ax = axs[1]
-ax.set_title("Batch size = 10, "*L"\mathcal{M}_3")
-ylab = "Simulation time\nper epoch (s)"
+ax = axs[0]
+ax.set_title("Batch size \$b = 10\$, "*L"\mathcal{M}_3")
 gdf_results = groupby(df_scaling_segmentsize, [:segmentsize, :infer_ics])
 # y = [df.time for df in gdf]
 boxplot_byclass(gdf_results, ax; 
         xname = :segmentsize,
         yname = :time, 
-        xlab = "Segment size", 
-        ylab = "", 
+        xlab = "Segment length \$S\$", 
+        ylab, 
         yscale = "linear", 
         classes = [true, false], 
         classname = :infer_ics, 
@@ -87,14 +87,14 @@ boxplot_byclass(gdf_results, ax;
 ax.set_facecolor("none")
 ax.set_yscale("log")
 
-ax = axs[2]
+ax = axs[1]
 ax.set_title("Segment length S = 4, "*L"\mathcal{M}_3")
 gdf_results = groupby(df_scaling_batchsize, [:batchsize, :infer_ics])
 # y = [df.time for df in gdf]
 boxplot_byclass(gdf_results, ax; 
         xname = :batchsize,
         yname = :times, 
-        xlab = "Batch size", 
+        xlab = "Batch size \$b\$", 
         ylab = "", 
         yscale = "linear", 
         classes = [true, false], 

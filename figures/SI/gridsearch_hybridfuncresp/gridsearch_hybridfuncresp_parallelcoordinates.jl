@@ -13,6 +13,7 @@ using DataFrames
 using Dates
 using HybridModelling
 using Printf
+using ComponentArrays
 
 include("../../format.jl");
 parallel_coordinates = pyimport("pandas.plotting").parallel_coordinates
@@ -23,19 +24,16 @@ result_name = "../../../scripts/luxbackend/results/luxbackend_gridsearch_hybridf
 df = load(result_name, "results")
 dropmissing!(df, :med_par_err)
 df = df[df.noise .== 0.2, :]
+rename!(df, "forecast_err" => "Forecast error", "med_par_err" => "Parameter error")
 
 # selecting median
-dims = [:infer_ics, :segmentsize, :weight_decay, :lr, :HlSize]
+dims = [:segmentsize, :infer_ics, :lr, :weight_decay, :HlSize]
 df_filtered = combine(groupby(df, dims),
-    :forecast_err => (x -> median(skipmissing(x))) => :forecast_err,
-    :forecast_err => (x -> std(skipmissing(x))) => :forecast_err_std,
-    :med_par_err => (x -> median(skipmissing(x))) => :med_par_err,
-    :med_par_err => (x -> std(skipmissing(x))) => :med_par_err_std
-)
+    "Forecast error" => (x -> median(skipmissing(x))) => "Forecast error",)
 
 data = df_filtered[:, dims]
 # data[!, :infer_ics] = .!data.infer_ics
-forecast_err = df_filtered.forecast_err
+forecast_err = df_filtered[:, "Forecast error"]
 
 # Normalize data to [0, 1] for each dimension
 data_norm = DataFrame()
@@ -56,7 +54,7 @@ end
 
 log_forecast_err = log.(forecast_err)
 # Identify the top 3 combinations with lowest forecast_err
-top3_indices = sortperm(df_filtered.forecast_err)[1:3]
+top3_indices = sortperm(df_filtered[:, "Forecast error"])[1:3]
 open("top3_hyperparams.txt", "w") do f
     println(f, "Top 3 Hyperparameter Combinations (Lowest Forecast Error)")
     println(f, "=" ^ 60)
@@ -66,12 +64,12 @@ open("top3_hyperparams.txt", "w") do f
         for col in dims
             println(f, "  $col: $(row[col])")
         end
-        println(f, "  forecast_err: $(row.forecast_err)")
+        println(f, "  forecast_err: $(row."Forecast error")")
     end
 end
 
 # Create figure
-fig, ax = plt.subplots(figsize = (10, 6))
+fig, ax = plt.subplots(figsize = (8, 4))
 err = forecast_err
 # err = clamp.(err, quantile(err, 0.), quantile(err, 0.8))
 sm = plt.cm.ScalarMappable(cmap = CMAP_BR,
@@ -104,7 +102,7 @@ for idx in top3_indices
     i = idx
     y_vals = [data_norm[i, col] for col in dims]
     x_vals = 1:n_dims
-    color = sm.to_rgba(err[i])
+    color = "#80ffdb"#sm.to_rgba(err[i])
     # Interpolate for smooth curve
     if length(x_vals) > 1
         interp_func = interp1d(x_vals, y_vals, kind="cubic")
@@ -160,7 +158,9 @@ end
 
 # Set x-ticks and labels
 ax.set_xticks(1:n_dims)
-ax.set_xticklabels([string(col) for col in dims])
+names = replace(dims, :segmentsize => "Segment length\n"*L"S", :infer_ics => "IC\nestimation", :lr => "Learning rate\n"*L"\gamma", :weight_decay => "Weight decay\n"*L"\lambda", :HlSize => "Hidden layer size\n"*L"N_h")
+ax.set_xticklabels([string(name) for name in names])
+
 ax.set_xlabel("Hyper parameters")
 # ax.set_title("Parallel Coordinates Plot Colored by Log Forecast Error")
 ax.yaxis.set_visible(false)
@@ -175,3 +175,4 @@ cbar = plt.colorbar(sm, ax = ax, shrink = 0.6, pad = 0.02)
 cbar.set_label("Forecast error")
 
 display(fig)
+fig.savefig("gridsearch_hybridfuncresp.pdf", dpi=300, bbox_inches="tight")

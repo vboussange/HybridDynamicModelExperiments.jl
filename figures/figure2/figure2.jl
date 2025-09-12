@@ -133,6 +133,22 @@ for perturb in unique(df.perturb), noise in unique(df.noise)
                 end
             end
 
+            # Plot the top 3 best combinations with thick, dashed lines
+            for idx in top3_indices
+                y_vals = [data_norm[idx, col] for col in dims]
+                x_vals = 1:n_dims
+                color = "#80ffdb"#sm.to_rgba(err[i])
+                # Interpolate for smooth curve
+                if length(x_vals) > 1
+                    interp_func = interp1d(x_vals, y_vals, kind="quadratic")
+                    x_fine = range(1, n_dims, length=100)
+                    y_smooth = interp_func(x_fine)
+                    ax.plot(x_fine, y_smooth, linewidth=3, linestyle="dashdot", color=color)
+                else
+                    ax.plot(x_vals, y_vals, linewidth=3, linestyle="dashdot", color=color)
+                end
+            end
+
             # Set x-ticks and labels
             ax.set_xticks(1:n_dims)
             names = replace(dims, :segmentsize => "Segment length\n"*L"S", :infer_ics => "IC\nestimation", :lr => "Learning rate\n"*L"\gamma")

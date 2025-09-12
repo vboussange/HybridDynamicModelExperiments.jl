@@ -73,7 +73,7 @@ function generate_data(
         q = [4.98, 0.8],
         r = [1.0, -0.4, -0.08],
         A = [1.0],
-        s = [1.0])
+        s = [0.8])
 
     u0_true = [0.5, 0.8, 0.5]
     parameters = ParameterLayer(init_value = p_true)
@@ -94,7 +94,7 @@ function create_simulation_parameters()
             NamedTupleConstraint((;
                 u0 = BoxConstraint([1e-3], [5e0])))),
         InferICs(false)]
-    noises = [0.2, 0.4]
+    noises = [0.1, 0.2]
     weight_decays = [1e-9, 1e-5, 1e-1]
     perturbs = [1.0]
     lrs = [1e-3, 1e-2, 1e-1]

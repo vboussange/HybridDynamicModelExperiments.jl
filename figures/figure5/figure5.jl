@@ -3,207 +3,212 @@ generating figure 4 of manuscript
 =#
 
 cd(@__DIR__)
-using PythonCall 
-matplotlib = pyimport("matplotlib")
-plt = pyimport("matplotlib.pyplot")
-Line2D = matplotlib.lines.Line2D #used for legend
-using Graphs
-using LinearAlgebra
 using UnPack
-using OrdinaryDiffEq
-using Statistics, StatsBase
-using SparseArrays
-using ComponentArrays
-using SciMLSensitivity
-using PiecewiseInference
+using Statistics
 using JLD2
 using Distributions
-using Bijectors
 using DataFrames
 using Dates
-using LaTeXStrings
-
+using HybridModelling
+import HybridModellingExperiments: HybridFuncRespModel, Model3SP, growth_rate_resource, water_availability
+import OrdinaryDiffEqTsit5: Tsit5
+using Printf
+using ComponentArrays
+using Lux, NNlib
+using Random
 include("../format.jl")
-include("../../src/loss_fn.jl")
-include("../../src/3sp_model.jl")
-include("../../src/hybrid_growth_rate_model.jl")
-include("../../src/utils.jl")
 
-# ## Preprocessing
-result_path = "../../scripts/inference_3sp_NN_model/results/2023-11-30/inference_3sp_NN_model.jld2"
+# function HybridModellingExperiments.init(
+#         model::HybridGrowthRateModel;
+#         p_true,
+#         perturb = 1e0,
+#         rng,
+#         kwargs...
+# )
+#     p_true = merge(p_true, (; r = p_true.r[2:end]))
+#     distrib_param = NamedTuple([dp => product_distribution([Uniform(
+#                                                                 sort([
+#                                                                 (1e0 - perturb / 2e0) * k,
+#                                                                 (1e0 + perturb / 2e0) * k])...
+#                                                             ) for k in p_true[dp]])
+#                                 for dp in keys(p_true)])
 
-@load joinpath(result_path) results data_arr p_trues
+#     p_transform = Bijectors.NamedTransform(
+#         NamedTuple([dp => Bijectors.bijector(distrib_param[dp])
+#                     for dp in keys(distrib_param)])
+#     )
 
-# discarding unsuccessful inference results
-filter!(row -> !isinf(row.loss), results)
-results[!,"1/s"] = 1 ./ results.s
+#     p_init = NamedTuple([k => rand(rng, distrib_param[k]) for k in keys(distrib_param)])
 
-results[!, :val] = zeros(size(results,1))
-for df in groupby(results, :s)
-    s = Float32(df.s[1])
-    idx_s = findfirst([p.s[1] == s for p in p_trues])
-    data = data_arr[idx_s]
-    for r in eachrow(df)
-        mp = remake(r.res.infprob.m.mp; p = p_trues[idx_s])
-        water_dep_em = Model3SPStar(mp)
-        r.val = validate(r.res, data, water_dep_em)
-    end
-end
+#     parameters = ParameterLayer(; constraint = Constraint(p_transform), init_value = p_init)
+#     growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
+#         Lux.Dense(HlSize, HlSize, NNlib.tanh),
+#         Lux.Dense(HlSize, HlSize, NNlib.tanh),
+#         Lux.Dense(HlSize, 1))
+#     lux_model = ODEModel(
+#         (; parameters, growth_rate), model)
 
-mydict = Dict("HybridGrowthRateModel" => L"\mathcal{M}_3^{\text{NN}}", 
-            "Model3SP" => L"\mathcal{M}_3")
+#     return (; lux_model)
+# end
 
-results[:,"scenario"] = replace(results[:,"model"], mydict...)
+result_path_func_resp_model = "../../scripts/luxbackend/results/luxbackend_gridsearch_hybridgrowthrate_model_31bde13.jld2"
+df_hybridgrowthrate = load(result_path_func_resp_model, "results")
+dropmissing!(df_hybridgrowthrate, :forecast_err)
 
-println(results)
+result_path_varyinggrowthrate = "../../scripts/luxbackend/results/luxbackend_varyinggrowthrate_70fa271.jld2"
+df_varyinggrowthrate = load(result_path_varyinggrowthrate, "results")
+dropmissing!(df_varyinggrowthrate, :forecast_err)
 
-# %%
-gdf_results = groupby(results, :noise)
-df_to_plot = subset(gdf_results, :noise => x -> first(x) == 0.1)
-dfg_model = groupby(df_to_plot, "scenario");
+df_model3sp = df_varyinggrowthrate[
+    (df_varyinggrowthrate.modelname .== "Model3SP") .&& (df_varyinggrowthrate.perturb .== 1.0) .&& (df_varyinggrowthrate.noise .== 0.2),
+    :]
+df_refmodel = df_varyinggrowthrate[
+    (df_varyinggrowthrate.modelname .== "VaryingGrowthRateModel") .&& (df_varyinggrowthrate.perturb .== 1.0) .&& (df_varyinggrowthrate.noise .== 0.2),
+    :]
+df_hybridgrowthrate = df_hybridgrowthrate[
+    (df_hybridgrowthrate.noise .== 0.2) .&& (df_hybridgrowthrate.perturb .== 1.0), :]
 
-# %%
-# ## PLOTTING
+# Calculate median forecast_error for df_hybridgrowthrate
+df_hybridgrowthrate = DataFrames.transform(
+    groupby(df_hybridgrowthrate, [:segmentsize, :lr, :infer_ics, :weight_decay, :HlSize]),
+    :forecast_err => median => :median_forecast_error)
+
+# Calculate median forecast_error for df_model3sp
+df_model3sp = DataFrames.transform(groupby(df_model3sp, [:segmentsize, :lr, :infer_ics]),
+    :forecast_err => median => :median_forecast_error)
+
+# df_hybridgrowthrate = df_hybridgrowthrate[
+#     df_hybridgrowthrate.median_forecast_error .== minimum(df_hybridgrowthrate.median_forecast_error),
+#     :]
+sorted_errors = sort(unique(df_hybridgrowthrate.median_forecast_error))
+second_min = sorted_errors[1]
+df_hybridgrowthrate = df_hybridgrowthrate[df_hybridgrowthrate.median_forecast_error .== second_min, :]
 
 
-fig, axs = plt.subplots(1,2, figsize=(6,3.5))
+df = vcat(df_model3sp, df_refmodel, df_hybridgrowthrate, cols = :intersect)
+mydict = Dict("HybridGrowthRateModel" => "Hybrid model",
+    "Model3SP" => "Null model",
+    "VaryingGrowthRateModel" => "Reference model")
 
+df[!, "modelname"] = replace(df[:, "modelname"], mydict...)
 
-# ## Fig1
-ax = axs[0]
-color_palette = ["tab:purple", "tab:orange"]
-linestyles = ["--", "-."]
+fig = plt.figure(figsize = (6, 4))
+
+gs = fig.add_gridspec(2, 2, width_ratios = [1, 2], height_ratios = [1, 1])
+ax1 = fig.add_subplot(gs[0, 0])
+ax2 = fig.add_subplot(gs[1, 0])
+ax3 = @py fig.add_subplot(gs[0:2, 1])
+axs = [ax1, ax2, ax3]
+
+ax = ax2
+color_palette = [COLORS_BR[1], COLORS_BR[4], COLORS_BR[end]]
 spread = 0.7 #spread of box plots
-for (j,df_model_i) in enumerate(dfg_model)
-    dfg_model_i = groupby(df_model_i,"1/s", sort = true)
-    y = []
-    for (i,results) in enumerate(dfg_model_i)
-        push!(y, results.val)
-    end
-    xx = (1:length(dfg_model_i)) .+ ((j -1) / length(dfg_model_i) .- 0.5)*spread # we artificially shift the x values to better visualise the std 
-    # ax.plot(x,err_arr,                
-    #         color = color_palette[j] )
+dfg_model = groupby(df, :modelname)
+for (j, df_model_i) in enumerate(dfg_model)
+    y = df_model_i.forecast_err
     bplot = ax.boxplot(y,
-                positions = xx,
-                showfliers = false,
-                widths = 0.1,
-                vert=true,  # vertical box alignment
-                patch_artist=true,  # fill with color
-                # notch = true,
-                # label = "$(j) time series", 
-                boxprops= pydict(Dict("alpha" => .3))
-                )
-    ax.plot(xx, median.(y), color=color_palette[j], linestyle = linestyles[j])
+        positions = [j],
+        showfliers = false,
+        widths = 0.1,
+        vert = true,  # vertical box alignment
+        patch_artist = true,  # fill with color
+        # notch = true,
+        # label = "$(j) time series", 
+        boxprops = pydict(Dict("alpha" => 0.3))
+    )
     # putting the colors
     for patch in bplot["boxes"]
         patch.set_facecolor(color_palette[j])
         patch.set_edgecolor(color_palette[j])
     end
-    for item in ["caps", "whiskers","medians"]
+    for item in ["caps", "whiskers", "medians"]
         for patch in bplot[item]
             patch.set_color(color_palette[j])
         end
     end
 end
-
-
-
-# %%
-labels = [first(df.scenario) for df in dfg_model]
+ax.set_xticklabels([df_model_i.modelname[1] for df_model_i in dfg_model],
+    rotation = 45
+)
 ax.set_ylabel("Forecast error")
+display(fig)
+
+ax = ax3
+water_avail = collect(-1.0:0.05:1)'
+p_true = (; H = [1.24, 2.5],
+    q = [4.98, 0.8],
+    r = [1.0, -0.4, -0.08],
+    A = [1.0],
+    s = [0.8])
+ys = []
+losses = []
+HlSize = df_hybridgrowthrate.HlSize[1]
+perturb = df_hybridgrowthrate.perturb[1]
+_, st = Lux.setup(Random.default_rng(), growth_rate)
+# lux_model = HybridModellingExperiments.init(HybridGrowthRateModel();
+#                                         p_true,
+#                                         HlSize,
+#                                         perturb,
+#                                         rng = Random.default_rng())
+for r in eachrow(df_hybridgrowthrate)
+    ps = r.ps.growth_rate
+    rates, _ = growth_rate(water_avail, ps, st)
+    push!(ys, rates)
+    # push!(losses, r.loss)
+end
+ymed = dropdims(mean(cat(ys..., dims = 3), dims = 3), dims = 3)
+ymin = dropdims(minimum(cat(ys..., dims = 3), dims = 3), dims = 3)
+ymax = dropdims(maximum(cat(ys..., dims = 3), dims = 3), dims = 3)
+# ymin = ymed .- 3 * ystd
+# ymax = ymed .+ 3* ystd
+true_rates = growth_rate_resource.(Ref(p_true), water_avail)
+
+colors = ["tab:blue", "tab:red"]
+
+ax.fill_between(water_avail[:],
+    ymin[:], ymax[:],
+    # label="Neural network",
+    linestyle = "-",
+    color = "tab:green",
+    alpha = 0.1,
+    linewidth = 0.3)
+ax.plot(water_avail[:],
+    ymed[:],
+    label = L"Feeding rate, $\text{NN}(\hat p, u)$",
+    linestyle = "-",
+    color = "tab:green",
+    linewidth = 1.0,
+    alpha = 1.0)
+ax.plot(water_avail[:],
+    true_rates[:],
+    color = "tab:green",
+    linestyle = "--",
+    linewidth = 1.0)
+
+ax.legend(handles=[
+        Line2D([0], [0], color="tab:green", linestyle="-", label= "NN-based parametrization"),
+        Line2D([0], [0], color="tab:green", linestyle="--", label= "Ground truth"),
+        ],
+        loc="upper right")
+ax.set_title("Inferred growth rate")
+ax.set_xlabel("Environmental forcing")
+ax.set_ylabel("Basal growth rate")
+display(fig)
 # ax.set_yscale("log")
-# ax.set_ylim(-0.05,1.1)
-ax.set_xlabel(L"1/s")
-x = sort!(unique(df_to_plot."1/s"))
-x = round.(x, digits=1)
-ax.set_xticks(collect(1:length(x)).-0.25)
-ax.set_xticklabels(x)
-ax.legend(handles=[Line2D([0], 
-        [0], 
-        color=color_palette[i],
-        linestyle = linestyles[i], 
-        # linestyle="", 
-        label=labels[i]) for i in 1:2])
 
 display(fig)
 
-# ## Fig2
+ax1.axis("off")
 
-# %% [markdown]
-# # plotting learnt growth rate
-
-# %%
-s_to_plot = 0.8f0
-df_to_plot = subset(dfg_model, :scenario => x -> first(x) == latexstring("\$\\mathcal{M}_3^{\\text{NN}}\$"))
-df_to_plot = df_to_plot[df_to_plot.s .== s_to_plot, :]
-
-# %%
-water_avail = collect(-1.:0.05:1)'
-ys = []
-losses = []
-for r in eachrow(df_to_plot)
-        res = r.res
-        model = res.infprob.m
-        st = model.st
-        p_nn_trained = res.p_trained.p_nn
-        gr = neural_net(water_avail, p_nn_trained, st)[1]
-        push!(ys,gr)
-        push!(losses, r.loss)
-end
-ymed = mean(vcat(ys...), dims=1, AnalyticWeights(exp.(.-losses)))
-ystd = std(vcat(ys...), AnalyticWeights(exp.(.-losses)), 1)
-ymin = ymed .- ystd
-ymax = ymed .+ ystd
-
-# %%
-ax = axs[1]
-
-ax.fill_between(water_avail[:], 
-        ymin[:], ymax[:], 
-        # label="Neural network",
-        linestyle="-", 
-        color = "tab:blue",
-        alpha = 0.1,
-        linewidth=0.3)
-
-ax.plot(water_avail[:], 
-        ymed[:], 
-        label=L"Inferred growth rate, $\text{NN}(\hat p, u)$",
-        linestyle="-", 
-        color = "tab:blue",
-        alpha = 1.)
-idx_s = findfirst([p.s[1] == s_to_plot for p in p_trues])
-p_true = p_trues[idx_s]
-gr_true = growth_rate_resource.(Ref(p_true), water_avail)
-ax.plot(water_avail[:], 
-        gr_true[:], 
-        label="True growth rate",
-        color = "tab:red")
-
-ax.legend()
-ax.set_xlabel(L"Environmental forcing, $u$")
-ax.set_ylabel(L"Resource basal growth rate, $r_1(u)$")
-
-
-# %%
-
-# Load the image with the extension .pdf
-# image_path = "../fig_2_3-species-model-diagram/figure2b.png"
-# img = mpimg.imread(image_path)
-
-# # Display the image in the first subplot (ax1)
-# axs[0].imshow(img)
-# axs[0].axis("off")  # Turn off axis ticks and labels for better visualization
-
-_let = ["A","B","C","D"]
-for (i,ax) in enumerate(axs)
+_let = ["A", "B", "C", "D"]
+for (i, ax) in enumerate([ax1, ax2, ax3])
     _x = -0.1
     ax.text(_x, 1.05, _let[i],
-        fontsize=12,
-        fontweight="bold",
-        va="bottom",
-        ha="left",
-        transform=ax.transAxes ,
+        fontsize = 12,
+        fontweight = "bold",
+        va = "bottom",
+        ha = "left",
+        transform = ax.transAxes,
         zorder = 199
     )
 end
@@ -213,7 +218,4 @@ fig.set_facecolor("none")
 fig.tight_layout()
 display(fig)
 
-fig.savefig(split(@__FILE__,".")[1]*".pdf", dpi = 300)
-
-# %%
-
+fig.savefig(split(@__FILE__, ".")[1] * ".pdf", dpi = 300, bbox_inches = "tight")

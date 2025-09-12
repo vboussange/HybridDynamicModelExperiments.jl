@@ -35,7 +35,7 @@ p_true = (H = [1.24, 2.5],
         q = [4.98, 0.8],
         r = [1.0, -0.4, -0.08],
         A = [1.0],
-        s = [1.0])
+        s = [0.8])
 σ = 0.1
 dudt_true = VaryingGrowthRateModel()
 parameters = ParameterLayer(init_value = p_true)

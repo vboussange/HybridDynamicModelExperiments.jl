@@ -31,23 +31,6 @@ function (model::HybridGrowthRateModel)(components, u, ps, t)
 end
 
 function intinsic_growth_rate(::HybridGrowthRateModel, components, ps, p, t)
-    # TODO: this sometimes fails with
-    # to reproduce, check out first instance of gridsearch hybrid growth rate
-    #=
-    ERROR: MethodError: (::ReverseDiff.ForwardOptimize{typeof(+)})(::ReverseDiff.TrackedReal{…}, ::ReverseDiff.TrackedReal{…}) is ambiguous.
-
-    Candidates:
-    (self::ReverseDiff.ForwardOptimize{F})(x::Real, t::ReverseDiff.TrackedReal{V, D}) where {F, V, D}
-        @ ReverseDiff ~/.julia/packages/ReverseDiff/rKZaG/src/macros.jl:109
-    (self::ReverseDiff.ForwardOptimize{F})(t::ReverseDiff.TrackedReal{V, D}, x::Real) where {F, V, D}
-        @ ReverseDiff ~/.julia/packages/ReverseDiff/rKZaG/src/macros.jl:121
-
-    Possible fix, define
-    (::ReverseDiff.ForwardOptimize{…})(::ReverseDiff.TrackedReal{…}, ::ReverseDiff.TrackedReal{…}) where {…}
-
-
-    # could be due to mixed precision; change tsteps with luxtype (although should already be luxtype with fmap)
-    =#
     r1 = components.growth_rate([water_availability(t)], ps.growth_rate)[1]
     return [r1; p.r]
 end

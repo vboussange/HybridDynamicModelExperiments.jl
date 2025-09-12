@@ -27,18 +27,18 @@ dims = [:segmentsize, :infer_ics, :lr]
 lmodelnames = [L"\mathcal{M}_3", L"\mathcal{M}_5", L"\mathcal{M}_7"]
 
 for perturb in unique(df.perturb), noise in unique(df.noise)
-    fig, axs = plt.subplots(2, 3, figsize = (9, 4))
+    fig, axs = plt.subplots(3, 2, figsize = (6, 5))
 
     for (k, metric) in enumerate(["Parameter error", "Forecast error"])
+        df_filtered = df[(df.noise .== noise) .&& (df.perturb .== perturb), :]
         sm = plt.cm.ScalarMappable(cmap = CMAP_BR,
-            norm = plt.Normalize(vmin = quantile(df[:, metric], 0.2), vmax = quantile(df[:, metric], 0.8)))
+            norm = plt.Normalize(vmin = quantile(df_filtered[:, metric], 0.2), vmax = quantile(df_filtered[:, metric], 0.8)))
 
 
         for (i, modelname) in enumerate(["Model3SP", "Model5SP", "Model7SP"])
             println("Processing $modelname")
-            ax = axs[k-1, i-1]
-            k == 1 && ax.set_title(lmodelnames[i], fontsize = 14)
-            df_filtered = df[(df.noise .== noise) .&& (df.perturb .== perturb) .&& (df.modelname .== modelname) , :]
+            ax = axs[i-1, k-1]
+            df_filtered = df[df.modelname .== modelname, :]
             df_filtered = combine(groupby(df_filtered, dims),
                     "Forecast error" => (x -> median(skipmissing(x))) => "Forecast error",
                     "Parameter error" => (x -> median(skipmissing(x))) => "Parameter error",
@@ -145,10 +145,24 @@ for perturb in unique(df.perturb), noise in unique(df.noise)
             ax.spines["bottom"].set_visible(false)
 
             # Add colorbar
-            if i == 2
+            if modelname == "Model5SP"
                 sm.set_array(err)
-                cbar = plt.colorbar(sm, ax = axs[k-1, i], shrink = 0.6, pad = 0.02)
-                cbar.set_label(metric)
+                # place colorbar in figure coordinates so it doesn't resize subplots
+                # shrink the colorbar by creating a smaller cax and reducing font/line widths
+                x0 = 0.10 + (k-1)*0.47
+                y0 = -0.01
+                width = 0.38
+                height = 0.012  # make this smaller to visually reduce the colorbar thickness
+                cax = fig.add_axes([x0, y0, width, height])
+                cbar = fig.colorbar(sm, cax = cax, orientation = "horizontal")
+                cbar.ax.tick_params(labelsize = 7, pad = 2)
+                cbar.set_label(metric, fontsize = 8)
+                cbar.ax.xaxis.set_label_position("bottom")
+                cbar.outline.set_linewidth(0.5)
+            end
+            if k == 1
+                ax.text(-0.2, 0.5, lmodelnames[i],
+                    transform = ax.transAxes, ha = "center", va = "center", fontsize = 14)
             end
         end
     end

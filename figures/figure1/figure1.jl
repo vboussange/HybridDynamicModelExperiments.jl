@@ -7,11 +7,11 @@ using FileIO, JLD2
 using Statistics, LinearAlgebra, Distributions
 using Printf
 using DataFrames
-using PiecewiseInference
 using Glob
 using UnPack
 using JLD2
 using LaTeXStrings
+using ComponentArrays
 include("../format.jl")
 # LATEX needed
 
@@ -51,10 +51,10 @@ subfigs = masterfig.subfigures(2, 2, wspace=0.1, width_ratios=[1.,1.5])
 ##########################
 ax_loss = subfigs[0,0].subplots()
 # ax.set_title("Time horizon T = $(tsteps[end] - tsteps[1])")
-ax_loss.plot(profile_loss["params"], profile_loss["p_likelihood_piecewise"], label = L"L_{\mathcal{M}}^\star", linestyle = linestyles[2],c="tab:orange")
-ax_loss.plot(profile_loss["params"], profile_loss["p_likelihood"], label = L"L_{\mathcal{M}}", linestyle = linestyles[1],c="tab:blue")
+ax_loss.plot(profile_loss["params"], profile_loss["p_likelihood_piecewise"], label = L"\mathcal{L}_{\mathcal{M}}^\star", linestyle = linestyles[2],c="tab:orange")
+ax_loss.plot(profile_loss["params"], profile_loss["p_likelihood"], label = L"\mathcal{L}_{\mathcal{M}}", linestyle = linestyles[1],c="tab:blue")
 ax_loss.axvline(profile_loss["p_true"],  label = L"\Tilde r_3", linestyle = linestyles[3], color = "red")
-# ax_loss.set_ylabel(L"L(p_2)")
+ax_loss.set_ylabel("Loss value")
 ax_loss.legend(loc="lower right")
 ax_loss.set_xlabel(L"r_3",y=0.2,zorder=10)
 ax_loss.set_yscale("log")
@@ -71,12 +71,12 @@ for k in ["batch_inference", "naive_inference_small_p", "naive_inference"]
     p_err_dict[k] = perr
 end
 ax_its_loss = subfigs[1,0].subplots()
-ax_its_loss.plot(1:length(p_err_dict["batch_inference"])-2, p_err_dict["batch_inference"][1:end-2], label = L"L_{\mathcal{M}}^\star", linestyle = linestyles[2],c="tab:orange")
-ax_its_loss.plot(1:length(p_err_dict["naive_inference"])-2, p_err_dict["naive_inference"][1:end-2], label = L"L_{\mathcal{M}}", linestyle = linestyles[1],c="tab:blue")
-ax_its_loss.plot(1:length(p_err_dict["naive_inference_small_p"])-2, p_err_dict["naive_inference_small_p"][1:end-2], label = L"L_{\mathcal{M}}, \theta_0 = \Tilde{\theta} + \delta\theta", linestyle = linestyles[3],c="tab:green")
+ax_its_loss.plot(1:length(p_err_dict["batch_inference"])-2, p_err_dict["batch_inference"][1:end-2], label = L"\mathcal{L}_{\mathcal{M}}^\star", linestyle = linestyles[2],c="tab:orange")
+ax_its_loss.plot(1:length(p_err_dict["naive_inference"])-2, p_err_dict["naive_inference"][1:end-2], label = L"\mathcal{L}_{\mathcal{M}}", linestyle = linestyles[1],c="tab:blue")
+ax_its_loss.plot(1:length(p_err_dict["naive_inference_small_p"])-2, p_err_dict["naive_inference_small_p"][1:end-2], label = L"\mathcal{L}_{\mathcal{M}}, \theta_0 = \Tilde{\theta} + \delta\theta", linestyle = linestyles[3],c="tab:green")
 ax_its_loss.legend(loc="upper right")
 # ax_its_loss.set_yscale("log")
-ax_its_loss.set_ylabel(L"|\nicefrac{(\hat p -\Tilde{p})}{\Tilde{p}}|")
+ax_its_loss.set_ylabel("Parameter error")
 
 ax_its_loss.set_xlabel("Epochs")
 # ax_its_loss.set_yscale("log")
@@ -120,7 +120,7 @@ for g in 1:length(ranges)
     end
 end
 # fig.supxlabel("Time (days)")
-fig.supylabel("Species abundance")
+fig.supylabel("State variables")
 axs_ts[-1].set_xticklabels("")
 [ax.set_facecolor("None") for ax in axs_ts]
 display(masterfig)
@@ -136,7 +136,7 @@ axs_sts = fig.subplots(3, 4,
 ##############################
 for g in 1:length(ranges)
     _tsteps = tsteps[ranges[g]]
-    axs_sts[0,g-1].annotate(L"L_\mathcal{M}^{(%$g)}(\theta)", (_tsteps[1], 1.8), annotation_clip=false, color= g % 2 == 1 ? "tab:red" : "tab:blue")
+    axs_sts[0,g-1].annotate(L"\mathcal{L}_\mathcal{M}^{(%$g)}(\theta)", (_tsteps[1], 1.8), annotation_clip=false, color= g % 2 == 1 ? "tab:red" : "tab:blue")
     for i in 1:dim_prob
 
             ax = axs_sts[i-1,g-1]
@@ -158,7 +158,7 @@ for g in 1:length(ranges)
                 ax.set_xticklabels("")
     end
 end
-fig.supylabel("Species abundance")
+fig.supylabel("State variables")
 fig.supxlabel("Time", y = -0.04)
 
 display(masterfig)
@@ -187,5 +187,5 @@ axs_ts[1].text(-0.1, 2.4, L"\textbf{C}",
 
 # masterfig.tight_layout()
 display(masterfig)
-masterfig.savefig("figure1.pdf", dpi = 300,bbox_inches="tight")
+masterfig.savefig("figure1.svg", format="svg", bbox_inches="tight")
 

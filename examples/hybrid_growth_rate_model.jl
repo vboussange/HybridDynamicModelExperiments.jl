@@ -16,10 +16,50 @@ using SciMLSensitivity
 using HybridModelling
 import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel,
                                    LogMSELoss, train, LuxBackend, InferICs, forecast,
-                                   get_parameter_error, growth_rate, growth_rate_resource, forecast
+                                   get_parameter_error, growth_rate_resource,
+                                   forecast, generate_noisy_data
 import Lux
 using Random
 import NNlib
+
+function init(
+        model::HybridGrowthRateModel,
+        ::LuxBackend;
+        alg,
+        abstol,
+        reltol,
+        sensealg,
+        maxiters,
+        p_true,
+        perturb = 1e0,
+        verbose,
+        rng,
+        growth_rate,
+        kwargs...
+)
+    bounds = NamedTuple([dp => cat(
+                             [sort([(1e0 - perturb / 2e0) * k,
+                                  (1e0 + perturb / 2e0) * k])
+                              for k in p_true[dp]]...,
+                             dims = 2)' for dp in keys(p_true)])
+    distrib_param = NamedTuple([dp => product_distribution([Uniform(
+                                                                bounds[dp][i, 1], bounds[dp][
+                                                                    i, 2])
+                                                            for i in axes(bounds[dp], 1)])
+                                for dp in keys(p_true)])
+    constraint = NamedTupleConstraint(NamedTuple([dp => BoxConstraint(
+                                                      bounds[dp][:, 1], bounds[dp][
+                                                          :, 2])
+                                                  for dp in keys(p_true)]))
+    p_init = NamedTuple([k => rand(rng, distrib_param[k]) for k in keys(distrib_param)])
+
+    parameters = ParameterLayer(; constraint, init_value = p_init)
+
+    lux_model = ODEModel(
+        (; parameters, growth_rate), model; alg, abstol, reltol, sensealg, maxiters, verbose)
+
+    return lux_model
+end
 
 rng = MersenneTwister(3)
 
@@ -37,7 +77,7 @@ p_true = (H = [1.24, 2.5],
     r = [1.0, -0.4, -0.08],
     A = [1.0],
     s = [1.0])
-σ = 0.1
+noise = 0.2
 dudt_true = VaryingGrowthRateModel()
 parameters = ParameterLayer(init_value = p_true)
 lux_true_model = ODEModel(
@@ -45,35 +85,40 @@ lux_true_model = ODEModel(
 
 ps_true, st = Lux.setup(rng, lux_true_model)
 data, _ = lux_true_model((; u0 = u0_true), ps_true, st)
-data_with_noise = rand(rng, arraydist(LogNormal.(log.(data), σ)))
+# data_with_noise = rand(rng, arraydist(LogNormal.(log.(data), noise)))
+data_with_noise = generate_noisy_data(data, noise, rng)
 ax1 = Plots.scatter(tsteps, data_with_noise', title = "Data")
 
 # Hybrid model metaparameters
-p_init = (H = [1.0, 2.0],
-    q = [2., 1.0],
-    r = [-0.2, -0.05],
-    A = [0.7])
 sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true))
 adtype = AutoZygote()
 HlSize = 2^3
-segmentsize = 4
-batchsize = 10
-
-# model definition
-p_constraint = NamedTupleConstraint((r = BoxConstraint([-1.0], [1.0]),
-    A = BoxConstraint([0.0], [2.0])))
-
-u0_constraint = NamedTupleConstraint((; u0 = BoxConstraint([1e-3], [5e0])))
-
-parameters = ParameterLayer(constraint = p_constraint,
-    init_value = p_init)
 growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, HlSize, NNlib.tanh),
-    Lux.Dense(HlSize, 1, NNlib.tanh))
-
-dudt = HybridGrowthRateModel()
-lux_model = ODEModel((; parameters, growth_rate), dudt; alg, abstol, reltol, sensealg)
+    Lux.Dense(HlSize, 1))
+segmentsize = 4
+batchsize = 10
+loss_fn = LogMSELoss()
+weight_decay = 1e-5
+lr = 1e-2
+epochs = 1000
+optim_backend = LuxBackend(AdamW(eta = lr, lambda = weight_decay), epochs, adtype, loss_fn)
+infer_ics = InferICs(true, NamedTupleConstraint((; u0 = BoxConstraint([1e-3], [5e0]))))
+# model definition
+truncated_p = (; H = p_true.H, q = p_true.q, r = p_true.r[2:end], A = p_true.A)
+lux_model = init(HybridGrowthRateModel(),
+    optim_backend;
+    alg,
+    abstol,
+    reltol,
+    sensealg,
+    maxiters = 50_000,
+    verbose = false,
+    p_true = truncated_p,
+    perturb = 1e0,
+    growth_rate,
+    rng)
 
 # testing lux model
 ftype = Lux.f64
@@ -93,18 +138,13 @@ dataloader = SegmentedTimeSeries((data_with_noise, tsteps);
     batchsize,
     partial_batch = true) |> ftype
 
-loss_fn = LogMSELoss()
-weight_decay = 1e-5
-lr = 1e-2
-epochs = 1000
-optim_backend = LuxBackend(AdamW(eta = lr, lambda = weight_decay), epochs, adtype, loss_fn)
 loss_fn(preds, preds)
 
 ## Testing Lux backend
 res = train(optim_backend,
     lux_model,
     dataloader,
-    InferICs(true, u0_constraint),
+    infer_ics,
     rng, Lux.f64);
 
 function plot_segments(dataloader, ps, st, ics)
@@ -137,7 +177,8 @@ function plot_forecast(
     last_tok = tokens(tokenize(dataloader))[end]
     segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
     forecasted_data = forecast(
-        optim_backend, lux_model, res.ps, res.st, res.ics, union(segment_tsteps, tsteps_forecast))
+        optim_backend, lux_model, res.ps, res.st, res.ics, union(
+            segment_tsteps, tsteps_forecast))
     true_data = lux_true_model(
         (; u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1],
             tspan = (segment_tsteps[1], tsteps_forecast[end]),

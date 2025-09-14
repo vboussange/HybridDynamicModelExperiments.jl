@@ -59,7 +59,7 @@ setup_distributed_environment()
         growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
             Lux.Dense(HlSize, HlSize, NNlib.tanh),
             Lux.Dense(HlSize, HlSize, NNlib.tanh),
-            Lux.Dense(HlSize, 1, NNlib.tanh))
+            Lux.Dense(HlSize, 1))
         lux_model = ODEModel(
             (; parameters, growth_rate), model; alg, abstol, reltol, sensealg, maxiters, verbose)
 

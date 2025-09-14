@@ -2,6 +2,7 @@ using Dates
 using DataFrames
 using JLD2
 import LibGit2
+using Random
 
 function save_results(pathfile; results::DataFrame, kwargs...)
     println("saving...")
@@ -21,8 +22,8 @@ function save_results(pathfile; results::DataFrame, kwargs...)
 end
 
 # Generate noisy data
-function generate_noisy_data(data, noise)
-    return data .* exp.(noise * randn(size(data)))
+function generate_noisy_data(data, noise, rng = Random.ddefault_rng())
+    return data .* exp.(noise * randn(rng, size(data)))
 end
 
 function pop(nt::NamedTuple, key)

@@ -144,6 +144,10 @@ ys = []
 losses = []
 HlSize = df_hybridgrowthrate.HlSize[1]
 perturb = df_hybridgrowthrate.perturb[1]
+growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
+    Lux.Dense(HlSize, HlSize, NNlib.tanh),
+    Lux.Dense(HlSize, HlSize, NNlib.tanh),
+    Lux.Dense(HlSize, 1, NNlib.tanh))
 _, st = Lux.setup(Random.default_rng(), growth_rate)
 # lux_model = HybridModellingExperiments.init(HybridGrowthRateModel();
 #                                         p_true,
@@ -189,7 +193,7 @@ ax.legend(handles=[
         Line2D([0], [0], color="tab:green", linestyle="-", label= "NN-based parametrization"),
         Line2D([0], [0], color="tab:green", linestyle="--", label= "Ground truth"),
         ],
-        loc="upper right")
+        loc="lower center")
 ax.set_title("Inferred growth rate")
 ax.set_xlabel("Environmental forcing")
 ax.set_ylabel("Basal growth rate")

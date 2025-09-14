@@ -130,7 +130,7 @@ function train(backend::MCMCBackend,
         push!(ys, segment_data)
         push!(ic_list, ParameterLayer(init_value = (; u0)))
     end
-    if istrue(experimental_setup)
+    if isestimated(experimental_setup)
         bics = []
         for ic in ic_list
             ps, st = Lux.setup(rng, ic)

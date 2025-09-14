@@ -143,7 +143,7 @@ function simu(
         adtype = string(typeof(optim_backend.adtype)),
         sensealg = string(typeof(sensealg)),
         optim_backend = nameof(optim_backend),
-        infer_ics = istrue(experimental_setup),
+        infer_ics = isestimated(experimental_setup),
         kwargs...
     )
 end
@@ -262,7 +262,7 @@ function simu(
         sampler = string(typeof(optim_backend.sampler)),
         optim_backend = nameof(optim_backend),
         sensealg = string(typeof(sensealg)),
-        infer_ics = istrue(experimental_setup),
+        infer_ics = isestimated(experimental_setup),
         kwargs...
     )
 end

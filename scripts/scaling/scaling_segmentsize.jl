@@ -79,7 +79,7 @@ setup_distributed_environment(4)
             segmentsize,
             sensealg = string(typeof(sensealg)),
             optim_backend = HybridModellingExperiments.nameof(optim_backend),
-            infer_ics = HybridModellingExperiments.isestimated(experimental_setup),
+            infer_ics = HybridModellingExperiments.is_ics_estimated(experimental_setup),
         )
     end
 
@@ -136,7 +136,7 @@ setup_distributed_environment(4)
             segmentsize,
             sensealg = string(typeof(sensealg)),
             optim_backend = HybridModellingExperiments.nameof(optim_backend),
-            infer_ics = HybridModellingExperiments.isestimated(experimental_setup),
+            infer_ics = HybridModellingExperiments.is_ics_estimated(experimental_setup),
         )
     end
 end

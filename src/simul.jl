@@ -3,6 +3,7 @@ Utilities to run inference simulations.
 =#
 
 using HybridModelling
+import HybridModelling: create_train_val_loaders
 using Distributions
 using Bijectors
 using Optimisers: Optimisers
@@ -69,6 +70,86 @@ end
 
 # Simulation function, preprocess before train, train, and postprocess
 # only valid for non hybrid models.
+function simu(
+        optim_backend::LuxBackend,
+        experimental_setup::WithValidation;
+        model,
+        p_true,
+        segmentsize,
+        batchsize,
+        noise,
+        data,
+        tsteps,
+        sensealg,
+        forecast_length = 10,
+        rng,
+        luxtype,
+        valid_length = 1,
+        kwargs...
+)
+
+    # invoke garbage collection to avoid memory overshoot on SLURM
+    GC.gc()
+
+    data_w_noise = generate_noisy_data(data, noise)
+
+    # train validation test split
+    train_idx, test_idx = split_data(data, forecast_length)
+
+    dataloader_train, dataloader_valid = create_train_val_loaders((data_w_noise[:, train_idx], tsteps[train_idx]);
+                                                                    segmentsize,
+                                                                    valid_length,
+                                                                    batchsize,
+                                                                    partial_batch = true)
+    experimental_setup = WithValidation(experimental_setup.infer_ics, dataloader_valid)
+
+    # Lux model initialization with biased parameters
+    lux_model = init(model, optim_backend; p_true, sensealg, rng, kwargs...)
+    println(
+        "Launching simulations for segmentsize = $segmentsize, noise = $noise, backend = $(nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+    )
+
+    med_par_err = missing
+    forecast_err = missing
+    ps = missing
+    st = missing
+    ics = missing
+
+    try
+        res = train(
+            optim_backend, lux_model, dataloader_train, experimental_setup, rng, luxtype
+        )
+
+        ps = res.ps
+        st = res.st
+        ics = res.ics
+        med_par_err = get_parameter_error(optim_backend, lux_model, ps, st, p_true)
+
+        preds = forecast(optim_backend, lux_model, ps, st, ics, tsteps[test_idx])
+        forecast_err = optim_backend.loss_fn(preds, data[:, test_idx])
+    catch e
+        println("Error occurred during training: ", e)
+    end
+
+    # saving states fails with JLD2
+    return (;
+        med_par_err,
+        forecast_err,
+        modelname = nameof(model),
+        ps,
+        ics,
+        segmentsize,
+        batchsize,
+        noise,
+        lr = get_lr(optim_backend.opt),
+        adtype = string(typeof(optim_backend.adtype)),
+        sensealg = string(typeof(sensealg)),
+        optim_backend = nameof(optim_backend),
+        infer_ics = is_ics_estimated(experimental_setup),
+        kwargs...
+    )
+end
+
 function simu(
         optim_backend::LuxBackend,
         experimental_setup::InferICs;
@@ -143,7 +224,7 @@ function simu(
         adtype = string(typeof(optim_backend.adtype)),
         sensealg = string(typeof(sensealg)),
         optim_backend = nameof(optim_backend),
-        infer_ics = isestimated(experimental_setup),
+        infer_ics = is_ics_estimated(experimental_setup),
         kwargs...
     )
 end
@@ -262,7 +343,7 @@ function simu(
         sampler = string(typeof(optim_backend.sampler)),
         optim_backend = nameof(optim_backend),
         sensealg = string(typeof(sensealg)),
-        infer_ics = isestimated(experimental_setup),
+        infer_ics = is_ics_estimated(experimental_setup),
         kwargs...
     )
 end

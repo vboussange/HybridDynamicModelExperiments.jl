@@ -66,7 +66,7 @@ function train(backend::LuxBackend,
 
     ics_layer = _get_ic_layer(dataloader, experimental_setup)
 
-    if !isestimated(experimental_setup)
+    if !is_ics_estimated(experimental_setup)
         ics_layer = Lux.Experimental.FrozenLayer(ics_layer)
     end
 
@@ -119,7 +119,7 @@ function train(backend::LuxBackend,
 
     ics_layer = _get_ic_layer(dataloader_train, experimental_setup)
 
-    if !isestimated(experimental_setup)
+    if !is_ics_estimated(experimental_setup)
         ics_layer = Lux.Experimental.FrozenLayer(ics_layer)
     end
 

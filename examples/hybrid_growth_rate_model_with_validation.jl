@@ -71,8 +71,8 @@ rng = MersenneTwister(2)
 alg = Tsit5()
 abstol = 1e-4
 reltol = 1e-4
-tspan = [0e0, 800e0]
-tsteps = collect(550.0:4.0:tspan[2])
+tsteps = range(500e0, step = 4, length = 111)
+tspan = (0e0, tsteps[end])
 
 # Data generation
 u0_true = [0.5, 0.8, 0.5]

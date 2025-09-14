@@ -50,7 +50,7 @@ function generate_data(
         q = [4.98, 0.8],
         r = [1.0, -0.4, -0.08],
         A = [1.0],
-        s = [1.0])
+        s = [0.8])
 
     u0_true = [0.5, 0.8, 0.5]
     parameters = ParameterLayer(init_value = p_true)

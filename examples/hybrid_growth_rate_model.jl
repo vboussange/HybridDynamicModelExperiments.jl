@@ -14,118 +14,154 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridModelling
-import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
+import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel,
+                                   LogMSELoss, train, LuxBackend, InferICs, forecast,
+                                   get_parameter_error, growth_rate, growth_rate_resource, forecast
 import Lux
 using Random
 import NNlib
 
-rng = MersenneTwister(1)
+rng = MersenneTwister(3)
 
 # ODE solver
 alg = Tsit5()
 abstol = 1e-4
 reltol = 1e-4
 tspan = [0e0, 800e0]
-tsteps = collect(550.:4.:800.)
-
+tsteps = collect(550.0:4.0:800.0)
 
 # Data generation
-u0_true = [0.5,0.8,0.5]
+u0_true = [0.5, 0.8, 0.5]
 p_true = (H = [1.24, 2.5],
-        q = [4.98, 0.8],
-        r = [1.0, -0.4, -0.08],
-        A = [1.0],
-        s = [0.8])
+    q = [4.98, 0.8],
+    r = [1.0, -0.4, -0.08],
+    A = [1.0],
+    s = [1.0])
 σ = 0.1
 dudt_true = VaryingGrowthRateModel()
 parameters = ParameterLayer(init_value = p_true)
-lux_true_model = ODEModel((;parameters), dudt_true; alg, abstol, reltol, tspan, saveat = tsteps)
+lux_true_model = ODEModel(
+    (; parameters), dudt_true; alg, abstol, reltol, tspan, saveat = tsteps)
 
 ps_true, st = Lux.setup(rng, lux_true_model)
-data, _ = lux_true_model((;u0 = u0_true), ps_true, st)
-data_with_noise = rand(arraydist(LogNormal.(log.(data), σ)))
-ax = Plots.scatter(tsteps, data_with_noise', title = "Data")
+data, _ = lux_true_model((; u0 = u0_true), ps_true, st)
+data_with_noise = rand(rng, arraydist(LogNormal.(log.(data), σ)))
+ax1 = Plots.scatter(tsteps, data_with_noise', title = "Data")
 
 # Hybrid model metaparameters
-p_init = (H = [1., 2.2],
-        q = [4.3, 1.],
-        r = [-0.4, -0.08],
-        A = [1.0])
-sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+p_init = (H = [1.0, 2.0],
+    q = [2., 1.0],
+    r = [-0.2, -0.05],
+    A = [0.7])
+sensealg = BacksolveAdjoint(autojacvec = ReverseDiffVJP(true))
 adtype = AutoZygote()
-HlSize = 5
-segmentsize = 9
+HlSize = 2^3
+segmentsize = 4
 batchsize = 10
 
 # model definition
 p_constraint = NamedTupleConstraint((r = BoxConstraint([-1.0], [1.0]),
-                                    A = BoxConstraint([0.0], [2.0])))
+    A = BoxConstraint([0.0], [2.0])))
 
 u0_constraint = NamedTupleConstraint((; u0 = BoxConstraint([1e-3], [5e0])))
 
-parameters = ParameterLayer(constraint = p_constraint, 
-                            init_value = p_init)
-growth_rate =  Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
-                                Lux.Dense(HlSize, HlSize, NNlib.tanh), 
-                                Lux.Dense(HlSize, HlSize, NNlib.tanh), 
-                                Lux.Dense(HlSize, 1, NNlib.tanh))
+parameters = ParameterLayer(constraint = p_constraint,
+    init_value = p_init)
+growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
+    Lux.Dense(HlSize, HlSize, NNlib.tanh),
+    Lux.Dense(HlSize, HlSize, NNlib.tanh),
+    Lux.Dense(HlSize, 1, NNlib.tanh))
 
 dudt = HybridGrowthRateModel()
-lux_model = ODEModel((;parameters, growth_rate), dudt; alg, abstol, reltol, sensealg)
+lux_model = ODEModel((; parameters, growth_rate), dudt; alg, abstol, reltol, sensealg)
 
 # testing lux model
-ftype = Lux.f32
+ftype = Lux.f64
 ps, st = ftype(Lux.setup(rng, lux_model))
 
-preds, _ = lux_model((;u0 = [0.77, 0.060, 0.945] |> ftype, tspan = tspan |> ftype, saveat = tsteps |> ftype), ps, st)
-Plots.plot(tsteps, preds', title="Initial predictions from hybrid model")
+preds, _ = lux_model(
+    (; u0 = [0.77, 0.060, 0.945] |> ftype,
+        tspan = tspan |> ftype, saveat = tsteps |> ftype),
+    ps,
+    st)
+ax2 = Plots.plot(tsteps, preds', title = "Initial preds.")
+display(plot(ax1, ax2))
 
-
-dataloader = SegmentedTimeSeries((data_with_noise, tsteps); 
-                            segmentsize, 
-                            shift=segmentsize-2, 
-                            batchsize,
-                            partial_batch = true) |> ftype
+dataloader = SegmentedTimeSeries((data_with_noise, tsteps);
+    segmentsize,
+    shift = segmentsize - 2,
+    batchsize,
+    partial_batch = true) |> ftype
 
 loss_fn = LogMSELoss()
-optim_backend = LuxBackend(Adam(1e-2), 1000, adtype, loss_fn)
+weight_decay = 1e-5
+lr = 1e-2
+epochs = 1000
+optim_backend = LuxBackend(AdamW(eta = lr, lambda = weight_decay), epochs, adtype, loss_fn)
 loss_fn(preds, preds)
 
 ## Testing Lux backend
 res = train(optim_backend,
-            lux_model, 
-            dataloader, 
-            InferICs(true, u0_constraint),
-            rng, Lux.f64)
+    lux_model,
+    dataloader,
+    InferICs(true, u0_constraint),
+    rng, Lux.f64);
 
-function plot_segments(dataloader, st_model)
+function plot_segments(dataloader, ps, st, ics)
     plt = plot()
     colors = [:blue, :red]
-    for (batched_tokens, (batched_segments, batched_tsteps)) in tokenize(dataloader)
-
-        batched_pred = st_model((batched_tokens, batched_tsteps))
-        for (tok, segment_tsteps, segment_data, pred) in zip(batched_tokens, 
-                                                            eachslice(batched_tsteps, dims=ndims(batched_tsteps)), 
-                                                            eachslice(batched_segments, dims=ndims(batched_segments)), 
-                                                            eachslice(batched_pred, dims=ndims(batched_pred)))
-            color = colors[mod1(tok, 2)]
-            plot!(plt, segment_tsteps, segment_data', label=(tok == 1 ? "Data" : ""), color=color, linestyle=:solid)
-            plot!(plt, segment_tsteps, pred', label=(tok == 1 ? "Predicted" : ""), color=color, linestyle=:dash)
-        end
+    dataloader = tokenize(dataloader)
+    for tok in tokens(dataloader)
+        segment_data, segment_tsteps = dataloader[tok]
+        _ics = ics[tok].u0
+        pred = lux_model(
+            (; u0 = _ics, saveat = segment_tsteps,
+                tspan = (segment_tsteps[1], segment_tsteps[end])),
+            ps,
+            st)[1]
+        color = colors[mod1(tok, 2)]
+        # @show segment_data
+        plot!(plt, segment_tsteps, segment_data',
+            label = (tok == 1 ? "Data" : ""), color = color, linestyle = :solid)
+        plot!(plt, segment_tsteps, pred', label = (tok == 1 ? "Predicted" : ""),
+            color = color, linestyle = :dash)
     end
-
-    display(plt)
     return plt
 end
 
-plot_segments(dataloader, res.best_model)
+plot_segments(dataloader, res.ps, st, res.ics)
 
+function plot_forecast(
+        tspan, dataloader, res, lux_true_model, data, tsteps, data_with_noise, ps_true, st)
+    tsteps_forecast = tspan[end]:4:(tspan[end] + 200)
+    last_tok = tokens(tokenize(dataloader))[end]
+    segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
+    forecasted_data = forecast(
+        optim_backend, lux_model, res.ps, res.st, res.ics, union(segment_tsteps, tsteps_forecast))
+    true_data = lux_true_model(
+        (; u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1],
+            tspan = (segment_tsteps[1], tsteps_forecast[end]),
+            saveat = union(segment_tsteps, tsteps_forecast)),
+        ps_true,
+        st)[1]
+    ax = Plots.plot(union(segment_tsteps, tsteps_forecast), forecasted_data',
+        label = "forecasted", title = "Forecasted vs true data")
+    Plots.plot!(ax, union(segment_tsteps, tsteps_forecast), true_data',
+        label = "true", linestyle = :dash, color = palette(:auto)[1:3]')
+    Plots.scatter!(ax, segment_tsteps, data_with_noise[:, tsteps .∈ Ref(segment_tsteps)]',
+        label = "training data", color = palette(:auto)[1:3]', yscale = :log10)
+    return ax
+end
 
-tsteps_forecast = tspan[end]:4:tspan[end]+200
-last_tok = tokens(tokenize(dataloader))[end]
-segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
-forecasted_data = forecast(LuxBackend(), res.best_model, union(segment_tsteps, tsteps_forecast))
-true_data = lux_true_model((;u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1], tspan = (segment_tsteps[1], tsteps_forecast[end]), saveat = union(segment_tsteps, tsteps_forecast)), ps_true, st)[1]
-ax = Plots.plot(union(segment_tsteps, tsteps_forecast), forecasted_data', label = "forecasted", title="Forecasted vs true data")
-Plots.plot!(ax, union(segment_tsteps, tsteps_forecast), true_data', label = "true", linestyle = :dash, color = palette(:auto)[1:3]')
-Plots.scatter!(ax, segment_tsteps, data_with_noise[:, tsteps .∈ Ref(segment_tsteps)]', label = "training data", color = palette(:auto)[1:3]')
+ax = plot_forecast(
+    tspan, dataloader, res, lux_true_model, data, tsteps, data_with_noise, ps_true, st)
+display(ax)
+
+# plot growth rate
+water_avail = collect(-1.0:0.05:1)'
+rates, _ = growth_rate(water_avail, res.ps.growth_rate, st.growth_rate)
+true_rates = growth_rate_resource.(Ref(p_true), water_avail)
+
+ax = Plots.plot(water_avail[:], rates[:], label = "Neural network",
+    title = "Growth rate", xlabel = "Water availability", ylabel = "Growth rate")
+Plots.plot!(ax, water_avail[:], true_rates[:], label = "True")

@@ -22,7 +22,7 @@ function save_results(pathfile; results::DataFrame, kwargs...)
 end
 
 # Generate noisy data
-function generate_noisy_data(data, noise, rng = Random.ddefault_rng())
+function generate_noisy_data(data, noise, rng = Random.default_rng())
     return data .* exp.(noise * randn(rng, size(data)))
 end
 

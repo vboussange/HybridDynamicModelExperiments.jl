@@ -19,7 +19,7 @@ include("../../format.jl");
 parallel_coordinates = pyimport("pandas.plotting").parallel_coordinates
 interp1d = pyimport("scipy.interpolate").interp1d
 
-result_name = "../../../scripts/luxbackend/results/luxbackend_gridsearch_hybridgrowthrate_model_31bde13.jld2"
+result_name = "../../../scripts/luxbackend/results/luxbackend_gridsearch_hybridgrowthrate_model_with_validation_8ff34fa.jld2"
 
 df = load(result_name, "results")
 dropmissing!(df, :med_par_err)

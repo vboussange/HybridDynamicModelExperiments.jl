@@ -36,7 +36,7 @@ function generate_data(
     return synthetic_data, p_true
 end
 
-result_path_func_resp_model = "../../scripts/luxbackend/results/luxbackend_gridsearch_hybridfuncresp_model_31bde13.jld2"
+result_path_func_resp_model = "../../scripts/luxbackend/results/luxbackend_gridsearch_hybridfuncresp_model_with_validation_8ff34fa.jld2"
 df_hybridfuncresp = load(result_path_func_resp_model, "results")
 dropmissing!(df_hybridfuncresp, :forecast_err)
 

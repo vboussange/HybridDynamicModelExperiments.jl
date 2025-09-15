@@ -51,8 +51,8 @@ include("../format.jl")
 #     return (; lux_model)
 # end
 
-result_path_func_resp_model = "../../scripts/luxbackend/results/luxbackend_gridsearch_hybridgrowthrate_model_31bde13.jld2"
-df_hybridgrowthrate = load(result_path_func_resp_model, "results")
+result_path_hybridgrowthrate_model = "../../scripts/luxbackend/results/luxbackend_gridsearch_hybridgrowthrate_model_with_validation_8ff34fa.jld2"
+df_hybridgrowthrate = load(result_path_hybridgrowthrate_model, "results")
 dropmissing!(df_hybridgrowthrate, :forecast_err)
 
 result_path_varyinggrowthrate = "../../scripts/luxbackend/results/luxbackend_varyinggrowthrate_70fa271.jld2"
@@ -147,7 +147,7 @@ perturb = df_hybridgrowthrate.perturb[1]
 growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, HlSize, NNlib.tanh),
-    Lux.Dense(HlSize, 1, NNlib.tanh))
+    Lux.Dense(HlSize, 1))
 _, st = Lux.setup(Random.default_rng(), growth_rate)
 # lux_model = HybridModellingExperiments.init(HybridGrowthRateModel();
 #                                         p_true,

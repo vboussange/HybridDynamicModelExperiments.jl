@@ -48,7 +48,7 @@
     \readlist\Nnod{2,5,5,5,2} % array of number of nodes per layer
     \readlist\Nstr{d,d+50,} % array of string number of nodes per layer
     \readlist\Cstr{,,} % array of coefficient symbol per layer
-    \def\yshift{0.} % shift last node for dots
+    \def\yshift{0.55} % shift last node for dots
     
     % LOOP over LAYERS
     \foreachitem \N \in \Nnod{
@@ -74,11 +74,11 @@
         }
         
     }
-    % \ifnum \lay> 0
-    %     \ifnum \lay<4
-    %         \path (N\lay-\N) --++ (0,1+\yshift) node[midway,scale=1.6] {$\vdots$}; % dots
-    %     \fi
-    % \fi
+    \ifnum \lay> 1
+        \ifnum \lay<5
+            \path (N\lay-\N) --++ (0,1+\yshift) node[midway,scale=1.6] {$\vdots$}; % dots
+        \fi
+    \fi
     }
     
     % LABELS

@@ -10,13 +10,18 @@ using Distributions
 using DataFrames
 using Dates
 using HybridModelling
-import HybridModellingExperiments: HybridFuncRespModel, Model3SP, feeding
+import HybridModellingExperiments: HybridFuncRespModel, Model3SP, feeding, LogMSELoss, generate_noisy_data, split_data
 import OrdinaryDiffEqTsit5: Tsit5
 using Printf
 using ComponentArrays
 using Lux, NNlib
 using Random
+using HypothesisTests
 include("../format.jl")
+
+const noise = 0.1
+const forecast_length = 10
+const loss_fn = LogMSELoss()
 
 function generate_data(
         ::HybridFuncRespModel; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
@@ -35,6 +40,27 @@ function generate_data(
     synthetic_data, _ = lux_true_model((; u0 = u0_true), ps, st)
     return synthetic_data, p_true
 end
+df_baseline = []
+for i in 1:5
+    rng = MersenneTwister(1234 + i)
+    data = generate_data(HybridFuncRespModel();
+        alg = Tsit5(),
+        abstol = 1e-4,
+        reltol = 1e-4,
+        tspan = (0.0, 15.0),
+        tsteps = 0.0:0.1:15.0,
+        rng)[1]
+    data_w_noise = generate_noisy_data(data, noise, rng)
+    train_idx, test_idx = split_data(data, forecast_length)
+    means = median(data[:, train_idx], dims = 2)
+    @show means
+    preds = repeat(means, 1, length(test_idx))
+    @show size(preds), size(data[:, test_idx])
+    forecast_err = loss_fn(data[:, test_idx], preds)
+    push!(df_baseline, (; forecast_err, modelname = "Baseline"))
+end
+df_baseline = DataFrame(df_baseline)
+
 
 result_path_func_resp_model = "../../scripts/luxbackend/results/luxbackend_gridsearch_hybridfuncresp_model_with_validation_8ff34fa.jld2"
 df_hybridfuncresp = load(result_path_func_resp_model, "results")
@@ -48,7 +74,7 @@ df_model3sp = df_model3sp[
     (df_model3sp.modelname .== "Model3SP") .&& (df_model3sp.perturb .== 1.0) .&& (df_model3sp.noise .== 0.2),
     :]
 df_hybridfuncresp = df_hybridfuncresp[
-    (df_hybridfuncresp.noise .== 0.2) .&& (df_hybridfuncresp.perturb .== 1.0), :]
+    (df_hybridfuncresp.noise .== noise) .&& (df_hybridfuncresp.perturb .== 1.0), :]
 
 # Calculate median forecast_error for df_hybridfuncresp
 df_hybridfuncresp = DataFrames.transform(
@@ -65,8 +91,29 @@ df_hybridfuncresp = df_hybridfuncresp[
 df_model3sp = df_model3sp[
     df_model3sp.median_forecast_error .== minimum(df_model3sp.median_forecast_error), :]
 
-df = vcat(df_model3sp, df_hybridfuncresp, cols = :intersect)
+df = vcat(df_baseline, df_model3sp, df_hybridfuncresp, cols = :intersect)
+mydict = Dict("HybridFuncRespModel" => "Hybrid model",
+    "Model3SP" => "Reference model")
 
+# Perform pairwise one-sided t-tests to assess if model X performs better than model Y (i.e., lower forecast error)
+groups = groupby(df, :modelname)
+model_names = unique(df.modelname)
+open("pairwise_test_results.txt", "w") do io
+    for i in 1:length(model_names)
+        for j in (i+1):length(model_names)
+            group1 = groups[i].forecast_err
+            group2 = groups[j].forecast_err
+            # Test if group1 (model i) has lower mean than group2 (model j)
+            test = UnequalVarianceTTest(group1, group2)
+            pval = pvalue(test)
+            mean1 = mean(group1)
+            mean2 = mean(group2)
+            println(io, "Testing if $(model_names[i]) (mean: $(round(mean1, digits=4))) performs similarly to $(model_names[j]) (mean: $(round(mean2, digits=4))): p-value = $pval")
+        end
+    end
+end
+
+df[!, "modelname"] = replace(df[:, "modelname"], mydict...)
 fig = plt.figure(figsize = (6, 4))
 
 gs = fig.add_gridspec(2, 2, width_ratios = [1, 2], height_ratios = [1, 1])
@@ -77,7 +124,7 @@ axs = [ax1, ax2, ax3]
 
 # ## Fig1
 ax = ax2
-color_palette = [COLORS_BR[1], COLORS_BR[end]]
+color_palette = [COLORS_BR[1], COLORS_BR[5], COLORS_BR[end]]
 linestyles = ["--", "-."]
 spread = 0.7 #spread of box plots
 dfg_model = groupby(df, :modelname)
@@ -108,6 +155,7 @@ ax.set_xticklabels([df_model_i.modelname[1] for df_model_i in dfg_model],
     rotation = 45
 )
 ax.set_ylabel("Forecast error")
+# ax.set_yscale("log")
 display(fig)
 
 ax = ax3

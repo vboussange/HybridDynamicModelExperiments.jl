@@ -37,6 +37,7 @@ setup_distributed_environment()
             verbose,
             rng,
             HlSize,
+            activation,
             kwargs...
     )
         bounds = NamedTuple([dp => cat(
@@ -56,9 +57,9 @@ setup_distributed_environment()
 
         parameters = ParameterLayer(; constraint, init_value = p_init)
 
-        functional_response = Lux.Chain(Lux.Dense(2, HlSize, NNlib.tanh),
-            Lux.Dense(HlSize, HlSize, NNlib.tanh),
-            Lux.Dense(HlSize, HlSize, NNlib.tanh),
+        functional_response = Lux.Chain(Lux.Dense(2, HlSize, activation),
+            Lux.Dense(HlSize, HlSize, activation),
+            Lux.Dense(HlSize, HlSize, activation),
             Lux.Dense(HlSize, 2))
         lux_model = ODEModel(
             (; parameters, functional_response), model; alg, abstol, reltol, sensealg, maxiters, verbose)
@@ -99,11 +100,12 @@ function create_simulation_parameters()
     lrs = [1e-3, 1e-2, 1e-1]
     batchsizes = [10]
     HlSizes = [2^2, 2^3, 2^4]
+    activations = [NNlib.tanh, NNlib.relu]
 
     pars_arr = []
     for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims,
         noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs,
-        batchsize in batchsizes, HlSize in HlSizes
+        batchsize in batchsizes, HlSize in HlSizes, activation in activations
 
         optim_backend = LuxBackend(AdamW(; eta = lr, lambda = weight_decay),
             n_epochs,
@@ -123,7 +125,8 @@ function create_simulation_parameters()
             weight_decay,
             perturb,
             batchsize,
-            HlSize)
+            HlSize,
+            activation)
         push!(pars_arr, varying_params)
     end
     return shuffle!(rng, pars_arr)

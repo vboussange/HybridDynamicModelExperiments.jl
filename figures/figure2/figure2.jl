@@ -23,7 +23,7 @@ result_name = "../../scripts/luxbackend/results/luxbackend_gridsearch_3sp_5sp_7s
 df = load(result_name, "results")
 dropmissing!(df, :med_par_err)
 rename!(df, "forecast_err" => "Forecast error", "med_par_err" => "Parameter error")
-dims = [:segmentsize, :infer_ics, :lr]
+dims = [:segmentsize, :infer_ics,  :lr]
 lmodelnames = [L"\mathcal{M}_3", L"\mathcal{M}_5", L"\mathcal{M}_7"]
 
 for perturb in unique(df.perturb), noise in unique(df.noise)
@@ -134,20 +134,20 @@ for perturb in unique(df.perturb), noise in unique(df.noise)
             end
 
             # Plot the top 3 best combinations with thick, dashed lines
-            for idx in top3_indices
-                y_vals = [data_norm[idx, col] for col in dims]
-                x_vals = 1:n_dims
-                color = "#80ffdb"#sm.to_rgba(err[i])
-                # Interpolate for smooth curve
-                if length(x_vals) > 1
-                    interp_func = interp1d(x_vals, y_vals, kind="quadratic")
-                    x_fine = range(1, n_dims, length=100)
-                    y_smooth = interp_func(x_fine)
-                    ax.plot(x_fine, y_smooth, linewidth=3, linestyle="dashdot", color=color)
-                else
-                    ax.plot(x_vals, y_vals, linewidth=3, linestyle="dashdot", color=color)
-                end
-            end
+            # for idx in top3_indices
+            #     y_vals = [data_norm[idx, col] for col in dims]
+            #     x_vals = 1:n_dims
+            #     color = "#80ffdb"#sm.to_rgba(err[i])
+            #     # Interpolate for smooth curve
+            #     if length(x_vals) > 1
+            #         interp_func = interp1d(x_vals, y_vals, kind="quadratic")
+            #         x_fine = range(1, n_dims, length=100)
+            #         y_smooth = interp_func(x_fine)
+            #         ax.plot(x_fine, y_smooth, linewidth=3, linestyle="dashdot", color=color)
+            #     else
+            #         ax.plot(x_vals, y_vals, linewidth=3, linestyle="dashdot", color=color)
+            #     end
+            # end
 
             # Set x-ticks and labels
             ax.set_xticks(1:n_dims)

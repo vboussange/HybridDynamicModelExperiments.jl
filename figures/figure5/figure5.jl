@@ -10,46 +10,57 @@ using Distributions
 using DataFrames
 using Dates
 using HybridModelling
-import HybridModellingExperiments: HybridFuncRespModel, Model3SP, growth_rate_resource, water_availability
+import HybridModellingExperiments: HybridGrowthRateModel, VaryingGrowthRateModel, Model3SP, LogMSELoss, growth_rate_resource, water_availability, split_data, generate_noisy_data
 import OrdinaryDiffEqTsit5: Tsit5
 using Printf
 using ComponentArrays
 using Lux, NNlib
 using Random
+using OrdinaryDiffEqTsit5: Tsit5
 include("../format.jl")
 
-# function HybridModellingExperiments.init(
-#         model::HybridGrowthRateModel;
-#         p_true,
-#         perturb = 1e0,
-#         rng,
-#         kwargs...
-# )
-#     p_true = merge(p_true, (; r = p_true.r[2:end]))
-#     distrib_param = NamedTuple([dp => product_distribution([Uniform(
-#                                                                 sort([
-#                                                                 (1e0 - perturb / 2e0) * k,
-#                                                                 (1e0 + perturb / 2e0) * k])...
-#                                                             ) for k in p_true[dp]])
-#                                 for dp in keys(p_true)])
+const noise = 0.1
+const forecast_length = 10
+function generate_data(
+        ::HybridGrowthRateModel; alg, abstol, reltol, tspan, tsteps, rng, kwargs...)
+    p_true = (; H = [1.24, 2.5],
+        q = [4.98, 0.8],
+        r = [1.0, -0.4, -0.08],
+        A = [1.0],
+        s = [0.8])
 
-#     p_transform = Bijectors.NamedTransform(
-#         NamedTuple([dp => Bijectors.bijector(distrib_param[dp])
-#                     for dp in keys(distrib_param)])
-#     )
+    u0_true = [0.5, 0.8, 0.5]
+    parameters = ParameterLayer(init_value = p_true)
 
-#     p_init = NamedTuple([k => rand(rng, distrib_param[k]) for k in keys(distrib_param)])
+    lux_true_model = ODEModel(
+        (; parameters), VaryingGrowthRateModel(); alg, abstol, reltol, tspan, saveat = tsteps)
 
-#     parameters = ParameterLayer(; constraint = Constraint(p_transform), init_value = p_init)
-#     growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
-#         Lux.Dense(HlSize, HlSize, NNlib.tanh),
-#         Lux.Dense(HlSize, HlSize, NNlib.tanh),
-#         Lux.Dense(HlSize, 1))
-#     lux_model = ODEModel(
-#         (; parameters, growth_rate), model)
+    ps, st = Lux.setup(rng, lux_true_model)
+    synthetic_data, _ = lux_true_model((; u0 = u0_true), ps, st)
+    return synthetic_data
+end
+loss_fn = LogMSELoss()
+df_baseline = []
+for i in 1:5
+    rng = MersenneTwister(1234 + i)
+    data = generate_data(HybridGrowthRateModel();
+        alg = Tsit5(),
+        abstol = 1e-4,
+        reltol = 1e-4,
+        tspan = (0.0, 15.0),
+        tsteps = 0.0:0.1:15.0,
+        rng)
+    data_w_noise = generate_noisy_data(data, noise, rng)
+    train_idx, test_idx = split_data(data, forecast_length)
+    means = median(data[:, train_idx], dims = 2)
+    @show means
+    preds = repeat(means, 1, length(test_idx))
+    @show size(preds), size(data[:, test_idx])
+    forecast_err = loss_fn(data[:, test_idx], preds)
+    push!(df_baseline, (; forecast_err, modelname = "Baseline"))
+end
+df_baseline = DataFrame(df_baseline)
 
-#     return (; lux_model)
-# end
 
 result_path_hybridgrowthrate_model = "../../scripts/luxbackend/results/luxbackend_gridsearch_hybridgrowthrate_model_with_validation_8ff34fa.jld2"
 df_hybridgrowthrate = load(result_path_hybridgrowthrate_model, "results")
@@ -66,7 +77,7 @@ df_refmodel = df_varyinggrowthrate[
     (df_varyinggrowthrate.modelname .== "VaryingGrowthRateModel") .&& (df_varyinggrowthrate.perturb .== 1.0) .&& (df_varyinggrowthrate.noise .== 0.2),
     :]
 df_hybridgrowthrate = df_hybridgrowthrate[
-    (df_hybridgrowthrate.noise .== 0.2) .&& (df_hybridgrowthrate.perturb .== 1.0), :]
+    (df_hybridgrowthrate.noise .== noise) .&& (df_hybridgrowthrate.perturb .== 1.0), :]
 
 # Calculate median forecast_error for df_hybridgrowthrate
 df_hybridgrowthrate = DataFrames.transform(
@@ -85,12 +96,29 @@ second_min = sorted_errors[1]
 df_hybridgrowthrate = df_hybridgrowthrate[df_hybridgrowthrate.median_forecast_error .== second_min, :]
 
 
-df = vcat(df_model3sp, df_refmodel, df_hybridgrowthrate, cols = :intersect)
+df = vcat(df_baseline, df_model3sp, df_refmodel, df_hybridgrowthrate, cols = :intersect)
 mydict = Dict("HybridGrowthRateModel" => "Hybrid model",
     "Model3SP" => "Null model",
     "VaryingGrowthRateModel" => "Reference model")
 
 df[!, "modelname"] = replace(df[:, "modelname"], mydict...)
+# Perform pairwise one-sided t-tests to assess if model X performs better than model Y (i.e., lower forecast error)
+groups = groupby(df, :modelname)
+model_names = unique(df.modelname)
+open("pairwise_test_results.txt", "w") do io
+    for i in 1:length(model_names)
+        for j in (i+1):length(model_names)
+            group1 = groups[i].forecast_err
+            group2 = groups[j].forecast_err
+            # Test if group1 (model i) has lower mean than group2 (model j)
+            test = UnequalVarianceTTest(group1, group2)
+            pval = pvalue(test)
+            mean1 = mean(group1)
+            mean2 = mean(group2)
+            println(io, "Testing if $(model_names[i]) (mean: $(round(mean1, digits=4))) performs similarly to $(model_names[j]) (mean: $(round(mean2, digits=4))): p-value = $pval")
+        end
+    end
+end
 
 fig = plt.figure(figsize = (6, 4))
 
@@ -101,7 +129,7 @@ ax3 = @py fig.add_subplot(gs[0:2, 1])
 axs = [ax1, ax2, ax3]
 
 ax = ax2
-color_palette = [COLORS_BR[1], COLORS_BR[4], COLORS_BR[end]]
+color_palette = [COLORS_BR[1], COLORS_BR[3], COLORS_BR[6], COLORS_BR[end]]
 spread = 0.7 #spread of box plots
 dfg_model = groupby(df, :modelname)
 for (j, df_model_i) in enumerate(dfg_model)
@@ -131,6 +159,7 @@ ax.set_xticklabels([df_model_i.modelname[1] for df_model_i in dfg_model],
     rotation = 45
 )
 ax.set_ylabel("Forecast error")
+# ax.set_yscale("log")
 display(fig)
 
 ax = ax3

@@ -98,21 +98,21 @@ for i in 1:nrow(data_norm)
 end
 
 # Plot the top 3 best combinations with thick, dashed lines
-for idx in top3_indices
-    i = idx
-    y_vals = [data_norm[i, col] for col in dims]
-    x_vals = 1:n_dims
-    color = "#80ffdb"#sm.to_rgba(err[i])
-    # Interpolate for smooth curve
-    if length(x_vals) > 1
-        interp_func = interp1d(x_vals, y_vals, kind="cubic")
-        x_fine = range(1, n_dims, length=100)
-        y_smooth = interp_func(x_fine)
-        ax.plot(x_fine, y_smooth, linewidth=3, linestyle="dashdot", color=color)
-    else
-        ax.plot(x_vals, y_vals, linewidth=3, linestyle="dashdot", color=color)
-    end
-end
+# for idx in top3_indices
+#     i = idx
+#     y_vals = [data_norm[i, col] for col in dims]
+#     x_vals = 1:n_dims
+#     color = "#80ffdb"#sm.to_rgba(err[i])
+#     # Interpolate for smooth curve
+#     if length(x_vals) > 1
+#         interp_func = interp1d(x_vals, y_vals, kind="cubic")
+#         x_fine = range(1, n_dims, length=100)
+#         y_smooth = interp_func(x_fine)
+#         ax.plot(x_fine, y_smooth, linewidth=3, linestyle="dashdot", color=color)
+#     else
+#         ax.plot(x_vals, y_vals, linewidth=3, linestyle="dashdot", color=color)
+#     end
+# end
 
 # Add axes for each dimension
 dict_ticks = Dict(:infer_ics => ["false", "true"], :lr => ["1e-3, 1e-2, 1e-1"], :weight_decay => ["1e-9, 1e-5, 1e-1"],

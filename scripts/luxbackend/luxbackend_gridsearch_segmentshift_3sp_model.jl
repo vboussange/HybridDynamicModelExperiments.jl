@@ -5,7 +5,7 @@ setup_distributed_environment()
 @everywhere begin 
     using Lux
     using HybridModellingExperiments
-    using HybridModelling
+    using HybridDynamicModels
     import HybridModellingExperiments: Model3SP, Model5SP, Model7SP, LuxBackend, MCMCBackend, InferICs,
                                     run_simulations, LogMSELoss, save_results
     import HybridModellingExperiments: SerialMode, ParallelMode

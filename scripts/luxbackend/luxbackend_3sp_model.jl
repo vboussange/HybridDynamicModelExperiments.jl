@@ -1,6 +1,6 @@
 using Lux
 using HybridModellingExperiments
-using HybridModelling
+using HybridDynamicModels
 import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs,
                                    run_simulations, LogMSELoss, save_results
 import HybridModellingExperiments: SerialMode, ParallelMode

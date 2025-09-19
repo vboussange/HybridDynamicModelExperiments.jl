@@ -9,7 +9,7 @@ using JLD2
 using Distributions
 using DataFrames
 using Dates
-using HybridModelling
+using HybridDynamicModels
 import HybridModellingExperiments: HybridFuncRespModel, Model3SP, feeding, LogMSELoss, generate_noisy_data, split_data
 import OrdinaryDiffEqTsit5: Tsit5
 using Printf

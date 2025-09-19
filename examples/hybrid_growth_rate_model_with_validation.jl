@@ -13,8 +13,8 @@ import Distributions: ProductNamedTupleDistribution
 using Bijectors
 using Optimisers
 using SciMLSensitivity
-using HybridModelling
-import HybridModelling: create_train_val_loaders
+using HybridDynamicModels
+import HybridDynamicModels: create_train_val_loaders
 import HybridModellingExperiments
 import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel,
                                    LogMSELoss, train, LuxBackend, WithValidation, InferICs,

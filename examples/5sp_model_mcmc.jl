@@ -11,7 +11,7 @@ import Distributions: ProductNamedTupleDistribution
 using Bijectors
 using Optimisers
 using SciMLSensitivity
-using HybridModelling
+using HybridDynamicModels
 using HybridModellingExperiments
 import HybridModellingExperiments: Model5SP, LogMSELoss, train, MCMCBackend, LuxBackend, InferICs, forecast, get_parameter_error
 import Lux

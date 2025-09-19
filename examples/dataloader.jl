@@ -1,4 +1,4 @@
-using HybridModelling
+using HybridDynamicModels
 using Plots
 
 datasize = (1, 100)

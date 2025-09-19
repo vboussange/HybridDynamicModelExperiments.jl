@@ -13,7 +13,7 @@ import Distributions: ProductNamedTupleDistribution
 using Bijectors
 using Optimisers
 using SciMLSensitivity
-using HybridModelling
+using HybridDynamicModels
 import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel,
                                    LogMSELoss, train, LuxBackend, InferICs, forecast,
                                    get_parameter_error, growth_rate_resource,

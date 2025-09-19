@@ -2,8 +2,8 @@
 Utilities to run inference simulations.
 =#
 
-using HybridModelling
-import HybridModelling: create_train_val_loaders
+using HybridDynamicModels
+import HybridDynamicModels: create_train_val_loaders
 using Distributions
 using Bijectors
 using Optimisers: Optimisers

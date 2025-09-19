@@ -6,7 +6,7 @@ import OrdinaryDiffEqTsit5: Tsit5
 using SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
 using Random
 using Test
-import HybridModelling: ParameterLayer, ODEModel
+import HybridDynamicModels: ParameterLayer, ODEModel
 import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, LogMSELoss, init, train
 import HybridModellingExperiments: simu, forecast
 

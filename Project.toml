@@ -26,7 +26,6 @@ GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 GR = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
 Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
-HybridModelling = "7e133797-8c8e-49d9-acf3-b153daa40e06"
 HypothesisTests = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
@@ -60,14 +59,5 @@ UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
-[sources]
-HybridModelling = {path = "../HybridModelling.jl"}
-
 [compat]
-Flux = "0.16.5"
-HypothesisTests = "0.11.5"
-LuxCUDA = "0.3.3"
-LuxCore = "1.4.0"
-ParameterSchedulers = "0.4.3"
-SciMLBase = "= 2.112.0"
-julia = "= 1.11.6"
+SciMLBase = "2.120.0"

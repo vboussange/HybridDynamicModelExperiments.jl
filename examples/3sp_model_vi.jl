@@ -8,7 +8,7 @@ using Plots
 using Distributions
 using Optimisers
 using SciMLSensitivity
-using HybridModelling
+using HybridDynamicModels
 import HybridModellingExperiments: Model3SP, LogMSELoss, train, MCMCBackend, VIBackend, InferICs, forecast
 import Lux
 using Random

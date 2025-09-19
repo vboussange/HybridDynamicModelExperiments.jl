@@ -11,7 +11,7 @@ using JLD2
 using Distributions
 using DataFrames
 using Dates
-using HybridModelling
+using HybridDynamicModels
 using Printf
 using ComponentArrays
 

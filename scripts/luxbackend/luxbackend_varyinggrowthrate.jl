@@ -1,13 +1,13 @@
 import Distributed: @everywhere
-import HybridModellingExperiments: setup_distributed_environment, HybridGrowthRateModel
+import HybridDynamicModelExperiments: setup_distributed_environment, HybridGrowthRateModel
 setup_distributed_environment()
 
 @everywhere begin
     using Lux
     using HybridDynamicModels
-    using HybridModellingExperiments
-    import HybridModellingExperiments: VaryingGrowthRateModel, Model3SP, AbstractEcosystemModel, LuxBackend, InferICs, run_simulations, LogMSELoss, save_results
-    import HybridModellingExperiments: SerialMode, ParallelMode, DistributedMode
+    using HybridDynamicModelExperiments
+    import HybridDynamicModelExperiments: VaryingGrowthRateModel, Model3SP, AbstractEcosystemModel, SGDBackend, InferICs, run_simulations, LogMSELoss, save_results
+    import HybridDynamicModelExperiments: SerialMode, ParallelMode, DistributedMode
     import OrdinaryDiffEqTsit5: Tsit5
     import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
     import ADTypes: AutoZygote, AutoForwardDiff
@@ -87,7 +87,7 @@ function create_simulation_parameters()
         noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs,
         batchsize in batchsizes, model in models
 
-        optim_backend = LuxBackend(AdamW(; eta = lr, lambda = weight_decay),
+        optim_backend = SGDBackend(AdamW(; eta = lr, lambda = weight_decay),
             n_epochs,
             adtype,
             loss_fn,

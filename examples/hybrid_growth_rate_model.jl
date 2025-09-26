@@ -14,8 +14,8 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridDynamicModels
-import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel,
-                                   LogMSELoss, train, LuxBackend, InferICs, forecast,
+import HybridDynamicModelExperiments: VaryingGrowthRateModel, HybridGrowthRateModel,
+                                   LogMSELoss, train, SGDBackend, InferICs, forecast,
                                    get_parameter_error, growth_rate_resource,
                                    forecast, generate_noisy_data
 import Lux
@@ -24,7 +24,7 @@ import NNlib
 
 function init(
         model::HybridGrowthRateModel,
-        ::LuxBackend;
+        ::SGDBackend;
         alg,
         abstol,
         reltol,
@@ -103,7 +103,7 @@ loss_fn = LogMSELoss()
 weight_decay = 1e-5
 lr = 1e-2
 epochs = 1000
-optim_backend = LuxBackend(AdamW(eta = lr, lambda = weight_decay), epochs, adtype, loss_fn)
+optim_backend = SGDBackend(AdamW(eta = lr, lambda = weight_decay), epochs, adtype, loss_fn)
 infer_ics = InferICs(true, NamedTupleConstraint((; u0 = BoxConstraint([1e-3], [5e0]))))
 # model definition
 truncated_p = (; H = p_true.H, q = p_true.q, r = p_true.r[2:end], A = p_true.A)

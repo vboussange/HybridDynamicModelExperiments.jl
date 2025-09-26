@@ -1,13 +1,13 @@
 import Distributed: @everywhere
-import HybridModellingExperiments: setup_distributed_environment, HybridGrowthRateModel
+import HybridDynamicModelExperiments: setup_distributed_environment, HybridGrowthRateModel
 setup_distributed_environment()
 
 @everywhere begin
     using Lux
     using HybridDynamicModels
-    using HybridModellingExperiments
-    import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel, LuxBackend, InferICs, WithValidation, run_simulations, LogMSELoss, save_results
-    import HybridModellingExperiments: SerialMode, ParallelMode, DistributedMode
+    using HybridDynamicModelExperiments
+    import HybridDynamicModelExperiments: VaryingGrowthRateModel, HybridGrowthRateModel, SGDBackend, InferICs, WithValidation, run_simulations, LogMSELoss, save_results
+    import HybridDynamicModelExperiments: SerialMode, ParallelMode, DistributedMode
     import OrdinaryDiffEqTsit5: Tsit5
     import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
     import ADTypes: AutoZygote, AutoForwardDiff
@@ -24,9 +24,9 @@ setup_distributed_environment()
     const rng = Random.MersenneTwister(1234)
     const callback(l, epoch, ts) = nothing
 
-    function HybridModellingExperiments.init(
-            model::HybridModellingExperiments.HybridGrowthRateModel,
-            ::LuxBackend;
+    function HybridDynamicModelExperiments.init(
+            model::HybridDynamicModelExperiments.HybridGrowthRateModel,
+            ::SGDBackend;
             alg,
             abstol,
             reltol,
@@ -108,7 +108,7 @@ function create_simulation_parameters()
         noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs,
         batchsize in batchsizes, HlSize in HlSizes, activation in activations
 
-        optim_backend = LuxBackend(AdamW(; eta = lr, lambda = weight_decay),
+        optim_backend = SGDBackend(AdamW(; eta = lr, lambda = weight_decay),
             n_epochs,
             adtype,
             loss_fn,

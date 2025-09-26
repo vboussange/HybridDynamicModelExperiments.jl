@@ -7,8 +7,8 @@ using SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
 using Random
 using Test
 import HybridDynamicModels: ParameterLayer, ODEModel
-import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, LogMSELoss, init, train
-import HybridModellingExperiments: simu, forecast
+import HybridDynamicModelExperiments: Model3SP, SGDBackend, MCSamplingBackend, InferICs, LogMSELoss, init, train
+import HybridDynamicModelExperiments: simu, forecast
 
 const p_true = (H = [1.24, 2.5],
     q = [4.98, 0.8],
@@ -50,7 +50,7 @@ myparams = (alg = Tsit5(),
 
 data = generate_data(; tspan, myparams...)
 
-optim_backend = LuxBackend(Adam(1e-5), 1, AutoZygote(), LogMSELoss())
+optim_backend = SGDBackend(Adam(1e-5), 1, AutoZygote(), LogMSELoss())
 infer_ics = InferICs(true)
 dataloader = SegmentedTimeSeries((data, tsteps), segmentsize = myparams.segmentsize,
     batchsize = myparams.batchsize, partial_batch = true)

@@ -1,8 +1,8 @@
 using Lux
-using HybridModellingExperiments
+using HybridDynamicModelExperiments
 using HybridDynamicModels
-import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, run_simulations, LogMSELoss, save_results
-import HybridModellingExperiments: SerialMode, ParallelMode
+import HybridDynamicModelExperiments: Model3SP, SGDBackend, MCSamplingBackend, InferICs, run_simulations, LogMSELoss, save_results
+import HybridDynamicModelExperiments: SerialMode, ParallelMode
 import OrdinaryDiffEqTsit5: Tsit5
 import SciMLSensitivity: ForwardDiffSensitivity, BacksolveAdjoint, ReverseDiffVJP
 import ADTypes: AutoForwardDiff
@@ -35,7 +35,7 @@ fixed_params = (alg = Tsit5(),
                 sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true)), 
                 p_true, 
                 rng = Random.MersenneTwister(1234),
-                optim_backend = MCMCBackend(HMC(0.05, 4; adtype=AutoForwardDiff()), 
+                optim_backend = MCSamplingBackend(HMC(0.05, 4; adtype=AutoForwardDiff()), 
                                             n_iterations, 
                                             datadistrib; progress = false),
                 loss_fn = LogMSELoss(),

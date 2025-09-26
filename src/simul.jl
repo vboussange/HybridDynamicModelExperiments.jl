@@ -18,7 +18,7 @@ get_lr(opt::Optimisers.AbstractRule) = opt.eta
 
 function init(
         model::AbstractEcosystemModel,
-        ::LuxBackend;
+        ::SGDBackend;
         alg,
         abstol,
         reltol,
@@ -48,7 +48,7 @@ function init(
     return lux_model
 end
 
-function forecast(::LuxBackend, model, ps, st, ics, tsteps_forecast)
+function forecast(::SGDBackend, model, ps, st, ics, tsteps_forecast)
     u0 = ics[end].u0
     t0 = ics[end].t0
     return model(
@@ -61,7 +61,7 @@ function forecast(::LuxBackend, model, ps, st, ics, tsteps_forecast)
     ]
 end
 
-function get_parameter_error(::LuxBackend, model, ps, st, p_true)
+function get_parameter_error(::SGDBackend, model, ps, st, p_true)
     ps_tr, _ = model.components.parameters(ps.parameters, st.parameters)
     med_par_err = median([median(abs.((ps_tr[k] - p_true[k]) ./ p_true[k]))
                           for k in keys(ps_tr)])
@@ -71,7 +71,7 @@ end
 # Simulation function, preprocess before train, train, and postprocess
 # only valid for non hybrid models.
 function simu(
-        optim_backend::LuxBackend,
+        optim_backend::SGDBackend,
         experimental_setup::WithValidation;
         model,
         p_true,
@@ -151,7 +151,7 @@ function simu(
 end
 
 function simu(
-        optim_backend::LuxBackend,
+        optim_backend::SGDBackend,
         experimental_setup::InferICs;
         model,
         p_true,
@@ -231,7 +231,7 @@ end
 
 function init(
         model::AbstractEcosystemModel,
-        ::MCMCBackend;
+        ::MCSamplingBackend;
         alg,
         abstol,
         reltol,
@@ -251,7 +251,7 @@ function init(
     return lux_model
 end
 
-function forecast(::MCMCBackend, st_model, ics, chain, tsteps_forecast, nsamples = 100)
+function forecast(::MCSamplingBackend, st_model, ics, chain, tsteps_forecast, nsamples = 100)
     nsamples = min(nsamples, size(chain, 1))
     last_tok = length(ics)
     last_ics_t0 = ics[last_tok].t0
@@ -272,7 +272,7 @@ function forecast(::MCMCBackend, st_model, ics, chain, tsteps_forecast, nsamples
     return preds
 end
 
-function get_parameter_error(::MCMCBackend, st_model, chain, p_true, nsamples = 100)
+function get_parameter_error(::MCSamplingBackend, st_model, chain, p_true, nsamples = 100)
     nsamples = min(nsamples, size(chain, 1))
     posterior_samples = sample(st_model, chain, nsamples; replace = false)
     err = []
@@ -286,7 +286,7 @@ function get_parameter_error(::MCMCBackend, st_model, chain, p_true, nsamples = 
 end
 
 function simu(
-        optim_backend::MCMCBackend,
+        optim_backend::MCSamplingBackend,
         experimental_setup;
         model,
         p_true,

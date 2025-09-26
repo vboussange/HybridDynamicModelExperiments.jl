@@ -12,8 +12,8 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridDynamicModels
-using HybridModellingExperiments
-import HybridModellingExperiments: Model3SP, LogMSELoss, train, MCMCBackend, LuxBackend, InferICs, forecast, get_parameter_error
+using HybridDynamicModelExperiments
+import HybridDynamicModelExperiments: Model3SP, LogMSELoss, train, MCSamplingBackend, SGDBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
 
@@ -42,7 +42,7 @@ p_true = (;H = [1.24, 2.5],
             q = [4.98, 0.8],
             r = [1.0, -0.4, -0.08],
             A = [1.0])
-backend = MCMCBackend(sampler, 1000, datadistrib)
+backend = MCSamplingBackend(sampler, 1000, datadistrib)
 model = Model3SP()
 
 # Lux model initialization with biased uniform priors

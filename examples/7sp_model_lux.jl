@@ -12,7 +12,7 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridDynamicModels
-import HybridModellingExperiments: Model7SP, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
+import HybridDynamicModelExperiments: Model7SP, LogMSELoss, train, SGDBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
 
@@ -23,7 +23,7 @@ const FloatType = Float64
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
-function init(::Model7SP, ::LuxBackend, p_true, perturb=1e0)
+function init(::Model7SP, ::SGDBackend, p_true, perturb=1e0)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
 
     p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
@@ -53,7 +53,7 @@ p_true = (ω = [0.2],
             r = [1.0, -0.15, -0.08, 1.0, -0.15, -0.01, -0.005],
             A = [1.0, 1.0])
 model = Model7SP()
-p_init, p_transform, u0_transform = init(model, LuxBackend(), p_true)
+p_init, p_transform, u0_transform = init(model, SGDBackend(), p_true)
 
 # Lux model initialization with biased parameters
 parameters = ParameterLayer(constraint = Constraint(p_transform), 
@@ -84,7 +84,7 @@ dataloader = SegmentedTimeSeries((data_with_noise, tsteps);
                                 partial_batch = true)
 
 ## Testing Lux backend
-res = train(LuxBackend(),
+res = train(SGDBackend(),
             InferICs(true);
             model = lux_model, 
             rng, 
@@ -119,15 +119,15 @@ plot_segments(dataloader, res.best_model)
 tsteps_forecast = tspan[end]:4:tspan[end]+200
 last_tok = tokens(tokenize(dataloader))[end]
 segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
-forecasted_data = forecast(LuxBackend(), res.best_model, union(segment_tsteps, tsteps_forecast))
+forecasted_data = forecast(SGDBackend(), res.best_model, union(segment_tsteps, tsteps_forecast))
 true_data = lux_true_model((;u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1], tspan = (segment_tsteps[1], tsteps_forecast[end]), saveat = union(segment_tsteps, tsteps_forecast)), ps_true, st)[1]
 ax = Plots.plot(union(segment_tsteps, tsteps_forecast), forecasted_data', label = "forecasted", title="Forecasted vs true data")
 Plots.plot!(ax, union(segment_tsteps, tsteps_forecast), true_data', label = "true", linestyle = :dash, color = palette(:auto)[1:3]')
 Plots.scatter!(ax, segment_tsteps, data_with_noise[:, tsteps .∈ Ref(segment_tsteps)]', label = "training data", color = palette(:auto)[1:3]')
 
-get_parameter_error(LuxBackend(), res.best_model, p_true)
+get_parameter_error(SGDBackend(), res.best_model, p_true)
 
-# @code_warntype train(LuxBackend(),
+# @code_warntype train(SGDBackend(),
 #                     InferICs(true);
 #                     model = lux_model, 
 #                     rng, 

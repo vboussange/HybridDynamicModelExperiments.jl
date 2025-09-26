@@ -12,7 +12,7 @@ using JLD2
 using Distributions
 using DataFrames
 using Dates
-import HybridModellingExperiments: boxplot
+import HybridDynamicModelExperiments: boxplot
 
 include("../../format.jl")
 
@@ -25,7 +25,7 @@ nits = 5
 df_scaling_lux[!, :time] ./= nits * 1e9 # per iteration, in seconds (originally in ns)
 dropmissing!(df_scaling_lux)
 df_scaling_lux = flatten(df_scaling_lux, :time)
-df_scaling_lux = df_scaling_lux[df_scaling_lux.optim_backend .== "MCMCBackend", :]
+df_scaling_lux = df_scaling_lux[df_scaling_lux.optim_backend .== "MCSamplingBackend", :]
 
 spread = 0.7 #spread of box plots
 legend = true

@@ -7,8 +7,8 @@ using SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
 using Random
 using Test
 import HybridDynamicModels: ParameterLayer, ODEModel
-import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs, LogMSELoss
-import HybridModellingExperiments: simu, forecast
+import HybridDynamicModelExperiments: Model3SP, SGDBackend, MCSamplingBackend, InferICs, LogMSELoss
+import HybridDynamicModelExperiments: simu, forecast
 
 const p_true = (H = [1.24, 2.5],
     q = [4.98, 0.8],
@@ -51,9 +51,9 @@ myparams = (alg = Tsit5(),
 data = generate_data(; tspan, myparams...)
 
 
-@testset "LuxBackend" begin
+@testset "SGDBackend" begin
     @testset "3SP model - Infer ICs" begin
-        optim_backend = LuxBackend(Adam(1e-5), 1, AutoZygote(), LogMSELoss())
+        optim_backend = SGDBackend(Adam(1e-5), 1, AutoZygote(), LogMSELoss())
         infer_ics = InferICs(true)
 
         res = simu(optim_backend, infer_ics; data, myparams...)
@@ -61,7 +61,7 @@ data = generate_data(; tspan, myparams...)
         @test res.forecast_err < 1e-4
     end
     @testset "3SP model - Fixed ICs" begin
-        optim_backend = LuxBackend(Adam(1e-5), 1, AutoZygote(), LogMSELoss())
+        optim_backend = SGDBackend(Adam(1e-5), 1, AutoZygote(), LogMSELoss())
         infer_ics = InferICs(false)
 
         res = simu(optim_backend, infer_ics; data, myparams...)
@@ -71,8 +71,8 @@ data = generate_data(; tspan, myparams...)
 end
 
 
-@testset "MCMCBackend" begin
-    optim_backend = MCMCBackend(HMC(0.5, 10; adtype = AutoForwardDiff()), 1, Normal)
+@testset "MCSamplingBackend" begin
+    optim_backend = MCSamplingBackend(HMC(0.5, 10; adtype = AutoForwardDiff()), 1, Normal)
     infer_ics = InferICs(false)
     res = simu(optim_backend, infer_ics; loss_fn = LogMSELoss(), data, myparams...)
     @test res.med_par_err < 1e-4

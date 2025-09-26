@@ -1,5 +1,5 @@
 using Test
-import HybridModellingExperiments: generate_noisy_data, pop, save_results
+import HybridDynamicModelExperiments: generate_noisy_data, pop, save_results
 using DataFrames
 @testset "pop" begin
     nt = (a=1, b="x", c=[1,2])

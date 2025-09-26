@@ -10,7 +10,7 @@ using Distributions
 using DataFrames
 using Dates
 using HybridDynamicModels
-import HybridModellingExperiments: HybridGrowthRateModel, VaryingGrowthRateModel, Model3SP, LogMSELoss, growth_rate_resource, water_availability, split_data, generate_noisy_data
+import HybridDynamicModelExperiments: HybridGrowthRateModel, VaryingGrowthRateModel, Model3SP, LogMSELoss, growth_rate_resource, water_availability, split_data, generate_noisy_data
 import OrdinaryDiffEqTsit5: Tsit5
 using Printf
 using ComponentArrays
@@ -178,7 +178,7 @@ growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, 1))
 _, st = Lux.setup(Random.default_rng(), growth_rate)
-# lux_model = HybridModellingExperiments.init(HybridGrowthRateModel();
+# lux_model = HybridDynamicModelExperiments.init(HybridGrowthRateModel();
 #                                         p_true,
 #                                         HlSize,
 #                                         perturb,

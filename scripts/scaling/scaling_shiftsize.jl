@@ -12,7 +12,7 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridDynamicModels
-import HybridModellingExperiments: Model3SP, LogMSELoss, train, LuxBackend, InferICs,
+import HybridDynamicModelExperiments: Model3SP, LogMSELoss, train, SGDBackend, InferICs,
                                    forecast, get_parameter_error, save_results
 import Lux
 using Random
@@ -80,7 +80,7 @@ for shift in shifts, infer_ics in (true, false)
         batchsize,
         shift,
     )
-    optim_backend = LuxBackend(Adam(lr_init), 1, adtype, loss_fn, callback)
+    optim_backend = SGDBackend(Adam(lr_init), 1, adtype, loss_fn, callback)
     stats = @benchmark train($optim_backend,
         lux_model,
         $dataloader,

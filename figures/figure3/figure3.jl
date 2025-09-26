@@ -12,7 +12,7 @@ using Distributions
 using DataFrames
 using Dates
 using HybridDynamicModels
-using HybridModellingExperiments: boxplot_byclass, boxplot
+using HybridDynamicModelExperiments: boxplot_byclass, boxplot
 
 include("../format.jl")
 
@@ -27,7 +27,7 @@ df_scaling_segmentsize_nparams = load(result_name_scaling_segmentsize, "results"
 df_scaling_segmentsize_nparams[!, :time] ./= 1e9 # per iteration, in seconds (originally in ns)
 dropmissing!(df_scaling_segmentsize_nparams)
 df_scaling_segmentsize_nparams = flatten(df_scaling_segmentsize_nparams, :time)
-df_scaling_segmentsize_nparams = df_scaling_segmentsize_nparams[df_scaling_segmentsize_nparams.optim_backend .== "LuxBackend", :]
+df_scaling_segmentsize_nparams = df_scaling_segmentsize_nparams[df_scaling_segmentsize_nparams.optim_backend .== "SGDBackend", :]
 df_scaling_segmentsize = df_scaling_segmentsize_nparams[df_scaling_segmentsize_nparams.modelname .== "Model3SP", :]
 df_scaling_paramsize = df_scaling_segmentsize_nparams[df_scaling_segmentsize_nparams.segmentsize .== 9, :]
 

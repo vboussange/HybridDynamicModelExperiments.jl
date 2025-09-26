@@ -1,10 +1,10 @@
 using Lux
-using HybridModellingExperiments
+using HybridDynamicModelExperiments
 using HybridDynamicModels
-import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel, Model3SP,
-                                   LuxBackend, MCMCBackend, InferICs, run_simulations,
+import HybridDynamicModelExperiments: VaryingGrowthRateModel, HybridGrowthRateModel, Model3SP,
+                                   SGDBackend, MCSamplingBackend, InferICs, run_simulations,
                                    LogMSELoss, save_results
-import HybridModellingExperiments: SerialMode, ParallelMode
+import HybridDynamicModelExperiments: SerialMode, ParallelMode
 import OrdinaryDiffEqTsit5: Tsit5
 import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
 import ADTypes: AutoZygote, AutoForwardDiff
@@ -40,9 +40,9 @@ fixed_params = (alg = Tsit5(),
     forecast_length = 10
 )
 
-function HybridModellingExperiments.init(
+function HybridDynamicModelExperiments.init(
         model::HybridGrowthRateModel,
-        ::LuxBackend;
+        ::SGDBackend;
         alg,
         abstol,
         reltol,
@@ -116,7 +116,7 @@ function create_simulation_parameters()
         model in models,
         noise in noises
 
-        optim_backend = LuxBackend(Adam(fixed_params.lr),
+        optim_backend = SGDBackend(Adam(fixed_params.lr),
             fixed_params.n_epochs,
             fixed_params.adtype,
             fixed_params.loss_fn;

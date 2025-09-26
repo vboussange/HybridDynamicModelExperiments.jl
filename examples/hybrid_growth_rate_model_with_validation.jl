@@ -15,9 +15,9 @@ using Optimisers
 using SciMLSensitivity
 using HybridDynamicModels
 import HybridDynamicModels: create_train_val_loaders
-import HybridModellingExperiments
-import HybridModellingExperiments: VaryingGrowthRateModel, HybridGrowthRateModel,
-                                   LogMSELoss, train, LuxBackend, WithValidation, InferICs,
+import HybridDynamicModelExperiments
+import HybridDynamicModelExperiments: VaryingGrowthRateModel, HybridGrowthRateModel,
+                                   LogMSELoss, train, SGDBackend, WithValidation, InferICs,
                                    forecast,
                                    get_parameter_error, growth_rate_resource,
                                    forecast, generate_noisy_data
@@ -28,7 +28,7 @@ ENV["JULIA_DEBUG"] = nothing
 
 function init(
         model::HybridGrowthRateModel,
-        ::LuxBackend;
+        ::SGDBackend;
         alg,
         abstol,
         reltol,
@@ -107,7 +107,7 @@ loss_fn = LogMSELoss()
 weight_decay = 1e-5
 lr = 1e-2
 epochs = 1000
-optim_backend = LuxBackend(AdamW(eta = lr, lambda = weight_decay), epochs, adtype, loss_fn)
+optim_backend = SGDBackend(AdamW(eta = lr, lambda = weight_decay), epochs, adtype, loss_fn)
 valid_length = 1
 ftype = Lux.f64
 

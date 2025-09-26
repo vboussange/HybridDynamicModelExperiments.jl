@@ -1,14 +1,14 @@
 import Distributed: @everywhere
-import HybridModellingExperiments: setup_distributed_environment
+import HybridDynamicModelExperiments: setup_distributed_environment
 setup_distributed_environment(4)
 
 @everywhere begin 
     using Lux
-    using HybridModellingExperiments
+    using HybridDynamicModelExperiments
     using HybridDynamicModels
-    import HybridModellingExperiments: Model3SP, LuxBackend, MCMCBackend, InferICs,
+    import HybridDynamicModelExperiments: Model3SP, SGDBackend, MCSamplingBackend, InferICs,
                                     run_simulations, LogMSELoss, save_results
-    import HybridModellingExperiments: SerialMode, ParallelMode, DistributedMode
+    import HybridDynamicModelExperiments: SerialMode, ParallelMode, DistributedMode
     import OrdinaryDiffEqTsit5: Tsit5
     import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
     import ADTypes: AutoZygote, AutoForwardDiff
@@ -24,8 +24,8 @@ setup_distributed_environment(4)
     using BenchmarkTools
     callback(l, epoch, ts) = nothing
 
-    function HybridModellingExperiments.simu(
-            optim_backend::LuxBackend,
+    function HybridDynamicModelExperiments.simu(
+            optim_backend::SGDBackend,
             experimental_setup::InferICs;
             model,
             p_true,
@@ -41,8 +41,8 @@ setup_distributed_environment(4)
             kwargs...
     )
 
-        data_w_noise = HybridModellingExperiments.generate_noisy_data(data, noise)
-        train_idx, test_idx = HybridModellingExperiments.split_data(data, forecast_length)
+        data_w_noise = HybridDynamicModelExperiments.generate_noisy_data(data, noise)
+        train_idx, test_idx = HybridDynamicModelExperiments.split_data(data, forecast_length)
         dataloader = SegmentedTimeSeries(
             (data_w_noise[:, train_idx], tsteps[train_idx]);
             segmentsize,
@@ -52,9 +52,9 @@ setup_distributed_environment(4)
         )
 
         # Lux model initialization with biased parameters
-        lux_model = HybridModellingExperiments.init(model, optim_backend; p_true, sensealg, rng, kwargs...)
+        lux_model = HybridDynamicModelExperiments.init(model, optim_backend; p_true, sensealg, rng, kwargs...)
         println(
-            "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridModellingExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+            "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridDynamicModelExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
         )
 
         time = missing
@@ -72,20 +72,20 @@ setup_distributed_environment(4)
         end
 
         return (;
-            modelname = HybridModellingExperiments.nameof(model),
+            modelname = HybridDynamicModelExperiments.nameof(model),
             time,
             memory,
             allocs,
             segmentsize,
             sensealg = string(typeof(sensealg)),
-            optim_backend = HybridModellingExperiments.nameof(optim_backend),
-            infer_ics = HybridModellingExperiments.is_ics_estimated(experimental_setup),
+            optim_backend = HybridDynamicModelExperiments.nameof(optim_backend),
+            infer_ics = HybridDynamicModelExperiments.is_ics_estimated(experimental_setup),
         )
     end
 
 
-    function HybridModellingExperiments.simu(
-            optim_backend::MCMCBackend,
+    function HybridDynamicModelExperiments.simu(
+            optim_backend::MCSamplingBackend,
             experimental_setup;
             model,
             p_true,
@@ -100,8 +100,8 @@ setup_distributed_environment(4)
             kwargs...
     )
 
-        data_w_noise = HybridModellingExperiments.generate_noisy_data(data, noise)
-        train_idx, test_idx = HybridModellingExperiments.split_data(data, forecast_length)
+        data_w_noise = HybridDynamicModelExperiments.generate_noisy_data(data, noise)
+        train_idx, test_idx = HybridDynamicModelExperiments.split_data(data, forecast_length)
         dataloader = SegmentedTimeSeries(
             (data_w_noise[:, train_idx], tsteps[train_idx]);
             segmentsize,
@@ -110,9 +110,9 @@ setup_distributed_environment(4)
         )
 
         # Lux model initialization with biased parameters
-        lux_model = HybridModellingExperiments.init(model, optim_backend; p_true, sensealg, kwargs...)
+        lux_model = HybridDynamicModelExperiments.init(model, optim_backend; p_true, sensealg, kwargs...)
         println(
-            "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridModellingExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+            "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridDynamicModelExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
         )
 
         time = missing
@@ -129,14 +129,14 @@ setup_distributed_environment(4)
         end
 
         return (;
-            modelname = HybridModellingExperiments.nameof(model),
+            modelname = HybridDynamicModelExperiments.nameof(model),
             time,
             memory,
             allocs,
             segmentsize,
             sensealg = string(typeof(sensealg)),
-            optim_backend = HybridModellingExperiments.nameof(optim_backend),
-            infer_ics = HybridModellingExperiments.is_ics_estimated(experimental_setup),
+            optim_backend = HybridDynamicModelExperiments.nameof(optim_backend),
+            infer_ics = HybridDynamicModelExperiments.is_ics_estimated(experimental_setup),
         )
     end
 end
@@ -200,9 +200,9 @@ function create_simulation_parameters()
     datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 
     backends = [
-        LuxBackend(
+        SGDBackend(
             Adam(1e-2), nits, AutoZygote(), loss_fn, callback),
-        MCMCBackend(
+        MCSamplingBackend(
             HMC(0.05, 4, adtype = AutoForwardDiff()), nits, datadistrib; progress = false)]
 
     pars_arr = []

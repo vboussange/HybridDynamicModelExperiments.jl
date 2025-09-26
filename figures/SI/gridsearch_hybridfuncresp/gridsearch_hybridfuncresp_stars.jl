@@ -12,7 +12,7 @@ using Distributions
 using DataFrames
 using Dates
 using HybridDynamicModels
-using HybridModellingExperiments: boxplot_byclass
+using HybridDynamicModelExperiments: boxplot_byclass
 using Printf
 
 include("../../format.jl");

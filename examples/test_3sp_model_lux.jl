@@ -12,7 +12,7 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridDynamicModels
-import HybridModellingExperiments: Model3SP, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
+import HybridDynamicModelExperiments: Model3SP, LogMSELoss, train, SGDBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
 import Flux
@@ -66,7 +66,7 @@ end
 #     Optimisers.adjust!(ts.optimizer_state, lr)
 # end
 loss_fn = LogMSELoss()
-backend = LuxBackend(Adam(lr_init), 1000, adtype, loss_fn, callback)
+backend = SGDBackend(Adam(lr_init), 1000, adtype, loss_fn, callback)
 dudt = Model3SP()
 p_init, p_transform = init_parameters(rng, p_true)
 u0_constraint = Constraint(Bijectors.NamedTransform((;u0 = bijector(Uniform(1e-3, 5e0)))))  # For initial conditions
@@ -138,7 +138,7 @@ Plots.scatter!(ax, segment_tsteps, data_with_noise[:, tsteps .∈ Ref(segment_ts
 display(ax)
 get_parameter_error(backend, lux_model, res.ps, res.st, p_true)
 loss_fn(forecasted_data, true_data)
-# @code_warntype train(LuxBackend(),
+# @code_warntype train(SGDBackend(),
 #                     InferICs(true);
 #                     model = lux_model, 
 #                     rng, 

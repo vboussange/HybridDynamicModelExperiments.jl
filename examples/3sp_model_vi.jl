@@ -9,7 +9,7 @@ using Distributions
 using Optimisers
 using SciMLSensitivity
 using HybridDynamicModels
-import HybridModellingExperiments: Model3SP, LogMSELoss, train, MCMCBackend, VIBackend, InferICs, forecast
+import HybridDynamicModelExperiments: Model3SP, LogMSELoss, train, MCSamplingBackend, VIBackend, InferICs, forecast
 import Lux
 using Random
 
@@ -19,7 +19,7 @@ using Random
 
 Initialize parameters, parameter and initial condition constraints for the inference.
 """
-function init(::Model3SP, ::Union{MCMCBackend, VIBackend}, p_true, perturb=1e0)
+function init(::Model3SP, ::Union{MCSamplingBackend, VIBackend}, p_true, perturb=1e0)
     parameter_priors = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
     # Careful: float type is not easily imposed, see https://github.com/JuliaStats/Distributions.jl/issues/1995
     return (;parameters=parameter_priors)
@@ -66,7 +66,7 @@ datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = true)
 
 ## Testing Turing backend
-# chain = train(MCMCBackend(),
+# chain = train(MCSamplingBackend(),
 #         InferICs(true);
 #         datadistrib, 
 #         model_priors = ps_priors,

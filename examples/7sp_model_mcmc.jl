@@ -12,12 +12,12 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridDynamicModels
-using HybridModellingExperiments
-import HybridModellingExperiments: Model7SP, LogMSELoss, train, MCMCBackend, LuxBackend, InferICs, forecast, get_parameter_error
+using HybridDynamicModelExperiments
+import HybridDynamicModelExperiments: Model7SP, LogMSELoss, train, MCSamplingBackend, SGDBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
 
-function init_priors(::MCMCBackend, p_true, perturb=1e0)
+function init_priors(::MCSamplingBackend, p_true, perturb=1e0)
     parameter_priors = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
     return (;parameters=parameter_priors)
 end
@@ -41,7 +41,7 @@ p_true = (ω = [0.2],
             q = [1.38, 0.272, 1e-1 ,1.38, 0.272, 5e-2],
             r = [1.0, -0.15, -0.08, 1.0, -0.15, -0.01, -0.005],
             A = [1.0, 1.0])
-backend = MCMCBackend()
+backend = MCSamplingBackend()
 model = Model7SP()
 
 # Lux model initialization with biased parameters
@@ -66,7 +66,7 @@ datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = true)
 
 ## Testing Turing backend
-# chain = train(MCMCBackend(),
+# chain = train(MCSamplingBackend(),
 #         InferICs(true);
 #         datadistrib, 
 #         model_priors = ps_priors,
@@ -77,7 +77,7 @@ dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = 
 #         n_iterations = 1000)
 
 ## Testing Turing backend without ICs
-res = train(MCMCBackend(),
+res = train(MCSamplingBackend(),
             InferICs(false);
             datadistrib, 
             model_priors = ps_priors,
@@ -93,7 +93,7 @@ plot(res.chains)
 tsteps_forecast = tspan[end]:4:tspan[end]+200
 last_tok = tokens(tokenize(dataloader))[end]
 segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
-forecasted_data = forecast(MCMCBackend(), res.st_model, res.chains, union(segment_tsteps, tsteps_forecast))
+forecasted_data = forecast(MCSamplingBackend(), res.st_model, res.chains, union(segment_tsteps, tsteps_forecast))
 true_data = lux_true_model((;u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1], tspan = (segment_tsteps[1], tsteps_forecast[end]), saveat = union(segment_tsteps, tsteps_forecast)), ps_true, st)[1]
 ax = Plots.plot(union(segment_tsteps, tsteps_forecast), true_data', label = "true", title="Forecasted vs true data", linestyle = :dash, color = palette(:auto)[1:3]')
 for pred in forecasted_data
@@ -101,4 +101,4 @@ for pred in forecasted_data
 end
 ax
 
-get_parameter_error(MCMCBackend(), res.st_model, res.chains, p_true)
+get_parameter_error(MCSamplingBackend(), res.st_model, res.chains, p_true)

@@ -10,7 +10,7 @@ using Distributions
 using DataFrames
 using Dates
 using HybridDynamicModels
-import HybridModellingExperiments: HybridFuncRespModel, Model3SP, feeding, LogMSELoss, generate_noisy_data, split_data
+import HybridDynamicModelExperiments: HybridFuncRespModel, Model3SP, feeding, LogMSELoss, generate_noisy_data, split_data
 import OrdinaryDiffEqTsit5: Tsit5
 using Printf
 using ComponentArrays

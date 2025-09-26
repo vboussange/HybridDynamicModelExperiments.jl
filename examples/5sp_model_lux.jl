@@ -12,7 +12,7 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridDynamicModels
-import HybridModellingExperiments: Model5SP, LogMSELoss, train, LuxBackend, InferICs, forecast, get_parameter_error
+import HybridDynamicModelExperiments: Model5SP, LogMSELoss, train, SGDBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
 
@@ -80,7 +80,7 @@ display(ax)
 # Model initialized with perturbed parameters
 segmentsize = 5
 dataloader = SegmentedTimeSeries((data_with_noise, tsteps); segmentsize, batchsize, partial_batch = true)
-backend = LuxBackend(Adam(1e-2), 1000, adtype, LogMSELoss())
+backend = SGDBackend(Adam(1e-2), 1000, adtype, LogMSELoss())
 
 # infer_ics = InferICs(true,
 #             NamedTupleConstraint((;
@@ -120,15 +120,15 @@ plot_segments(dataloader, res.best_model)
 tsteps_forecast = tspan[end]:4:tspan[end]+200
 last_tok = tokens(tokenize(dataloader))[end]
 segment_data, segment_tsteps = tokenize(dataloader)[last_tok]
-forecasted_data = forecast(LuxBackend(), res.best_model, union(segment_tsteps, tsteps_forecast))
+forecasted_data = forecast(SGDBackend(), res.best_model, union(segment_tsteps, tsteps_forecast))
 true_data = lux_true_model((;u0 = data[:, tsteps .∈ Ref(union(segment_tsteps, tsteps_forecast))][:, 1], tspan = (segment_tsteps[1], tsteps_forecast[end]), saveat = union(segment_tsteps, tsteps_forecast)), ps_true, st)[1]
 ax = Plots.plot(union(segment_tsteps, tsteps_forecast), forecasted_data', label = "forecasted", title="Forecasted vs true data")
 Plots.plot!(ax, union(segment_tsteps, tsteps_forecast), true_data', label = "true", linestyle = :dash, color = palette(:auto)[1:3]')
 Plots.scatter!(ax, segment_tsteps, data_with_noise[:, tsteps .∈ Ref(segment_tsteps)]', label = "training data", color = palette(:auto)[1:3]')
 
-get_parameter_error(LuxBackend(), res.best_model, p_true)
+get_parameter_error(SGDBackend(), res.best_model, p_true)
 
-# @code_warntype train(LuxBackend(),
+# @code_warntype train(SGDBackend(),
 #                     InferICs(true);
 #                     model = lux_model, 
 #                     rng, 

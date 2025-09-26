@@ -1,14 +1,14 @@
 import Distributed: @everywhere
-import HybridModellingExperiments: setup_distributed_environment, DistributedMode
+import HybridDynamicModelExperiments: setup_distributed_environment, DistributedMode
 setup_distributed_environment()
 
 @everywhere begin 
     using Lux
-    using HybridModellingExperiments
+    using HybridDynamicModelExperiments
     using HybridDynamicModels
-    import HybridModellingExperiments: Model3SP, Model5SP, Model7SP, LuxBackend, MCMCBackend, InferICs,
+    import HybridDynamicModelExperiments: Model3SP, Model5SP, Model7SP, SGDBackend, MCSamplingBackend, InferICs,
                                     run_simulations, LogMSELoss, save_results
-    import HybridModellingExperiments: SerialMode, ParallelMode
+    import HybridDynamicModelExperiments: SerialMode, ParallelMode
     import OrdinaryDiffEqTsit5: Tsit5
     import SciMLSensitivity: BacksolveAdjoint, ReverseDiffVJP
     import ADTypes: AutoZygote, AutoForwardDiff
@@ -93,7 +93,7 @@ function create_simulation_parameters()
     for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims, model in models,
         noise in noises, perturb in perturbs, lr in lrs
 
-        optim_backend = LuxBackend(Adam(lr),
+        optim_backend = SGDBackend(Adam(lr),
             fixed_params.n_epochs,
             fixed_params.adtype,
             fixed_params.loss_fn,

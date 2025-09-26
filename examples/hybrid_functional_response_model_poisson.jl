@@ -14,12 +14,12 @@ using Bijectors
 using Optimisers
 using SciMLSensitivity
 using HybridDynamicModels
-import HybridModellingExperiments: Model3SP, HybridFuncRespModel, LogMSELoss, PoissonLoss, train, LuxBackend, InferICs, forecast, get_parameter_error
+import HybridDynamicModelExperiments: Model3SP, HybridFuncRespModel, LogMSELoss, PoissonLoss, train, SGDBackend, InferICs, forecast, get_parameter_error
 import Lux
 using Random
 import NNlib
 
-function init(::LuxBackend, p_true, perturb=1e0)
+function init(::SGDBackend, p_true, perturb=1e0)
     distrib_param = NamedTuple([dp => Product([Uniform(sort([(1e0-perturb/2e0) * k, (1e0+perturb/2e0) * k])...) for k in p_true[dp]]) for dp in keys(p_true)])
 
     p_transform = Bijectors.NamedTransform(NamedTuple([dp => bijector(distrib_param[dp]) for dp in keys(distrib_param)]))
@@ -85,7 +85,7 @@ end
 # end
 opt = AdamW(; eta = lr_init, lambda = weight_decay)
 # opt = Adam(lr_init)
-backend = LuxBackend(opt, 1000, adtype, loss_fn, callback)
+backend = SGDBackend(opt, 1000, adtype, loss_fn, callback)
 
 # Hybrid model metaparameters
 p_init = (r = 2. * [0.5, -0.2, -0.1],

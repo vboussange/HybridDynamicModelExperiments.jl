@@ -48,7 +48,7 @@ function train(::VIBackend,
     return (;q_avg, q_last, info, state)
 end
 
-# function train(::MCMCBackend, 
+# function train(::MCSamplingBackend, 
 #                 ::InferICs{false};
 #                 model,
 #                 rng=Random.default_rng(),

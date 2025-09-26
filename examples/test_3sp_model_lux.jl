@@ -91,9 +91,9 @@ ax = Plots.scatter(tsteps, data_with_noise', title = "Data")
 
 # Defining inference problem
 # Model initialized with perturbed parameters
-segmentsize = 2
+segment_length = 2
 dataloader = SegmentedTimeSeries((data_with_noise, tsteps); 
-                                segmentsize, 
+                                segment_length, 
                                 partial_batch = true,
                                 batchsize = typemax(Int64)
                                 )

@@ -32,11 +32,11 @@ spread = 0.7 #spread of box plots
 
 fig, axs = plt.subplots(1, 2, figsize = (6, 3))
 # averaging by nruns
-gdf_results = groupby(df_3sp_filtered, [:segmentsize, classname])
+gdf_results = groupby(df_3sp_filtered, [:segment_length, classname])
 ax = axs[0]
 
 boxplot_byclass(gdf_results, ax;
-        xname = :segmentsize,
+        xname = :segment_length,
         yname = :med_par_err, 
         xlab = "Segment size", 
         ylab = "Parameter error", 
@@ -55,7 +55,7 @@ display(fig)
 
 ax = axs[1]
 boxplot_byclass(gdf_results, ax; 
-        xname = :segmentsize,
+        xname = :segment_length,
         yname = :forecast_err, 
         xlab =  "Segment size", 
         ylab = "Forecast error", 

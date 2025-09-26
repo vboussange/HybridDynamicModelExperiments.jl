@@ -63,7 +63,7 @@ data, _ = lux_true_model((;u0 = u0_true), ps_true, st)
 ax = Plots.scatter(tsteps, data', title = "Data")
 
 # Defining segments
-dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = true)
+dataloader = SegmentedTimeSeries((data, tsteps), segment_length=8, partial_batch = true)
 
 # Training
 res = train(backend,

@@ -27,7 +27,7 @@ rename!(df, "forecast_err" => "Forecast error")
 df = df[df.noise .== 0.2, :]
 
 # selecting median
-dims = [:segmentsize, :infer_ics, :lr, :weight_decay, :HlSize]
+dims = [:segment_length, :infer_ics, :lr, :weight_decay, :HlSize]
 df_filtered = combine(groupby(df, dims),
     "Forecast error" => (x -> median(skipmissing(x))) => "Forecast error",)
 
@@ -38,7 +38,7 @@ forecast_err = df_filtered[:, "Forecast error"]
 # Normalize data to [0, 1] for each dimension
 data_norm = DataFrame()
 for col in dims
-    if col in [:lr, :weight_decay, :segmentsize, :HlSize]
+    if col in [:lr, :weight_decay, :segment_length, :HlSize]
         # Log scale for these columns (assuming positive values)
         log_vals = log.(data[!, col])
         min_val = minimum(log_vals)
@@ -116,7 +116,7 @@ end
 
 # Add axes for each dimension
 dict_ticks = Dict(:infer_ics => ["false", "true"], :lr => ["1e-3, 1e-2, 1e-1"], :weight_decay => ["1e-9, 1e-5, 1e-1"],
-    :segmentsize => string.(floor.(Int, exp.(range(log(2), log(100), length = 6)))), :HlSize => ["2^2", "2^3", "2^4"], :infer_ics => ["false", "true"])
+    :segment_length => string.(floor.(Int, exp.(range(log(2), log(100), length = 6)))), :HlSize => ["2^2", "2^3", "2^4"], :infer_ics => ["false", "true"])
 for j in 1:n_dims
     col = dims[j]
     # Draw vertical axis line
@@ -138,7 +138,7 @@ for j in 1:n_dims
             log_min = minimum(log.(data[!, col]))
             log_max = maximum(log.(data[!, col]))
             tick_norm = (log.(unique_vals) .- log_min) ./ (log_max - log_min)
-        elseif col in [:segmentsize, :HlSize]
+        elseif col in [:segment_length, :HlSize]
             labels = dict_ticks[col]
             # Normalize unique values (log scale)
             log_min = minimum(log.(data[!, col]))
@@ -158,7 +158,7 @@ end
 
 # Set x-ticks and labels
 ax.set_xticks(1:n_dims)
-names = replace(dims, :segmentsize => "Segment length\n"*L"S", :infer_ics => "IC\nestimation", :lr => "Learning rate\n"*L"\gamma", :weight_decay => "Weight decay\n"*L"\lambda", :HlSize => "Hidden layer size\n"*L"N_h")
+names = replace(dims, :segment_length => "Segment length\n"*L"S", :infer_ics => "IC\nestimation", :lr => "Learning rate\n"*L"\gamma", :weight_decay => "Weight decay\n"*L"\lambda", :HlSize => "Hidden layer size\n"*L"N_h")
 ax.set_xticklabels([string(name) for name in names])
 
 ax.set_xlabel("Hyper parameters")

@@ -69,7 +69,7 @@ function generate_data(
 end
 
 function create_simulation_parameters()
-    segmentsizes = [4]
+    segment_lengths = [4]
     nruns = 5
     ic_estims = [
         InferICs(true,
@@ -83,7 +83,7 @@ function create_simulation_parameters()
     models = [VaryingGrowthRateModel(), Model3SP()]
 
     pars_arr = []
-    for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims,
+    for segment_length in segment_lengths, run in 1:nruns, infer_ic in ic_estims,
         noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs,
         batchsize in batchsizes, model in models
 
@@ -95,7 +95,7 @@ function create_simulation_parameters()
 
         data, p_true = generate_data(model; tspan, fixed_params...)
 
-        varying_params = (; segmentsize,
+        varying_params = (; segment_length,
             optim_backend,
             experimental_setup = infer_ic,
             noise,

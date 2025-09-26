@@ -5,10 +5,10 @@ datasize = (1, 100)
 tsteps = collect(1.0:1.0:datasize[2])
 data = reshape(sin.(0.2e0 * tsteps), 1, :)
 
-segmentsize = 4
+segment_length = 4
 valid_length = 1
-dataloader_train = tokenize(SegmentedTimeSeries((tsteps, data); segmentsize, shift = segmentsize + valid_length, partial_segment=false))
-dataloader_valid = tokenize(SegmentedTimeSeries((tsteps[segmentsize+1:end], data[:, segmentsize+1:end]); segmentsize = valid_length, shift = segmentsize+valid_length, partial_segment=false))
+dataloader_train = tokenize(SegmentedTimeSeries((tsteps, data); segment_length, shift = segment_length + valid_length, partial_segment=false))
+dataloader_valid = tokenize(SegmentedTimeSeries((tsteps[segment_length+1:end], data[:, segment_length+1:end]); segment_length = valid_length, shift = segment_length+valid_length, partial_segment=false))
 
 println("Number of training segments: ", length(tokens(dataloader_train)))
 println("Number of validation segments: ", length(tokens(dataloader_valid)))

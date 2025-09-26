@@ -63,7 +63,7 @@ ax = Plots.scatter(tsteps, data', title = "Data")
 # Defining inference problem
 datadistrib = x -> LogNormal(log(max(x, 1e-6)))
 # Model initialized with perturbed parameters
-dataloader = SegmentedTimeSeries((data, tsteps), segmentsize=8, partial_batch = true)
+dataloader = SegmentedTimeSeries((data, tsteps), segment_length=8, partial_batch = true)
 
 ## Testing Turing backend
 # chain = train(MCSamplingBackend(),

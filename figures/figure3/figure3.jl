@@ -12,24 +12,23 @@ using Distributions
 using DataFrames
 using Dates
 using HybridDynamicModels
-using HybridDynamicModelExperiments: boxplot_byclass, boxplot
 
 include("../format.jl")
 
 tsteps = range(500e0, step = 4, length = 100)
-segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
-nsegments = [length(tokens(tokenize(SegmentedTimeSeries(tsteps, segmentsize = s)))) for s in segmentsizes]
+segment_lengths = floor.(Int, exp.(range(log(2), log(100), length = 6)))
+nsegments = [length(tokens(tokenize(SegmentedTimeSeries(tsteps, segment_length = s)))) for s in segment_lengths]
 
-result_name_scaling_segmentsize = "../../scripts/scaling/results/scaling_segmentsize_e75afd6.jld2"
+result_name_scaling_segment_length = "../../scripts/scaling/results/scaling_segmentsize_e75afd6.jld2"
 result_name_scaling_batchsize = "../../scripts/scaling/results/scaling_batchsize_6284b1e.jld2"
 
-df_scaling_segmentsize_nparams = load(result_name_scaling_segmentsize, "results")
-df_scaling_segmentsize_nparams[!, :time] ./= 1e9 # per iteration, in seconds (originally in ns)
-dropmissing!(df_scaling_segmentsize_nparams)
-df_scaling_segmentsize_nparams = flatten(df_scaling_segmentsize_nparams, :time)
-df_scaling_segmentsize_nparams = df_scaling_segmentsize_nparams[df_scaling_segmentsize_nparams.optim_backend .== "SGDBackend", :]
-df_scaling_segmentsize = df_scaling_segmentsize_nparams[df_scaling_segmentsize_nparams.modelname .== "Model3SP", :]
-df_scaling_paramsize = df_scaling_segmentsize_nparams[df_scaling_segmentsize_nparams.segmentsize .== 9, :]
+df_scaling_segment_length_nparams = load(result_name_scaling_segment_length, "results")
+df_scaling_segment_length_nparams[!, :time] ./= 1e9 # per iteration, in seconds (originally in ns)
+dropmissing!(df_scaling_segment_length_nparams)
+df_scaling_segment_length_nparams = flatten(df_scaling_segment_length_nparams, :time)
+df_scaling_segment_length_nparams = df_scaling_segment_length_nparams[df_scaling_segment_length_nparams.optim_backend .== "LuxBackend", :] # legacy name
+df_scaling_segment_length = df_scaling_segment_length_nparams[df_scaling_segment_length_nparams.modelname .== "Model3SP", :]
+df_scaling_paramsize = df_scaling_segment_length_nparams[df_scaling_segment_length_nparams.segmentsize .== 9, :] # legacy name
 
 df_scaling_batchsize = load(result_name_scaling_batchsize, "results")
 df_scaling_batchsize[!, :times] ./= 1e9 # per iteration, in seconds (originally in ns)
@@ -40,6 +39,7 @@ df_scaling_paramsize[!, "modelname"] = replace(df_scaling_paramsize.modelname, "
 
 fig, axs = plt.subplots(1, 3, figsize = (8,3))
 ylab = "Simulation time\nper epoch (s)"
+spread = 0.7
 
 ax = axs[2]
 ax.set_title("Batch size = 10, segment length S = 9")
@@ -58,7 +58,7 @@ boxplot_byclass(gdf_results, ax;
         legend=false,
         link=true)
 ax.set_facecolor("none")
-ax.set_ylabel(ylab)
+# ax.set_ylabel(ylab)
 # ax.set_yscale("log")
 # ax.set_ylim(-0.05,1.1)
 x = sort!(unique(df_scaling_paramsize.modelname))
@@ -67,10 +67,9 @@ ax.set_xticklabels(x)
 #     ax.set_yscale("log")
 
 # scaling
-spread = 0.7
 ax = axs[0]
 ax.set_title("Batch size \$b = 10\$, "*L"\mathcal{M}_3")
-gdf_results = groupby(df_scaling_segmentsize, [:segmentsize, :infer_ics])
+gdf_results = groupby(df_scaling_segment_length, [:segmentsize, :infer_ics]) # legacy name
 # y = [df.time for df in gdf]
 boxplot_byclass(gdf_results, ax; 
         xname = :segmentsize,

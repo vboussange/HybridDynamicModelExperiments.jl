@@ -99,8 +99,8 @@ function generate_data(
 end
 
 function create_simulation_parameters()
-    # segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
-    segmentsizes = [9]
+    # segment_lengths = floor.(Int, exp.(range(log(2), log(100), length = 6)))
+    segment_lengths = [9]
     ss = exp.(range(log(8e-1), log(100e-1), length = 5))
     nruns = 10
     ic_estims = [
@@ -112,7 +112,7 @@ function create_simulation_parameters()
     models = [HybridGrowthRateModel(), Model3SP()]
 
     pars_arr = []
-    for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims, s in ss,
+    for segment_length in segment_lengths, run in 1:nruns, infer_ic in ic_estims, s in ss,
         model in models,
         noise in noises
 
@@ -125,7 +125,7 @@ function create_simulation_parameters()
 
         data, p_true = generate_data(fixed_params.model; tspan, s, fixed_params...)
 
-        varying_params = (; segmentsize,
+        varying_params = (; segment_length,
             optim_backend,
             experimental_setup = infer_ic,
             noise,

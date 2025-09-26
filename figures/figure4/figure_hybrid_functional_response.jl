@@ -78,11 +78,11 @@ df_hybridfuncresp = df_hybridfuncresp[
 
 # Calculate median forecast_error for df_hybridfuncresp
 df_hybridfuncresp = DataFrames.transform(
-    groupby(df_hybridfuncresp, [:segmentsize, :lr, :infer_ics, :weight_decay, :HlSize]),
+    groupby(df_hybridfuncresp, [:segment_length, :lr, :infer_ics, :weight_decay, :HlSize]),
     :forecast_err => median => :median_forecast_error)
 
 # Calculate median forecast_error for df_model3sp
-df_model3sp = DataFrames.transform(groupby(df_model3sp, [:segmentsize, :lr, :infer_ics]),
+df_model3sp = DataFrames.transform(groupby(df_model3sp, [:segment_length, :lr, :infer_ics]),
     :forecast_err => median => :median_forecast_error)
 
 df_hybridfuncresp = df_hybridfuncresp[

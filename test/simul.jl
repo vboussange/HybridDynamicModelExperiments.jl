@@ -43,7 +43,7 @@ myparams = (alg = Tsit5(),
             batchsize = 10,
             forecast_length = 10,
             perturb = 1e-4,
-            segmentsize=2,
+            segment_length=2,
             model,
             noise = 0.)
 

@@ -41,7 +41,7 @@ setup_distributed_environment(4)
 end
 
 function create_simulation_parameters()
-    segmentsizes = [8]
+    segment_lengths = [8]
     nruns = 5
     models = [Model3SP()]
     ic_estims = [
@@ -55,7 +55,7 @@ function create_simulation_parameters()
     shifts = [2, 4, 6, 8]
 
     pars_arr = []
-    for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims, model in models,
+    for segment_length in segment_lengths, run in 1:nruns, infer_ic in ic_estims, model in models,
         noise in noises, perturb in perturbs, shift in shifts, lr in lrs
 
         optim_backend = SGDBackend(Adam(lr),
@@ -67,7 +67,7 @@ function create_simulation_parameters()
 
         data, p_true = generate_data(model; tspan, fixed_params...)
 
-        varying_params = (; segmentsize,
+        varying_params = (; segment_length,
             optim_backend,
             experimental_setup = infer_ic,
             model,

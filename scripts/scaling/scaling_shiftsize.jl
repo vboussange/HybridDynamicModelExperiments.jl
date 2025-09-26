@@ -68,14 +68,14 @@ lux_true_model = ODEModel((; parameters), dudt; alg, abstol, reltol, tspan, save
 ps_true, st = Lux.setup(rng, lux_true_model)
 data, _ = lux_true_model((; u0 = u0_true), ps_true, st)
 
-segmentsize = 8
+segment_length = 8
 batchsize = 10
 shifts = [2, 4, 6, 8]
 results = []
 for shift in shifts, infer_ics in (true, false)
     @info "Benchmarking shift: $shift, infer_ics: $infer_ics"
     dataloader = SegmentedTimeSeries((data, tsteps);
-        segmentsize,
+        segment_length,
         partial_batch = true,
         batchsize,
         shift,

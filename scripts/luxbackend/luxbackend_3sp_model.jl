@@ -56,7 +56,7 @@ function generate_data(; alg, abstol, reltol, tspan, tsteps, p_true, rng, kwargs
 end
 
 function create_simulation_parameters()
-    segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
+    segment_lengths = floor.(Int, exp.(range(log(2), log(100), length = 6)))
     nruns = 10
     models = [Model3SP()]
     ic_estims = [
@@ -68,7 +68,7 @@ function create_simulation_parameters()
     noises = [0.1, 0.2, 0.3]
 
     pars_arr = []
-    for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims, model in models,
+    for segment_length in segment_lengths, run in 1:nruns, infer_ic in ic_estims, model in models,
         lr in lrs, noise in noises
 
         optim_backend = SGDBackend(Adam(lr),
@@ -77,7 +77,7 @@ function create_simulation_parameters()
             fixed_params.loss_fn;
             fixed_params.verbose_frequency,
             callback)
-        varying_params = (; segmentsize,
+        varying_params = (; segment_length,
             optim_backend,
             experimental_setup = infer_ic,
             model,

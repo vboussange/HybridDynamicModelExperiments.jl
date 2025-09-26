@@ -97,7 +97,7 @@ growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, 1))
-segmentsize = 4
+segment_length = 4
 batchsize = 10
 loss_fn = LogMSELoss()
 weight_decay = 1e-5
@@ -133,8 +133,8 @@ ax2 = Plots.plot(tsteps, preds', title = "Initial preds.")
 display(plot(ax1, ax2))
 
 dataloader = SegmentedTimeSeries((data_with_noise, tsteps);
-    segmentsize,
-    shift = segmentsize - 2,
+    segment_length,
+    shift = segment_length - 2,
     batchsize,
     partial_batch = true) |> ftype
 

@@ -43,7 +43,7 @@ myparams = (alg = Tsit5(),
             batchsize = 10,
             forecast_length = 10,
             perturb = 1e-4,
-            segmentsize=3,
+            segment_length=3,
             model,
             noise = 0.)
 
@@ -52,7 +52,7 @@ data = generate_data(; tspan, myparams...)
 
 optim_backend = SGDBackend(Adam(1e-5), 1, AutoZygote(), LogMSELoss())
 infer_ics = InferICs(true)
-dataloader = SegmentedTimeSeries((data, tsteps), segmentsize = myparams.segmentsize,
+dataloader = SegmentedTimeSeries((data, tsteps), segment_length = myparams.segment_length,
     batchsize = myparams.batchsize, partial_batch = true)
 lux_model = init(model, optim_backend; p_true, myparams...).lux_model
 

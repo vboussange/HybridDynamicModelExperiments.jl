@@ -101,7 +101,7 @@ growth_rate = Lux.Chain(Lux.Dense(1, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, HlSize, NNlib.tanh),
     Lux.Dense(HlSize, 1))
-segmentsize = 4
+segment_length = 4
 batchsize = 10
 loss_fn = LogMSELoss()
 weight_decay = 1e-5
@@ -112,7 +112,7 @@ valid_length = 1
 ftype = Lux.f64
 
 dataloader_train, dataloader_valid = create_train_val_loaders((data_with_noise, tsteps);
-    segmentsize,
+    segment_length,
     valid_length,
     batchsize,
     partial_batch = true) |> ftype

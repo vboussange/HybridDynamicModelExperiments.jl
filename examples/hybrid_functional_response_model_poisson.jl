@@ -60,12 +60,12 @@ Plots.scatter(tsteps, data_with_noise', label = "true data", title="Synthetic da
 
 # training parameters
 loss_fn = PoissonLoss()
-segmentsize = 2
+segment_length = 2
 batchsize = 10
 lr_init = 1e-2
 weight_decay = 1e-9
 dataloader = SegmentedTimeSeries((data_with_noise, tsteps); 
-                            segmentsize, 
+                            segment_length, 
                             batchsize,
                             partial_batch = true)
 

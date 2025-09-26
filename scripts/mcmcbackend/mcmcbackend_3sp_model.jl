@@ -53,13 +53,13 @@ function generate_data(;alg, abstol, reltol, tspan, tsteps, p_true, rng, kwargs.
 end
 
 function create_simulation_parameters()
-    segmentsizes = floor.(Int, exp.(range(log(2), log(100), length=6)))
+    segment_lengths = floor.(Int, exp.(range(log(2), log(100), length=6)))
     models = [Model3SP()]
     nruns = 5
 
     pars_arr = []
-    for segmentsize in segmentsizes, model in models, _ in 1:nruns
-        varying_params = (;segmentsize,
+    for segment_length in segment_lengths, model in models, _ in 1:nruns
+        varying_params = (;segment_length,
                             model)
         push!(pars_arr, varying_params)
     end

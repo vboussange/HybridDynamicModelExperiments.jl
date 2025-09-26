@@ -33,13 +33,13 @@ legend = true
 # println(df_results)
 fig, axs = plt.subplots(1, 3, figsize = (8,3))
 
-gdf_results = groupby(df_result, [:segmentsize], sort=true)
+gdf_results = groupby(df_result, [:segment_length], sort=true)
 ax = axs[0]
 
 ylab = "Parameter error"
 y = [df[:, "med_par_err"] for df in gdf_results]
 positions = 1:length(gdf_results)
-x = [df[:, "segmentsize"][1] for df in gdf_results]
+x = [df[:, "segment_length"][1] for df in gdf_results]
 boxplot(ax; 
         y,
         positions, 
@@ -65,10 +65,10 @@ display(fig)
 
 ax = axs[2]
 ylab = "Simulation time\nper epoch (s)"
-gdf_results = groupby(df_scaling_lux, [:segmentsize, :infer_ics])
+gdf_results = groupby(df_scaling_lux, [:segment_length, :infer_ics])
 
 boxplot_byclass(gdf_results, ax; 
-        xname = :segmentsize,
+        xname = :segment_length,
         yname = :time, 
         xlab = "", 
         ylab, 

@@ -78,8 +78,8 @@ ax = Plots.plot(tsteps, preds', title="Initial predictions from hybrid model")
 display(ax)
 # Defining inference problem
 # Model initialized with perturbed parameters
-segmentsize = 5
-dataloader = SegmentedTimeSeries((data_with_noise, tsteps); segmentsize, batchsize, partial_batch = true)
+segment_length = 5
+dataloader = SegmentedTimeSeries((data_with_noise, tsteps); segment_length, batchsize, partial_batch = true)
 backend = SGDBackend(Adam(1e-2), 1000, adtype, LogMSELoss())
 
 # infer_ics = InferICs(true,

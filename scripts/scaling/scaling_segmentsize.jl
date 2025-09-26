@@ -29,7 +29,7 @@ setup_distributed_environment(4)
             experimental_setup::InferICs;
             model,
             p_true,
-            segmentsize,
+            segment_length,
             batchsize,
             shift = nothing,
             noise,
@@ -45,7 +45,7 @@ setup_distributed_environment(4)
         train_idx, test_idx = HybridDynamicModelExperiments.split_data(data, forecast_length)
         dataloader = SegmentedTimeSeries(
             (data_w_noise[:, train_idx], tsteps[train_idx]);
-            segmentsize,
+            segment_length,
             batchsize,
             shift,
             partial_batch = true
@@ -54,7 +54,7 @@ setup_distributed_environment(4)
         # Lux model initialization with biased parameters
         lux_model = HybridDynamicModelExperiments.init(model, optim_backend; p_true, sensealg, rng, kwargs...)
         println(
-            "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridDynamicModelExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+            "Benchmarking segment_length = $segment_length, noise = $noise, backend = $(HybridDynamicModelExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
         )
 
         time = missing
@@ -76,7 +76,7 @@ setup_distributed_environment(4)
             time,
             memory,
             allocs,
-            segmentsize,
+            segment_length,
             sensealg = string(typeof(sensealg)),
             optim_backend = HybridDynamicModelExperiments.nameof(optim_backend),
             infer_ics = HybridDynamicModelExperiments.is_ics_estimated(experimental_setup),
@@ -89,7 +89,7 @@ setup_distributed_environment(4)
             experimental_setup;
             model,
             p_true,
-            segmentsize,
+            segment_length,
             shift = nothing,
             noise,
             data,
@@ -104,7 +104,7 @@ setup_distributed_environment(4)
         train_idx, test_idx = HybridDynamicModelExperiments.split_data(data, forecast_length)
         dataloader = SegmentedTimeSeries(
             (data_w_noise[:, train_idx], tsteps[train_idx]);
-            segmentsize,
+            segment_length,
             shift,
             partial_batch = true
         )
@@ -112,7 +112,7 @@ setup_distributed_environment(4)
         # Lux model initialization with biased parameters
         lux_model = HybridDynamicModelExperiments.init(model, optim_backend; p_true, sensealg, kwargs...)
         println(
-            "Benchmarking segmentsize = $segmentsize, noise = $noise, backend = $(HybridDynamicModelExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+            "Benchmarking segment_length = $segment_length, noise = $noise, backend = $(HybridDynamicModelExperiments.nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
         )
 
         time = missing
@@ -133,7 +133,7 @@ setup_distributed_environment(4)
             time,
             memory,
             allocs,
-            segmentsize,
+            segment_length,
             sensealg = string(typeof(sensealg)),
             optim_backend = HybridDynamicModelExperiments.nameof(optim_backend),
             infer_ics = HybridDynamicModelExperiments.is_ics_estimated(experimental_setup),
@@ -194,7 +194,7 @@ function generate_data(model::Model7SP; alg, abstol, reltol, tspan, tsteps, rng,
 end
 
 function create_simulation_parameters()
-    segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
+    segment_lengths = floor.(Int, exp.(range(log(2), log(100), length = 6)))
     models = [Model3SP(), Model5SP(), Model7SP()]
     ic_estims = [InferICs(true), InferICs(false)]
     datadistrib = x -> LogNormal(log(max(x, 1e-6)))
@@ -206,10 +206,10 @@ function create_simulation_parameters()
             HMC(0.05, 4, adtype = AutoForwardDiff()), nits, datadistrib; progress = false)]
 
     pars_arr = []
-    for segmentsize in segmentsizes, infer_ic in ic_estims, model in models, optim_backend in backends
+    for segment_length in segment_lengths, infer_ic in ic_estims, model in models, optim_backend in backends
 
         data, p_true = generate_data(model; tspan, fixed_params...)
-        varying_params = (; segmentsize,
+        varying_params = (; segment_length,
             optim_backend,
             experimental_setup = infer_ic,
             model,

@@ -23,7 +23,7 @@ result_name = "../../scripts/luxbackend/results/luxbackend_gridsearch_3sp_5sp_7s
 df = load(result_name, "results")
 dropmissing!(df, :med_par_err)
 rename!(df, "forecast_err" => "Forecast error", "med_par_err" => "Parameter error")
-dims = [:segmentsize, :infer_ics,  :lr]
+dims = [:segment_length, :infer_ics,  :lr]
 lmodelnames = [L"\mathcal{M}_3", L"\mathcal{M}_5", L"\mathcal{M}_7"]
 
 for perturb in unique(df.perturb), noise in unique(df.noise)
@@ -50,7 +50,7 @@ for perturb in unique(df.perturb), noise in unique(df.noise)
             # Normalize data to [0, 1] for each dimension
             data_norm = DataFrame()
             for col in dims
-                if col in [:lr, :weight_decay, :segmentsize, :HlSize]
+                if col in [:lr, :weight_decay, :segment_length, :HlSize]
                     # Log scale for these columns (assuming positive values)
                     log_vals = log.(data[!, col])
                     min_val = minimum(log_vals)
@@ -93,7 +93,7 @@ for perturb in unique(df.perturb), noise in unique(df.noise)
             end
 
             # Add axes for each dimension
-            dict_ticks = Dict(:infer_ics => ["false", "true"], :lr => ["1e-3, 1e-2, 1e-1"], :segmentsize => string.(floor.(Int, exp.(range(log(2), log(100), length = 6)))))
+            dict_ticks = Dict(:infer_ics => ["false", "true"], :lr => ["1e-3, 1e-2, 1e-1"], :segment_length => string.(floor.(Int, exp.(range(log(2), log(100), length = 6)))))
             for j in 1:n_dims
                 col = dims[j]
                 # Draw vertical axis line
@@ -115,7 +115,7 @@ for perturb in unique(df.perturb), noise in unique(df.noise)
                         log_min = minimum(log.(data[!, col]))
                         log_max = maximum(log.(data[!, col]))
                         tick_norm = (log.(unique_vals) .- log_min) ./ (log_max - log_min)
-                    elseif col in [:segmentsize, :HlSize]
+                    elseif col in [:segment_length, :HlSize]
                         labels = dict_ticks[col]
                         # Normalize unique values (log scale)
                         log_min = minimum(log.(data[!, col]))
@@ -151,7 +151,7 @@ for perturb in unique(df.perturb), noise in unique(df.noise)
 
             # Set x-ticks and labels
             ax.set_xticks(1:n_dims)
-            names = replace(dims, :segmentsize => "Segment length\n"*L"S", :infer_ics => "IC\nestimation", :lr => "Learning rate\n"*L"\gamma")
+            names = replace(dims, :segment_length => "Segment length\n"*L"S", :infer_ics => "IC\nestimation", :lr => "Learning rate\n"*L"\gamma")
             ax.set_xticklabels([string(name) for name in names])
             # ax.set_title("Parallel Coordinates Plot Colored by Log Forecast Error")
             ax.yaxis.set_visible(false)

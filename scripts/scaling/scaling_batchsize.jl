@@ -68,15 +68,15 @@ lux_true_model = ODEModel((; parameters), dudt; alg, abstol, reltol, tspan, save
 ps_true, st = Lux.setup(rng, lux_true_model)
 data, _ = lux_true_model((; u0 = u0_true), ps_true, st)
 
-segmentsize = 4
+segment_length = 4
 max_batch = length(tokens(tokenize(SegmentedTimeSeries(
-    data; segmentsize, partial_batch = true))))
+    data; segment_length, partial_batch = true))))
 results = []
 batchsizes = floor.(Int, exp.(range(log(1), log(max_batch), length = 5)))
 for batchsize in batchsizes, infer_ics in (true, false)
     @info "Benchmarking batch size: $batchsize"
     dataloader = SegmentedTimeSeries((data, tsteps);
-        segmentsize,
+        segment_length,
         partial_batch = true,
         batchsize
     )

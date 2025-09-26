@@ -77,7 +77,7 @@ function generate_data(model::Model7SP; alg, abstol, reltol, tspan, tsteps, rng,
 end
 
 function create_simulation_parameters()
-    segmentsizes = floor.(Int, exp.(range(log(2), log(100), length = 6)))
+    segment_lengths = floor.(Int, exp.(range(log(2), log(100), length = 6)))
     nruns = 5
     models = [Model3SP(), Model5SP(), Model7SP()]
     ic_estims = [
@@ -90,7 +90,7 @@ function create_simulation_parameters()
     lrs = [1e-3, 1e-2, 1e-1]
 
     pars_arr = []
-    for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims, model in models,
+    for segment_length in segment_lengths, run in 1:nruns, infer_ic in ic_estims, model in models,
         noise in noises, perturb in perturbs, lr in lrs
 
         optim_backend = SGDBackend(Adam(lr),
@@ -101,7 +101,7 @@ function create_simulation_parameters()
 
         data, p_true = generate_data(model; tspan, fixed_params...)
 
-        varying_params = (; segmentsize,
+        varying_params = (; segment_length,
             optim_backend,
             experimental_setup = infer_ic,
             model,

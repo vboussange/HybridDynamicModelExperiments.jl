@@ -39,8 +39,8 @@ function format_column(val)
 end
 
 # only selecting min
-# for each (segmentsize, weight_decay, infer_ics) combo, keep row with min forecast_err
-# keys = [:segmentsize, :weight_decay, :infer_ics]
+# for each (segment_length, weight_decay, infer_ics) combo, keep row with min forecast_err
+# keys = [:segment_length, :weight_decay, :infer_ics]
 # df_filtered = combine(groupby(df, keys)) do sdf
 #         sdf[argmin(sdf.forecast_err), :]
 # end
@@ -55,7 +55,7 @@ df_filtered = combine(groupby(df, keys),
 )
 
 # exporting tex table
-select!(df_filtered, [:forecast_err, :forecast_err_std, :segmentsize, :weight_decay, :infer_ics])
+select!(df_filtered, [:forecast_err, :forecast_err_std, :segment_length, :weight_decay, :infer_ics])
 sort!(df_filtered, keys)
 println("Best model configuration:")
 display(df_filtered[df_filtered.forecast_err .== minimum(df_filtered.forecast_err),:])
@@ -108,11 +108,11 @@ end
 
 # fig, axs = plt.subplots(2, 1, figsize = (6,6), sharex = "col", sharey = "row")
 # # averaging by nruns
-# gdf_results = groupby(df_filtered, [:segmentsize, classname])
+# gdf_results = groupby(df_filtered, [:segment_length, classname])
 # ax = axs[0]
 
 # boxplot_byclass(gdf_results, ax;
-#         xname = :segmentsize,
+#         xname = :segment_length,
 #         yname = :med_par_err, 
 #         xlab = "Segment size", 
 #         ylab = "Parameter error", 
@@ -129,7 +129,7 @@ end
 
 # ax = axs[1]
 # boxplot_byclass(gdf_results, ax; 
-#         xname = :segmentsize,
+#         xname = :segment_length,
 #         yname = :forecast_err, 
 #         xlab =  "Segment size", 
 #         ylab = "Forecast error", 

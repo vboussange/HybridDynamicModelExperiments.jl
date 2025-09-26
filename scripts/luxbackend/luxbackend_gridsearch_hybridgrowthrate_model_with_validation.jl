@@ -88,7 +88,7 @@ function generate_data(
 end
 
 function create_simulation_parameters()
-    segmentsizes = floor.(Int, exp.(range(log(2), log(100 - valid_length), length = 6)))
+    segment_lengths = floor.(Int, exp.(range(log(2), log(100 - valid_length), length = 6)))
     nruns = 5
     ic_estims = [
         InferICs(true,
@@ -104,7 +104,7 @@ function create_simulation_parameters()
     activations = [NNlib.tanh, NNlib.relu]
 
     pars_arr = []
-    for segmentsize in segmentsizes, run in 1:nruns, infer_ic in ic_estims,
+    for segment_length in segment_lengths, run in 1:nruns, infer_ic in ic_estims,
         noise in noises, weight_decay in weight_decays, perturb in perturbs, lr in lrs,
         batchsize in batchsizes, HlSize in HlSizes, activation in activations
 
@@ -117,7 +117,7 @@ function create_simulation_parameters()
         data, p_true = generate_data(model; tspan, fixed_params...)
         experimental_setup = WithValidation(infer_ic)
 
-        varying_params = (; segmentsize,
+        varying_params = (; segment_length,
             optim_backend,
             experimental_setup,
             noise,

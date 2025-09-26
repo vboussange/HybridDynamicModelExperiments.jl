@@ -59,15 +59,15 @@ def highlight_top_three_errors(df, column):
 """ => highlight_top_three_errors
 
 # only selecting min
-# for each (segmentsize, weight_decay, infer_ics) combo, keep row with min forecast_err
-# keys = [:segmentsize, :weight_decay, :infer_ics]
+# for each (segment_length, weight_decay, infer_ics) combo, keep row with min forecast_err
+# keys = [:segment_length, :weight_decay, :infer_ics]
 # df_filtered = combine(groupby(df, keys)) do sdf
 #         sdf[argmin(sdf.forecast_err), :]
 # end
 # sort!(df_filtered, keys)
 
 # selecting median
-df_keys = [:segmentsize, :HlSize, :weight_decay, :infer_ics, :noise, :lr]
+df_keys = [:segment_length, :HlSize, :weight_decay, :infer_ics, :noise, :lr]
 df_filtered = combine(groupby(df, df_keys),
         :forecast_err => (x -> median(skipmissing(x))) => :forecast_err,
         :forecast_err => (x -> std(skipmissing(x))) => :forecast_err_std,
@@ -83,7 +83,7 @@ df_filtered = df_filtered[df_filtered.noise .== 0.2, :]
 println("Best model configuration overall:")
 display(df_filtered[df_filtered.forecast_err .== minimum(df_filtered.forecast_err),:])
 
-## grid search over HlSize, segmentsize, infer_ics
+## grid search over HlSize, segment_length, infer_ics
 df_filtered1 = df_filtered[(df_filtered.lr .== 0.001) .&& (df_filtered.weight_decay .== 1e-5), :]
 
 sort!(df_filtered1, df_keys)
@@ -103,12 +103,12 @@ latex_code = df_pd.style.hide(
     label="tab:model_results"
 ) |> string
         
-open("gridsearch_results_hlsize_segmentsize_infer_ics.txt", "w") do io
+open("gridsearch_results_hlsize_segment_length_infer_ics.txt", "w") do io
         print(io, latex_code)
 end
 
 ## grid search over weightdecay, learning rate
-df_filtered2 = df_filtered[(df_filtered.HlSize .== 16) .&& (df_filtered.segmentsize .== 4) .&& (df_filtered.infer_ics .== true), :]
+df_filtered2 = df_filtered[(df_filtered.HlSize .== 16) .&& (df_filtered.segment_length .== 4) .&& (df_filtered.infer_ics .== true), :]
 
 sort!(df_filtered2, df_keys)
 println("Best model configuration:")

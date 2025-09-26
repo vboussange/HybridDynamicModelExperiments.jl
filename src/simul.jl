@@ -75,7 +75,7 @@ function simu(
         experimental_setup::WithValidation;
         model,
         p_true,
-        segmentsize,
+        segment_length,
         batchsize,
         noise,
         data,
@@ -97,7 +97,7 @@ function simu(
     train_idx, test_idx = split_data(data, forecast_length)
 
     dataloader_train, dataloader_valid = create_train_val_loaders((data_w_noise[:, train_idx], tsteps[train_idx]);
-                                                                    segmentsize,
+                                                                    segment_length,
                                                                     valid_length,
                                                                     batchsize,
                                                                     partial_batch = true)
@@ -106,7 +106,7 @@ function simu(
     # Lux model initialization with biased parameters
     lux_model = init(model, optim_backend; p_true, sensealg, rng, kwargs...)
     println(
-        "Launching simulations for segmentsize = $segmentsize, noise = $noise, backend = $(nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+        "Launching simulations for segment_length = $segment_length, noise = $noise, backend = $(nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
     )
 
     med_par_err = missing
@@ -138,7 +138,7 @@ function simu(
         modelname = nameof(model),
         ps,
         ics,
-        segmentsize,
+        segment_length,
         batchsize,
         noise,
         lr = get_lr(optim_backend.opt),
@@ -155,7 +155,7 @@ function simu(
         experimental_setup::InferICs;
         model,
         p_true,
-        segmentsize,
+        segment_length,
         batchsize,
         shift = nothing,
         noise,
@@ -175,7 +175,7 @@ function simu(
     train_idx, test_idx = split_data(data, forecast_length)
     dataloader = SegmentedTimeSeries(
         (data_w_noise[:, train_idx], tsteps[train_idx]);
-        segmentsize,
+        segment_length,
         batchsize,
         shift,
         partial_batch = true
@@ -184,7 +184,7 @@ function simu(
     # Lux model initialization with biased parameters
     lux_model = init(model, optim_backend; p_true, sensealg, rng, kwargs...)
     println(
-        "Launching simulations for segmentsize = $segmentsize, noise = $noise, backend = $(nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+        "Launching simulations for segment_length = $segment_length, noise = $noise, backend = $(nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
     )
 
     med_par_err = missing
@@ -216,7 +216,7 @@ function simu(
         modelname = nameof(model),
         ps,
         ics,
-        segmentsize,
+        segment_length,
         batchsize,
         shift,
         noise,
@@ -290,7 +290,7 @@ function simu(
         experimental_setup;
         model,
         p_true,
-        segmentsize,
+        segment_length,
         shift = nothing,
         noise,
         data,
@@ -309,13 +309,13 @@ function simu(
     train_idx, test_idx = 1:(size(data, 2) - forecast_length - 1),
     (size(data, 2) - forecast_length):size(data, 2)
     dataloader = SegmentedTimeSeries(
-        (data_w_noise[:, train_idx], tsteps[train_idx]); segmentsize, shift
+        (data_w_noise[:, train_idx], tsteps[train_idx]); segment_length, shift
     )
 
     # Lux model initialization with biased parameters
     lux_model = init(model, optim_backend; p_true, sensealg, kwargs...)
     println(
-        "Launching simulations for segmentsize = $segmentsize, noise = $noise, backend = $(nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
+        "Launching simulations for segment_length = $segment_length, noise = $noise, backend = $(nameof(optim_backend)), experimental_setup = $(typeof(experimental_setup))",
     )
 
     med_par_err = missing
@@ -338,7 +338,7 @@ function simu(
         med_par_err,
         forecast_err,
         model = nameof(model),
-        segmentsize,
+        segment_length,
         noise,
         sampler = string(typeof(optim_backend.sampler)),
         optim_backend = nameof(optim_backend),

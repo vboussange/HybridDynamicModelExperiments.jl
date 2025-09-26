@@ -1,6 +1,6 @@
 This repository contains the code used for the paper 
 
-> *Partitioning time series to improve process-based models with machine learning*, Boussange, V., Vilimelis-Aceituno, P., Schäfer, F., Pellissier, L., (2024)
+> *A calibration framework to improve mechanistic forecasts with hybrid dynamic models*, Boussange, V., Vilimelis-Aceituno, P., Schäfer, F., Pellissier, L., (2024)
 
 ## Content
 - `src/` contains utility functions and types specific to the experiments presented in the manuscript, such as e.g. models and the loss function

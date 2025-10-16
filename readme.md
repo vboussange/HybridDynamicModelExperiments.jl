@@ -1,6 +1,6 @@
 This repository contains the code used for the paper 
 
-> *A calibration framework to improve mechanistic forecasts with hybrid dynamic models*, Boussange, V., Vilimelis-Aceituno, P., Schäfer, F., Pellissier, L., (2024)
+> Boussange, V., Vilimelis-Aceituno, P., Schäfer, F., Pellissier, L., *A calibration framework to improve mechanistic forecasts with hybrid dynamic models*. Accepted in Methods in Ecology and Evolution. [bioRxiv](https://www.biorxiv.org/content/10.1101/2022.07.25.501365v4)  (2024)
 
 ## Content
 - `src/` contains utility functions and types specific to the experiments presented in the manuscript, such as e.g. models and the loss function
